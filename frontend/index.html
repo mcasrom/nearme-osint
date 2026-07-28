@@ -422,7 +422,7 @@
         </div>
         <div class="info-footer">
             NearMe OSINT v0.7 — PWA instalable y POI cercanos &nbsp;—&nbsp; Auto-refresh cada 5 min &nbsp;—&nbsp; <span id="update-time">—</span>
-            <button id="poiBtn" class="btn btn-sm btn-outline" style="float:right;font-size:0.7em;margin-right:4px;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
+            <button id="poiBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;margin-right:4px;cursor:pointer;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
             <button id="refreshBtn" class="btn btn-sm btn-outline" style="float:right;font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
             <label style="float:right;font-size:0.7em;margin-right:4px;color:#607d8b;">
                 <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"> Auto
@@ -639,33 +639,38 @@ async function searchNearbyPOIs(lat, lon) {
         'bomberos': 'fire_station',
         'refugio': 'shelter',
     };
+    const panel = document.getElementById('poi-panel');
+    panel.style.display = 'block';
+    panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header">Buscando cerca de ' + lat + ', ' + lon + '...</div></div>';
     try {
         const queries = Object.entries(categories).map(async ([label, amenity]) => {
-            const q = `[out:json][timeout:15];(node["amenity"="${amenity}"](around:${radius},${lat},${lon});way["amenity"="${amenity}"](around:${radius},${lat},${lon});relation["amenity"="${amenity}"](around:${radius},${lat},${lon}););out body;`;
+            const q = '[out:json][timeout:15];node["amenity"="' + amenity + '"](around:' + radius + ',' + lat + ',' + lon + ');out body;';
             try {
-                const resp = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, {
+                const resp = await fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q), {
                     headers: { 'User-Agent': 'NearMeOSINT/1.0' }
                 });
                 if (!resp.ok) return { label, items: [] };
                 const data = await resp.json();
-                return { label, items: (data.elements || []).map(el => ({
-                    name: el.tags.name || el.tags['name:es'] || amenity,
-                    lat: el.lat,
-                    lon: el.lon,
-                    distance: Math.round(distHaversine(lat, lon, el.lat || lat, el.lon || lon)),
-                })).sort((a, b) => a.distance - b.distance).slice(0, 5) };
+                return { label, items: (data.elements || []).map(function(el) {
+                    return {
+                        name: (el.tags && (el.tags.name || el.tags['name:es'])) || amenity,
+                        lat: el.lat,
+                        lon: el.lon,
+                        distance: Math.round(distHaversine(lat, lon, el.lat, el.lon)),
+                    };
+                }).sort(function(a, b) { return a.distance - b.distance; }).slice(0, 5) };
             } catch { return { label, items: [] }; }
         });
         const results = await Promise.all(queries);
         renderPOIPanel(results);
-        poiMarkers.forEach(m => map.removeLayer(m));
+        poiMarkers.forEach(function(m) { map.removeLayer(m); });
         poiMarkers.length = 0;
-        results.forEach(({ label, items }) => {
-            items.forEach(item => {
-                const marker = L.circleMarker([item.lat, item.lon], {
+        results.forEach(function(r) {
+            r.items.forEach(function(item) {
+                var marker = L.circleMarker([item.lat, item.lon], {
                     radius: 6, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.7, weight: 1,
                 }).addTo(map);
-                marker.bindPopup(`<strong>${label}</strong>: ${item.name}<br>${item.distance} m`);
+                marker.bindPopup('<strong>' + r.label + '</strong>: ' + item.name + '<br>' + item.distance + ' m');
                 poiMarkers.push(marker);
             });
         });
@@ -683,16 +688,20 @@ function distHaversine(lat1, lon1, lat2, lon2) {
 }
 
 function renderPOIPanel(results) {
-    const panel = document.getElementById('poi-panel');
+    var panel = document.getElementById('poi-panel');
     if (!panel) return;
-    const hasItems = results.some(r => r.items.length > 0);
-    if (!hasItems) { panel.style.display = 'none'; return; }
+    var hasItems = results.some(function(r) { return r.items.length > 0; });
+    if (!hasItems) {
+        panel.style.display = 'none';
+        return;
+    }
     panel.style.display = 'block';
-    panel.innerHTML = '<div class="poi-header">Cerca de ti <span class="poi-close" onclick="this.parentElement.parentElement.style.display=\'none\'">&times;</span></div>' +
-        results.filter(r => r.items.length > 0).map(r =>
-            `<div class="poi-category"><strong>${r.label}</strong>${r.items.map(i =>
-                `<div class="poi-item">&bull; ${i.name} (${i.distance}m)</div>`).join('')}</div>`
-        ).join('');
+    panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header">Cerca de ti <span class="poi-close" onclick="this.closest(\'#poi-panel\').style.display=\'none\'">&times;</span></div>' +
+        results.filter(function(r) { return r.items.length > 0; }).map(function(r) {
+            return '<div class="poi-category"><strong>' + r.label + '</strong>' + r.items.map(function(i) {
+                return '<div class="poi-item">&bull; ' + i.name + ' (' + i.distance + 'm)</div>';
+            }).join('') + '</div>';
+        }).join('') + '</div>';
 }
 
 let poiMarkers = [];
