@@ -114,10 +114,13 @@
 - [x] Módulo `src/metrics.py` — PipelineMetrics registra latencia y éxito por colector
 - [x] Endpoint `/api/metrics` expone resumen de ejecuciones recientes
 
-### Sprint 20 — Mejoras de interfaz (28 Jul 2026)
-- [x] Auto-refresh del mapa cada 5 minutos sin recargar página
-- [x] Botón manual de refresh (🔄) en el footer del sidebar
-- [x] Toggle de auto-refresh + countdown hasta próximo refresh, `requests` eliminado
+### Sprint 20 — PWA y responsividad (28 Jul 2026)
+- [x] `frontend/manifest.json` — metadata PWA (name, icons, display standalone, theme color)
+- [x] `frontend/sw.js` — service worker con cache offline (estrategia network-first para API, cache-first para assets estáticos)
+- [x] Meta tags PWA en `index.html` (`manifest`, `apple-mobile-web-app-*`, `theme-color`, `viewport`)
+- [x] Registro de service worker en JS
+- [x] CSSResponsive — layouts columna en `<768px`, sidebar overlay en móvil, botones/tipografías adaptativos
+- [x] Auto-refresh del mapa cada 5 minutos con toggle manual + countdown
 
 ---
 
