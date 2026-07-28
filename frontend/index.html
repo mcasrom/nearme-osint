@@ -323,7 +323,7 @@
         .poi-category { padding: 4px 10px; font-size: 0.78em; border-bottom: 1px solid #1a2a4a; background: #111827; }
         .poi-item { padding: 2px 0; color: #b0bec5; }
         .poi-panel-wrap { background: #111827; border-radius: 0 0 8px 8px; border: 1px solid #1a2a4a; border-top: none; margin-bottom: 8px; }
-        #poi-panel { position: sticky; top: 0; z-index: 10; }
+        #poi-panel { margin-bottom: 12px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
 
         @media (max-width: 768px) {
             #app { flex-direction: column; }
@@ -388,10 +388,10 @@
             <div class="filters-body" id="filtersBody"></div>
         </div>
 
+        <div id="poi-panel" style="display:none;"></div>
         <div id="stats" class="stats"></div>
         <div class="legend" id="legend"></div>
         <div id="events"><div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div></div>
-        <div id="poi-panel" style="display:none;"></div>
 
         <div class="info-section">
             <details>
@@ -423,7 +423,7 @@
             </details>
         </div>
         <div class="info-footer">
-            <span>NearMe OSINT v0.7 — PWA &amp; POI &nbsp;—&nbsp; Auto-refresh 5min &nbsp;—&nbsp; <span id="update-time">—</span></span>
+            <span>NearMe OSINT v0.8 — PWA &amp; POI &nbsp;—&nbsp; Auto-refresh 5min &nbsp;—&nbsp; <span id="update-time">—</span></span>
             <button id="poiBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;cursor:pointer;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
             <button id="refreshBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
             <label style="font-size:0.7em;color:#607d8b;cursor:pointer;">
@@ -627,56 +627,47 @@ function onMapClick(e) {
     currentLon = Math.round(e.latlng.lng * 1000) / 1000;
     updateMap();
     loadEvents();
+    searchNearbyPOIs(currentLat, currentLon);
 }
 
 async function searchNearbyPOIs(lat, lon) {
-    const radius = 2000;
-    const categories = {
-        'hospital': 'hospital',
-        'clinica': 'clinic',
-        'farmacia': 'pharmacy',
-        'gasolinera': 'fuel',
-        'punto_recarga': 'charging_station',
-        'policia': 'police',
-        'bomberos': 'fire_station',
-        'refugio': 'shelter',
-    };
+    if (poiController) poiController.abort();
+    poiController = new AbortController();
+    var poiTimeout = setTimeout(function() { poiController.abort(); }, 20000);
     const panel = document.getElementById('poi-panel');
     panel.style.display = 'block';
-    panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header">Buscando cerca de ' + lat + ', ' + lon + '...</div></div>';
+    panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header" style="background:#004d40;color:#fff;">📍 Buscando cerca de ' + lat + ', ' + lon + ' <span class="poi-close" onclick="this.closest(\'#poi-panel\').style.display=\'none\'">&times;</span></div><div style="padding:10px;color:#78909c;font-size:0.85em;">Cargando...</div></div>';
     try {
-        const queries = Object.entries(categories).map(async ([label, amenity]) => {
-            const q = '[out:json][timeout:15];node["amenity"="' + amenity + '"](around:' + radius + ',' + lat + ',' + lon + ');out body;';
-            try {
-                const resp = await fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q), {
-                    headers: { 'User-Agent': 'NearMeOSINT/1.0' }
-                });
-                if (!resp.ok) return { label, items: [] };
-                const data = await resp.json();
-                return { label, items: (data.elements || []).map(function(el) {
-                    return {
-                        name: (el.tags && (el.tags.name || el.tags['name:es'])) || amenity,
-                        lat: el.lat,
-                        lon: el.lon,
-                        distance: Math.round(distHaversine(lat, lon, el.lat, el.lon)),
-                    };
-                }).sort(function(a, b) { return a.distance - b.distance; }).slice(0, 5) };
-            } catch { return { label, items: [] }; }
-        });
-        const results = await Promise.all(queries);
-        renderPOIPanel(results);
+        const resp = await fetch('/api/poi?lat=' + lat + '&lon=' + lon + '&radius=5000', { signal: poiController.signal });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        const results = data.results || [];
         poiMarkers.forEach(function(m) { map.removeLayer(m); });
         poiMarkers.length = 0;
         results.forEach(function(r) {
             r.items.forEach(function(item) {
                 var marker = L.circleMarker([item.lat, item.lon], {
-                    radius: 6, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.7, weight: 1,
+                    radius: 7, color: '#00e676', fillColor: '#00e676', fillOpacity: 0.8, weight: 2,
                 }).addTo(map);
                 marker.bindPopup('<strong>' + r.label + '</strong>: ' + item.name + '<br>' + item.distance + ' m');
                 poiMarkers.push(marker);
             });
         });
-    } catch {}
+        if (results.length === 0) {
+            panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header" style="background:#004d40;color:#fff;">📍 Sin resultados <span class="poi-close" onclick="this.closest(\'#poi-panel\').style.display=\'none\'">&times;</span></div><div style="padding:10px;color:#78909c;font-size:0.85em;">No se encontraron puntos de interés en un radio de 5 km</div></div>';
+        } else {
+            panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header" style="background:#004d40;color:#fff;">📍 Cerca de ti <span class="poi-close" onclick="this.closest(\'#poi-panel\').style.display=\'none\'">&times;</span></div>' +
+                results.map(function(r) {
+                    return '<div class="poi-category"><strong>' + r.label + '</strong>' + r.items.map(function(i) {
+                        return '<div class="poi-item">&bull; ' + i.name + ' (' + i.distance + 'm)</div>';
+                    }).join('') + '</div>';
+                }).join('') + '</div>';
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') { clearTimeout(poiTimeout); return; }
+        panel.innerHTML = '<div class="poi-panel-wrap"><div class="poi-header" style="background:#5a2a2a;color:#fff;">📍 Error <span class="poi-close" onclick="this.closest(\'#poi-panel\').style.display=\'none\'">&times;</span></div><div style="padding:10px;color:#ef5350;font-size:0.85em;">No se pudieron cargar los POI: ' + e.message + '</div></div>';
+    }
+    clearTimeout(poiTimeout);
 }
 
 function distHaversine(lat1, lon1, lat2, lon2) {
@@ -707,6 +698,7 @@ function renderPOIPanel(results) {
 }
 
 let poiMarkers = [];
+let poiController = null;
 
 function locate() {
     if (!navigator.geolocation) return alert('Geolocalizacion no disponible');

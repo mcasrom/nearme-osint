@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nearme-v1';
+const CACHE_NAME = 'nearme-v2';
 const STATIC_ASSETS = [
     '/',
     '/manifest.json',

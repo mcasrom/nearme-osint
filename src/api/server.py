@@ -3,6 +3,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import jwt
 from fastapi import FastAPI, Query, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -178,6 +179,95 @@ def summary(
 def event_types():
     from src.models import EVENT_TYPES
     return EVENT_TYPES
+
+
+_poi_cache: dict[str, tuple[float, list]] = {}
+
+CATEGORIES = {
+    "hospital": "Hospital",
+    "clinic": "Clínica",
+    "pharmacy": "Farmacia",
+    "fuel": "Gasolinera",
+    "charging_station": "Punto recarga",
+    "police": "Policía",
+    "fire_station": "Bomberos",
+    "shelter": "Refugio",
+}
+
+
+@app.get("/api/poi")
+def poi(
+    lat: float = Query(40.42),
+    lon: float = Query(-3.70),
+    radius: int = Query(5000, description="Radio en metros"),
+):
+    cache_key = f"{lat:.1f},{lon:.1f},{radius}"
+    cached = _poi_cache.get(cache_key)
+    if cached and (time.time() - cached[0]) < 120:
+        return cached[1]
+
+    types = list(CATEGORIES.keys())
+    lat_s = f"{lat:.4f}"
+    lon_s = f"{lon:.4f}"
+    query = (
+        '[out:json][timeout:25];('
+        + "".join(f'node["amenity"="{t}"](around:{radius},{lat_s},{lon_s});' for t in types)
+        + ");out body;"
+    )
+    mirrors = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+    ]
+    data = None
+    for url in mirrors:
+        try:
+            resp = httpx.get(
+                url,
+                params={"data": query},
+                headers={"Accept": "application/json", "User-Agent": "NearMeOSINT/1.0"},
+                timeout=25,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except Exception:
+            continue
+    if data is None:
+        raise HTTPException(status_code=502, detail="Overpass API no disponible (rate limit o timeout). Intenta de nuevo en unos segundos.")
+
+    by_type: dict[str, list[dict]] = {}
+    for el in data.get("elements", []):
+        t = el.get("tags", {}).get("amenity", "other")
+        name = el.get("tags", {}).get("name") or el.get("tags", {}).get("name:es") or CATEGORIES.get(t, t)
+        by_type.setdefault(t, []).append({
+            "name": name,
+            "lat": el["lat"],
+            "lon": el["lon"],
+            "distance": _haversine(lat, lon, el["lat"], el["lon"]),
+        })
+
+    results = []
+    for t, items in by_type.items():
+        items.sort(key=lambda x: x["distance"])
+        results.append({"label": CATEGORIES.get(t, t), "items": items[:5]})
+    results.sort(key=lambda r: r["items"][0]["distance"] if r["items"] else 999999)
+
+    payload = {"results": results}
+    _poi_cache[cache_key] = (time.time(), payload)
+    if len(_poi_cache) > 100:
+        old_keys = [k for k, v in _poi_cache.items() if time.time() - v[0] > 300]
+        for k in old_keys:
+            del _poi_cache[k]
+    return payload
+
+
+def _haversine(lat1, lon1, lat2, lon2):
+    import math
+    R = 6371000
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 
 # ----- Auth endpoints -----

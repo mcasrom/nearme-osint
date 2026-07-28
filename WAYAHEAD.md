@@ -128,6 +128,19 @@
 - [x] Resultados mostrados en panel lateral + marcadores en el mapa
 - [x] Distancia calculada con Haversine, ordenados por cercanía, top 5 por categoría
 
+### Sprint 22 — POI en backend proxy + caché + estabilidad (28 Jul 2026)
+- [x] Proxy Overpass en backend (`/api/poi`) — evita CORS/bloqueos red cliente
+- [x] POI auto-trigger al hacer clic en el mapa (antes solo con botón "📍 Cerca")
+- [x] Panel POI movido al inicio de la sidebar para visibilidad inmediata
+- [x] Marcadores en verde, radio 5 km, query Overpass única
+- [x] Caché en backend (2 min por ubicación) + mirror fallback Overpass
+- [x] AbortController en frontend para clicks rápidos
+- [x] Fix bcrypt 5.0.0 incompatible con passlib (downgrade a 4.0.1)
+- [x] Fix dependencias faltantes: pyjwt, httpx, passlib, requests, gtfs-realtime-bindings
+- [x] Fix crash loop PM2 (puerto 8100 ocupado por proceso zombie)
+- [x] Versión frontend v0.8
+
+
 ---
 
 ## 📊 Pipeline actual (~5.470 eventos/15min)
@@ -150,14 +163,11 @@ TOTAL:        ~5.470
 
 ## 🔜 Próximos sprints
 
-### Sprint 18 — ?
-
 ---
 
 ## 🐛 Bugs conocidos
 - [ ] ~20% paradas RENFE sin geolocalización (stop_id no encontrado en CSV estaciones)
 - [ ] Coordenadas incendios RSS aproximadas (por provincia), no geoposicionamiento real
-- [ ] Colectores bloqueantes (`requests`) en pipeline secuencial — considerar async + ThreadPoolExecutor
 
 ---
 
