@@ -122,6 +122,12 @@
 - [x] CSSResponsive — layouts columna en `<768px`, sidebar overlay en móvil, botones/tipografías adaptativos
 - [x] Auto-refresh del mapa cada 5 minutos con toggle manual + countdown
 
+### Sprint 21 — POI cercanos (28 Jul 2026)
+- [x] Al hacer clic en el mapa o pulsar "📍 Cerca", busca POI mediante Overpass API (gratuita, OSM)
+- [x] Categorías: hospital, clínica, farmacia, gasolinera, punto de recarga, policía, bomberos, refugio
+- [x] Resultados mostrados en panel lateral + marcadores en el mapa
+- [x] Distancia calculada con Haversine, ordenados por cercanía, top 5 por categoría
+
 ---
 
 ## 📊 Pipeline actual (~5.470 eventos/15min)
