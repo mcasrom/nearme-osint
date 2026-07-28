@@ -295,7 +295,7 @@
         body.light .reg-benefits strong { color: #455a64; }
 
         .rating-widget {
-            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            position: fixed; bottom: 60px; right: 10px; z-index: 9999;
             background: #0d1520; border: 1px solid #1a2a4a; border-radius: 20px;
             padding: 8px 16px; display: flex; align-items: center; gap: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4); cursor: pointer;
@@ -318,10 +318,12 @@
         body.light .auth-tab { color: #90a4ae; }
         body.light .auth-tab.active { color: #0288d1; border-bottom-color: #0288d1; }
 
-        .poi-header { font-weight: 700; font-size: 0.85em; padding: 8px 10px; background: #111827; border-radius: 6px 6px 0 0; color: #00d4ff; display: flex; justify-content: space-between; align-items: center; }
+        .poi-header { font-weight: 700; font-size: 0.85em; padding: 8px 10px; background: #0a0e17; border-radius: 6px 6px 0 0; color: #00d4ff; display: flex; justify-content: space-between; align-items: center; }
         .poi-close { cursor: pointer; font-size: 1.1em; color: #607d8b; }
-        .poi-category { padding: 4px 10px; font-size: 0.78em; border-bottom: 1px solid #1a2a4a; }
+        .poi-category { padding: 4px 10px; font-size: 0.78em; border-bottom: 1px solid #1a2a4a; background: #111827; }
         .poi-item { padding: 2px 0; color: #b0bec5; }
+        .poi-panel-wrap { background: #111827; border-radius: 0 0 8px 8px; border: 1px solid #1a2a4a; border-top: none; margin-bottom: 8px; }
+        #poi-panel { position: sticky; top: 0; z-index: 10; }
 
         @media (max-width: 768px) {
             #app { flex-direction: column; }
@@ -421,10 +423,10 @@
             </details>
         </div>
         <div class="info-footer">
-            NearMe OSINT v0.7 — PWA instalable y POI cercanos &nbsp;—&nbsp; Auto-refresh cada 5 min &nbsp;—&nbsp; <span id="update-time">—</span>
-            <button id="poiBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;margin-right:4px;cursor:pointer;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
-            <button id="refreshBtn" class="btn btn-sm btn-outline" style="float:right;font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
-            <label style="float:right;font-size:0.7em;margin-right:4px;color:#607d8b;">
+            <span>NearMe OSINT v0.7 — PWA &amp; POI &nbsp;—&nbsp; Auto-refresh 5min &nbsp;—&nbsp; <span id="update-time">—</span></span>
+            <button id="poiBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;cursor:pointer;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
+            <button id="refreshBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
+            <label style="font-size:0.7em;color:#607d8b;cursor:pointer;">
                 <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"> Auto
             </label>
         </div>
