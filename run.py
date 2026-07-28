@@ -1,5 +1,18 @@
+import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+# Load .env if exists
+dotenv = Path(__file__).parent / ".env"
+if dotenv.exists():
+    for line in dotenv.read_text().splitlines():
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[7:]
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ[k.strip()] = v.strip().strip('"').strip("'")
 
 COLLECTORS = []
 
@@ -26,10 +39,15 @@ def register_collectors():
     except Exception as e:
         print(f"[WARN] No se pudo cargar OpenAQ: {e}")
     try:
-        from src.collectors.dgt import DGTCollector
-        COLLECTORS.append(DGTCollector())
+        from src.collectors.dgt import EarthquakesCollector
+        COLLECTORS.append(EarthquakesCollector())
     except Exception as e:
-        print(f"[WARN] No se pudo cargar DGT: {e}")
+        print(f"[WARN] No se pudo cargar USGS: {e}")
+    try:
+        from src.collectors.intelhub_bridge import IntelHubBridge
+        COLLECTORS.append(IntelHubBridge())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar IntelHub bridge: {e}")
 
 
 def run_all():

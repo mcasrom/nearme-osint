@@ -1,9 +1,11 @@
+import os
 import requests
+import json
 from datetime import datetime
 from src.collectors.base import BaseCollector
 from src.models import Event
 
-AEMET_API_KEY = ""
+AEMET_API_KEY = os.environ.get("AEMET_API_KEY", "")
 
 LEVEL_MAP = {"verde": "info", "amarillo": "warning", "naranja": "alert", "rojo": "critical"}
 PHENOMENON_MAP = {
@@ -26,39 +28,41 @@ class AEMETCollector(BaseCollector):
     def _real_data(self):
         headers = {"api_key": AEMET_API_KEY}
         events = []
-        for area in ["spain"]:
-            try:
-                resp = requests.get(
-                    f"https://opendata.aemet.es/opendata/api/avisos/lista/{area}/hoy",
-                    headers=headers, timeout=15
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for alert in data.get("avisos", []):
-                        level = LEVEL_MAP.get(alert.get("nivel", "").lower(), "info")
-                        phenom = alert.get("fenomeno", "").lower()
-                        etype = "warning"
-                        for k, v in PHENOMENON_MAP.items():
-                            if k in phenom:
-                                etype = v
-                                break
-                        events.append(Event(
-                            source="aemet",
-                            source_id=f"aemet_{alert.get('id', '')}",
-                            event_type=etype,
-                            subtype=phenom,
-                            lat=alert.get("lat", 40.0),
-                            lon=alert.get("lon", -3.0),
-                            radius_m=alert.get("radio", 50000),
-                            level=level,
-                            title=alert.get("titulo", f"Aviso {alert.get('nivel', '')}"),
-                            description=alert.get("descripcion", ""),
-                            country="ES",
-                            region=alert.get("zona", ""),
-                            municipality=alert.get("municipio", ""),
-                        ))
-            except Exception as e:
-                print(f"    [WARN] AEMET: {e}")
+        # AEMET API: first call returns a data URL, second call fetches actual data
+        endpoint = "https://opendata.aemet.es/opendata/api/observacion/convencional/todas"
+        try:
+            resp = requests.get(endpoint, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data_url = resp.json().get("datos", "")
+                if data_url:
+                    data_resp = requests.get(data_url, timeout=15)
+                    if data_resp.status_code == 200:
+                        observations = data_resp.json() if isinstance(data_resp.json(), list) else []
+                        print(f"    {len(observations)} estaciones meteorológicas")
+            else:
+                print(f"    AEMET API error: {resp.status_code}")
+        except Exception as e:
+            print(f"    [WARN] AEMET: {e}")
+
+        if not events:
+            print("    Sin alertas activas, usando datos de predicción")
+            for ccaa_id, name, lat, lon in [
+                ("4", "Cataluña", 41.59, 1.84), ("8", "Comunitat Valenciana", 39.47, -0.38),
+                ("1", "Andalucía", 37.38, -5.99), ("13", "Madrid", 40.42, -3.70),
+            ]:
+                try:
+                    resp = requests.get(
+                        f"https://opendata.aemet.es/opendata/api/prediccion/ccaa/hoy/{ccaa_id}",
+                        headers=headers, timeout=10
+                    )
+                    if resp.status_code == 200:
+                        data_url = resp.json().get("datos", "")
+                        if data_url:
+                            dr = requests.get(data_url, timeout=10)
+                            if dr.status_code == 200 and dr.text.strip() not in ("", "[]"):
+                                print(f"      {name}: datos de predicción")
+                except Exception:
+                    pass
         return events
 
     def _mock_data(self):

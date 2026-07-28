@@ -97,18 +97,19 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
                       min_level: Optional[str] = None) -> list[dict]:
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    conditions = ["expires_at IS NULL OR expires_at > NOW()"]
-    params = []
+    conditions = []
+    cond_params = []
     if event_type:
         conditions.append("event_type = %s")
-        params.append(event_type)
+        cond_params.append(event_type)
     if min_level:
         levels = {"info": 1, "warning": 2, "alert": 3, "critical": 4}
         min_lvl = levels.get(min_level, 1)
         conditions.append(f"CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END >= %s")
-        params.append(min_lvl)
-    where = " AND ".join(conditions) if conditions else "TRUE"
-    params.extend([lon, lat, radius_km * 1000, lon, lat, limit])
+        cond_params.append(min_lvl)
+    conditions.append("(expires_at IS NULL OR expires_at > NOW())")
+    where = " AND ".join(conditions)
+    params = [lon, lat] + cond_params + [lon, lat, radius_km * 1000, limit]
     cur.execute(f"""
         SELECT id, source, source_id, event_type, subtype, lat, lon, radius_m,
                level, title, description, country, region, municipality,

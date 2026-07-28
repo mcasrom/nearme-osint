@@ -29,6 +29,13 @@
         .stat { background: #111827; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; border: 1px solid #1a2a4a; }
         .stat .n { color: #00d4ff; font-weight: 700; }
         .loading { color: #607d8b; text-align: center; padding: 40px; }
+        .info-section { margin-top: 20px; border-top: 1px solid #1a2a4a; padding-top: 16px; }
+        .info-section summary { color: #4fc3f7; cursor: pointer; font-weight: 600; font-size: 0.9em; padding: 8px 0; }
+        .info-section .content { color: #78909c; font-size: 0.8em; line-height: 1.7; padding: 8px 0; }
+        .info-section .tag { display: inline-block; background: #111827; border: 1px solid #1a2a4a; padding: 3px 10px; border-radius: 12px; margin: 3px 4px; font-size: 0.8em; color: #b0bec5; }
+        .info-section .tag.ok { border-color: #2a5a3a; color: #69f0ae; }
+        .info-section .tag.warn { border-color: #5a4a2a; color: #ffd54f; }
+        .info-footer { margin-top: 20px; padding: 12px; background: #111827; border-radius: 8px; border: 1px solid #1a2a4a; font-size: 0.75em; color: #546e7a; text-align: center; }
     </style>
 </head>
 <body>
@@ -39,8 +46,52 @@
         <div class="sub">¿Qué pasa a tu alrededor?</div>
         <button class="locate-btn" onclick="locate()">📍 Usar mi ubicación</button>
         <div id="stats" class="stats"></div>
-        <div id="events"><div class="loading">Cargando eventos...</div></div>
+    <div id="events"><div class="loading">Cargando eventos...</div></div>
+
+    <div class="info-section">
+        <details>
+            <summary>📡 Fuentes de datos</summary>
+            <div class="content">
+                <p><strong>USGS Earthquakes</strong> — Terremotos en tiempo real vía <em>earthquake.usgs.gov</em> (servicio geológico de EE.UU., datos globales)</p>
+                <p><strong>NASA FIRMS</strong> — Incendios activos detectados por satélite MODIS/VIIRS vía <em>firms.modaps.eosdis.nasa.gov</em></p>
+                <p><strong>AEMET</strong> — Alertas meteorológicas de la Agencia Estatal de Meteorología (requiere API key)</p>
+                <p><strong>OpenAQ</strong> — Calidad del aire en ciudades españolas vía <em>openaq.org</em> (datos abiertos)</p>
+                <p><strong>Copernicus EMS</strong> — Inundaciones e incendios vía <em>emergency.copernicus.eu</em> (programa UE)</p>
+                <div style="margin-top:8px;">
+                    <span class="tag ok">USGS ✅</span>
+                    <span class="tag ok">NASA FIRMS ✅</span>
+                    <span class="tag warn">AEMET 🔑</span>
+                    <span class="tag warn">OpenAQ 🔑</span>
+                    <span class="tag warn">Copernicus ⏳</span>
+                </div>
+            </div>
+        </details>
     </div>
+    <div class="info-section">
+        <details>
+            <summary>⚙️ Metodología</summary>
+            <div class="content">
+                <p><strong>NearMe OSINT</strong> es un motor de agregación geográfica OSINT. Cada fuente de datos se normaliza a un modelo único de <strong>evento geolocalizado</strong> con: tipo, nivel, coordenadas, radio de afectación y descripción.</p>
+                <p>Los recolectores Python se ejecutan cada <strong>15 minutos</strong> vía cron. Los eventos se almacenan en <strong>PostgreSQL + PostGIS</strong> y se sirven a través de una <strong>API REST</strong> (FastAPI).</p>
+                <p>La consulta geoespacial responde a la pregunta: <em>"¿Qué eventos hay a menos de X km de esta ubicación?"</em> usando la función <code>ST_DWithin</code> de PostGIS con índice espacial.</p>
+            </div>
+        </details>
+    </div>
+    <div class="info-section">
+        <details>
+            <summary>ℹ️ Sobre NearMe OSINT</summary>
+            <div class="content">
+                <p>Proyecto de agregación de datos públicos geolocalizados. Convierte APIs, RSS y fuentes abiertas en un flujo único de eventos con coordenadas.</p>
+                <p>No es un dashboard temático. Es un "Google Maps de los eventos públicos". Cualquier dato público con coordenadas termina en el mismo sistema, independientemente de la fuente.</p>
+                <p><strong>Autor:</strong> El Mapa y El Código · <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
+                <p><strong>Código:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
+            </div>
+        </details>
+    </div>
+    <div class="info-footer">
+        NearMe OSINT · v0.1 · Datos actualizados cada 15 min · <span id="update-time">—</span>
+    </div>
+</div>
 </div>
 <script>
 const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
@@ -102,6 +153,7 @@ function render(data) {
         `<div class="stat"><span class="n">${c}</span> ${l}</div>`
     ).join('') + `<div class="stat">${events.length} total</div>`;
 
+    document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
     const el = document.getElementById('events');
     el.innerHTML = events.map(e => {
         const icon = ICONS[e.event_type] || "📌";

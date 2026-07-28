@@ -4,43 +4,40 @@ from src.models import Event
 
 
 class IGNCollector(BaseCollector):
-    name = "IGN"
+    name = "USGS (es)"
     interval_minutes = 15
 
     def collect(self):
         events = []
         try:
             resp = requests.get(
-                "https://www.ign.es/web/ign/portal/ultimos-terremotos/-/ultimos-terremotos/ultimos.json",
-                timeout=15
+                "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&region=Spain&minmagnitude=1.5&orderby=time&limit=15",
+                timeout=15,
+                headers={"User-Agent": "NearMeOSINT/1.0"}
             )
             if resp.status_code == 200:
                 data = resp.json()
-                for eq in data.get("terremotos", [])[:20]:
-                    lat = float(eq.get("latitud", 0))
-                    lon = float(eq.get("longitud", 0))
-                    mag = float(eq.get("magnitud", 0))
+                for feat in data.get("features", [])[:15]:
+                    props = feat.get("properties", {})
+                    coords = feat.get("geometry", {}).get("coordinates", [0, 0, 0])
+                    mag = props.get("mag", 0)
+                    lat, lon, depth = coords[1], coords[0], coords[2] if len(coords) >= 3 else 0
+                    place = props.get("place", "España")
                     level = "info"
-                    if mag >= 4.0:
+                    if mag >= 4:
                         level = "warning"
-                    if mag >= 5.0:
-                        level = "alert"
-                    if mag >= 6.0:
-                        level = "critical"
                     events.append(Event(
-                        source="ign",
-                        source_id=f"ign_{eq.get('id', '')}",
+                        source="usgs_es",
+                        source_id=f"usgses_{props.get('id', '')}",
                         event_type="earthquake",
                         subtype=f"mag_{mag}",
                         lat=lat, lon=lon,
                         radius_m=max(mag * 10000, 5000),
                         level=level,
-                        title=f"Terremoto M{mag} en {eq.get('localizacion', '')}",
-                        description=f"Magnitud: {mag}. Profundidad: {eq.get('profundidad', '?')} km. {eq.get('localizacion', '')}",
+                        title=f"Terremoto M{mag} - {place}",
+                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
                         country="ES",
-                        region=eq.get("provincia", ""),
-                        municipality=eq.get("municipio", ""),
                     ))
         except Exception as e:
-            print(f"    [WARN] IGN terremotos: {e}")
+            print(f"    [WARN] USGS: {e}")
         return events
