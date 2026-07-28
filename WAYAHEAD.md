@@ -18,50 +18,52 @@
 ### Fase 1 — Fuentes de datos reales
 | Fuente | Estado | Datos | Endpoint |
 |--------|--------|-------|----------|
-| AEMET | ✅ | ~180 alertas (temp/viento/lluvia) de ~10K estaciones | `opendata.aemet.es` (observations) |
-| USGS | ✅ | ~30 terremotos M2.5+ (24h) | `earthquake.usgs.gov` GeoJSON |
-| NASA FIRMS | ⏳ | Requiere Earthdata API key | `firms.modaps.eosdis.nasa.gov` |
-| IntelHub bridge | ✅ | ~20 incendios desde RSS (24 fuentes, 9 países) | SQLite local |
-| RENFE | ✅ | ~120 retrasos (cercanías + AV/LD) | `gtfsrt.renfe.com` (GTFS-RT protobuf) |
-| REE | ✅ | ~9 eventos de demanda eléctrica alta | `apidatos.ree.es` (demanda-tiempo-real) |
-| DGT | ❌ | API bloqueada (timeout/403) | `infocar.dgt.es` (SPA, no API pública) |
-| AENA | ❌ | Deniega acceso a datos de puntualidad | — |
-| Protección Civil | ✅ | Alertas meteorológicas AEMET (CAP XML) | `opendata.aemet.es/avisos_cap` |
-| OpenAQ | ✅ | 10 ciudades españolas | `api.openaq.org` |
-| Copernicus/GWIS | ❌ | Endpoints 404 | — |
+| AEMET | ✅ | ~180 alertas meteorológicas (temp/viento/lluvia) | `opendata.aemet.es` |
+| USGS | ✅ | ~30 terremotos M2.5+ (24h) | `earthquake.usgs.gov` |
+| RENFE | ✅ | ~120 retrasos cercanías + AV/LD, geolocalizados | `gtfsrt.renfe.com` + estaciones CSV |
+| REE | ✅ | ~9 eventos demanda eléctrica | `apidatos.ree.es` |
+| MITECO | ✅ | ~250 estaciones calidad aire (ICA horario) | `ica.miteco.es` |
+| IntelHub | ✅ | ~30 incendios RSS (24 fuentes) | SQLite local |
+| Protección Civil | ✅ | Avisos meteorológicos AEMET (CAP XML) | `opendata.aemet.es/avisos_cap` |
+| NASA FIRMS | ⏳ | Requiere Earthdata API key | — |
+| DGT | ❌ | API bloqueada (timeout/403) | — |
+| AENA | ❌ | Deniega acceso datos puntualidad | — |
 
-### Pipeline actual (28 Jul 2026)
+### Pipeline actual (28 Jul 2026, 624 eventos)
 ```
-AEMET:      ~183 eventos (heatwave/wind/storm alerts)
-USGS:        30 terremotos
-RENFE:      ~120 retrasos de tren
-REE:          9 eventos de demanda eléctrica
-IntelHub:    ~20 incendios RSS
-────────────────────────────
-TOTAL:      ~370 eventos/pipeline
+AEMET:       ~183  (heatwave/wind/storm)
+USGS:         ~30  (terremotos)
+RENFE:       ~123  (retrasos tren, geolocalizados)
+REE:           ~9  (demanda eléctrica)
+MITECO:      ~249  (calidad del aire, ICA ≥ Regular)
+IntelHub:     ~30  (incendios RSS)
+──────────────────────────────
+TOTAL:       ~624
 ```
+
+### Desplegado en Producción (28 Jul 2026)
+- [x] RENFE retrasos tren — geolocalizados con CSV estaciones (1070 estaciones)
+- [x] REE demanda eléctrica alta
+- [x] MITECO calidad del aire — 249 estaciones con ICA
+- [x] Contacto mailto:news@viajeinteligencia.com en About
 
 ---
 
 ## 🔧 Técnico pendiente
-- [ ] Añadir fitBounds() para zoom automático
+- [ ] Colores por tipo de evento en mapa
 - [ ] Agrupar marcadores (Leaflet.markercluster)
-- [ ] Cachear respuesta API en frontend
-- [ ] Colores por tipo de evento (rojo=incendio, naranja=terremoto, etc.)
 - [ ] Indicador de carga/error cuando la API no responde
 - [ ] Botones de radio muestran cuál está activo
 
 ## 🐛 Bugs conocidos
-- [ ] Coordenadas incendios RSS aproximadas (por provincia), no geoposicionamiento real
-- [ ] Zoom inicial puede no mostrar todos los eventos
-- [ ] Frontend: no hay indicador visual de "procesando..."
+- [ ] ~20% paradas RENFE sin geolocalización (stop_id no encontrado en CSV)
+- [ ] Coordenadas incendios RSS aproximadas (por provincia)
 
 ## 🚀 Fase 2
-- [ ] **NASA FIRMS**: Obtener Earthdata API key para incendios satelitales
-- [ ] **DGT**: Buscar endpoint alternativo o scraping para incidentes viales
-- [ ] Alertas personalizadas: "avísame si hay incendios a <15 km"
-- [ ] Histórico: eventos en zona en últimas 24h
-- [ ] RSS local por municipio/provincia
+- [ ] NASA FIRMS (Earthdata key)
+- [ ] DGT (incidentes viales, endpoint alternativo)
+- [ ] Playas (Bizkaia/Euskadi open data)
+- [ ] Alertas personalizadas push
 
 ## 🔑 Credenciales (en .env, gitignored)
 - `AEMET_API_KEY`: JWT (exp ~Dic 2026)
@@ -71,22 +73,19 @@ TOTAL:      ~370 eventos/pipeline
 ## 📁 Estructura
 ```
 nearme-osint/
-├── run.py              # Pipeline orchestrator
+├── run.py                    # Pipeline orchestrator (11 colectores)
 ├── src/
-│   ├── api/server.py   # FastAPI (frontend + API)
-│   ├── db.py           # PostgreSQL/PostGIS
-│   ├── models.py       # Event dataclass + EVENT_TYPES
-│   └── collectors/     # Módulos de recolección
-│       ├── aemet/      # Meteorología real
-│       ├── dgt/        # USGS terremotos + FIRMS incendios
-│       ├── renfe/      # Retrasos tren (GTFS-RT)
-│       ├── ree/        # Demanda eléctrica
-│       ├── openaq/     # Calidad del aire
-│       ├── copernicus/ # Incendios (no funciona)
-│       ├── ign/        # Terremotos (duplicado)
+│   ├── api/server.py         # FastAPI
+│   ├── db.py                 # PostgreSQL/PostGIS
+│   ├── models.py             # Event dataclass + EVENT_TYPES
+│   └── collectors/
+│       ├── aemet/            # Meteorología real
+│       ├── dgt/              # USGS terremotos + FIRMS
+│       ├── renfe/            # Retrasos tren (GTFS-RT + CSV estaciones)
+│       ├── ree/              # Demanda eléctrica
+│       ├── miteco/           # Calidad del aire (ICA)
 │       ├── proteccion_civil/ # Avisos meteorológicos
-│       └── intelhub_bridge.py # Incendios RSS
-├── frontend/           # Leaflet + vanilla JS
-├── deploy.sh          # rsync + PM2
-└── .env               # Credenciales (gitignored)
+│       └── intelhub_bridge.py
+├── frontend/                 # Leaflet + vanilla JS
+└── .env                      # Credenciales (gitignored)
 ```

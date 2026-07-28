@@ -1,20 +1,52 @@
+import csv
+import io
 import requests
 from google.transit import gtfs_realtime_pb2
 from src.collectors.base import BaseCollector
 from src.models import Event
+
+STATIONS_CSV = "https://ssl.renfe.com/ftransit/Fichero_estaciones/estaciones.csv"
 
 
 class RENFEDelaysCollector(BaseCollector):
     name = "RENFE"
     interval_minutes = 15
 
+    def __init__(self):
+        self._stations = None
+
+    def _load_stations(self):
+        if self._stations is not None:
+            return self._stations
+        self._stations = {}
+        try:
+            resp = requests.get(STATIONS_CSV, timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"})
+            if resp.status_code != 200:
+                return self._stations
+            reader = csv.DictReader(io.StringIO(resp.text), delimiter=";", quotechar='"')
+            for row in reader:
+                code = row.get("CODIGO", "").strip()
+                try:
+                    lat = float(row.get("LATITUD", "0").replace(",", "."))
+                    lon = float(row.get("LONGITUD", "0").replace(",", "."))
+                    name = row.get("DESCRIPCION", "")
+                    if code and lat and lon:
+                        self._stations[code] = (lat, lon, name)
+                except (ValueError, TypeError):
+                    pass
+            print(f"    RENFE: {len(self._stations)} estaciones geolocalizadas")
+        except Exception as e:
+            print(f"    [WARN] RENFE estaciones: {e}")
+        return self._stations
+
     def collect(self):
         events = []
-        events.extend(self._cercanias_delays())
-        events.extend(self._av_ld_delays())
+        stations = self._load_stations()
+        events.extend(self._parse_delays("https://gtfsrt.renfe.com/trip_updates.pb", "cercanias", stations))
+        events.extend(self._parse_delays("https://gtfsrt.renfe.com/trip_updates_LD.pb", "alta_velocidad", stations))
         return events
 
-    def _parse_delays(self, url, feed_type):
+    def _parse_delays(self, url, feed_type, stations):
         events = []
         try:
             resp = requests.get(url, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"})
@@ -47,17 +79,21 @@ class RENFEDelaysCollector(BaseCollector):
                     if delay < 600:
                         continue
 
+                    lat, lon, station_name = 0, 0, stop_id
+                    if stop_id in stations:
+                        lat, lon, station_name = stations[stop_id]
+
                     level = 'warning' if delay < 1800 else 'alert'
                     events.append(Event(
                         source="renfe",
                         source_id=f"renfe_{feed_type}_{trip_id}_{stop_id}",
                         event_type="train_delay",
                         subtype=feed_type,
-                        lat=0, lon=0,
+                        lat=lat, lon=lon,
                         radius_m=5000,
                         level=level,
-                        title=f"Retraso {feed_type}: {delay//60}min (trip {trip_id})",
-                        description=f"Retraso: {delay//60} minutos. Ruta: {route_id}. Parada: {stop_id}",
+                        title=f"Retraso {feed_type}: +{delay//60}min ({station_name})",
+                        description=f"Retraso: {delay//60} minutos. Ruta: {route_id}. Parada: {station_name} ({stop_id}). Trip: {trip_id}",
                         country="ES",
                     ))
 
@@ -65,9 +101,3 @@ class RENFEDelaysCollector(BaseCollector):
         except Exception as e:
             print(f"    [WARN] RENFE {feed_type}: {e}")
         return events
-
-    def _cercanias_delays(self):
-        return self._parse_delays("https://gtfsrt.renfe.com/trip_updates.pb", "cercanias")
-
-    def _av_ld_delays(self):
-        return self._parse_delays("https://gtfsrt.renfe.com/trip_updates_LD.pb", "alta_velocidad")

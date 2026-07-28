@@ -64,6 +64,11 @@ def register_collectors():
     except Exception as e:
         print(f"[WARN] No se pudo cargar REE: {e}")
     try:
+        from src.collectors.miteco import AirQualityCollector
+        COLLECTORS.append(AirQualityCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar MITECO calidad aire: {e}")
+    try:
         from src.collectors.intelhub_bridge import IntelHubBridge
         COLLECTORS.append(IntelHubBridge())
     except Exception as e:
