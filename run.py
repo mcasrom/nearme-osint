@@ -42,7 +42,27 @@ def register_collectors():
         from src.collectors.dgt import EarthquakesCollector
         COLLECTORS.append(EarthquakesCollector())
     except Exception as e:
-        print(f"[WARN] No se pudo cargar USGS: {e}")
+        print(f"[WARN] No se pudo cargar USGS/FIRMS: {e}")
+    try:
+        from src.collectors.dgt import DGTTrafficCollector
+        COLLECTORS.append(DGTTrafficCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar DGT Tráfico: {e}")
+    try:
+        from src.collectors.renfe import RENFEDelaysCollector
+        COLLECTORS.append(RENFEDelaysCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar RENFE: {e}")
+    try:
+        from src.collectors.proteccion_civil import ProteccionCivilCollector
+        COLLECTORS.append(ProteccionCivilCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar Protección Civil: {e}")
+    try:
+        from src.collectors.ree import REEPowerCollector
+        COLLECTORS.append(REEPowerCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar REE: {e}")
     try:
         from src.collectors.intelhub_bridge import IntelHubBridge
         COLLECTORS.append(IntelHubBridge())
