@@ -109,7 +109,10 @@
 - [x] `src/config.py` — constantes centralizadas (umbrales, URLs, timeouts, etc.)
 - [x] Consolidar USGS duplicado — `src/collectors/ign/` eliminado, lógica integrada en `dgt/EarthquakesCollector`
 - [x] Paralelizar colectores con `ThreadPoolExecutor` en `run.py`
-- [x] Migrar a `httpx.AsyncClient` — `collect()` async en todos los colectores, `asyncio.gather()` en runner, `requests` eliminado
+- [x] Migrar a `httpx.AsyncClient` — `collect()` async en todos los colectores, `asyncio.gather()` en runner
+- [x] Reemplazar PBKDF2 por bcrypt via `passlib` en auth de `server.py`
+- [x] Módulo `src/metrics.py` — PipelineMetrics registra latencia y éxito por colector
+- [x] Endpoint `/api/metrics` expone resumen de ejecuciones recientes, `requests` eliminado
 
 ---
 

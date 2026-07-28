@@ -102,16 +102,27 @@ def run_all():
 
 
 async def _run_collectors():
+    from src.metrics import PipelineMetrics
+
+    metrics = PipelineMetrics.get()
     start = datetime.now(timezone.utc)
-    futures = [c.run() for c in COLLECTORS]
-    results = await asyncio.gather(*futures, return_exceptions=True)
-    total_events = 0
-    for i, result in enumerate(results):
-        name = COLLECTORS[i].name
-        if isinstance(result, Exception):
-            logger.error("Error en colector %s: %s", name, result)
-        else:
-            total_events += len(result)
+
+    async def timed_run(collector):
+        cstart = datetime.now(timezone.utc)
+        try:
+            result = await collector.run()
+            elapsed = (datetime.now(timezone.utc) - cstart).total_seconds()
+            metrics.record_run(collector.name, success=True, latency_s=elapsed, events=len(result))
+            return result
+        except Exception as e:
+            elapsed = (datetime.now(timezone.utc) - cstart).total_seconds()
+            metrics.record_run(collector.name, success=False, latency_s=elapsed, events=0)
+            logger.error("Error en colector %s: %s", collector.name, e)
+            return []
+
+    futures = [timed_run(c) for c in COLLECTORS]
+    results = await asyncio.gather(*futures)
+    total_events = sum(len(r) for r in results)
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info("Colectores ejecutados en %.1fs", elapsed)
     return total_events

@@ -286,6 +286,12 @@ def ratings_summary():
     return get_ratings_summary()
 
 
+@app.get("/api/metrics")
+def metrics():
+    from src.metrics import PipelineMetrics
+    return PipelineMetrics.get().summary()
+
+
 @app.get("/")
 def serve_frontend():
     index = FRONTEND_DIR / "index.html"
