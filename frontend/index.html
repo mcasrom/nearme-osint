@@ -6,6 +6,9 @@
     <title>NearMe OSINT</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5/dist/MarkerCluster.Default.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e17; color: #d0dbe8; }
@@ -14,15 +17,12 @@
         #sidebar { width: 420px; overflow-y: auto; padding: 16px; background: #0d1520; border-left: 1px solid #1a2a4a; }
         h1 { color: #00d4ff; font-size: 1.3em; margin-bottom: 4px; }
         .sub { color: #607d8b; font-size: 0.8em; margin-bottom: 16px; }
-        .event { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #607d8b; background: #111827; cursor: pointer; transition: 0.2s; }
-        .event:hover { border-color: #00d4ff; }
-        .event.critical { border-left-color: #f44336; }
-        .event.alert { border-left-color: #ff9800; }
-        .event.warning { border-left-color: #ffeb3b; }
+        .event { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; background: #111827; cursor: pointer; transition: 0.2s; border-left: 3px solid #607d8b; }
+        .event:hover { border-left-color: #00d4ff; background: #151f30; }
         .event .title { font-weight: 600; font-size: 0.9em; }
         .event .meta { color: #607d8b; font-size: 0.75em; margin-top: 4px; }
         .event .dist { color: #4fc3f7; font-size: 0.75em; }
-        .event .desc { color: #78909c; font-size: 0.8em; margin-top: 4px; }
+        .event .desc { color: #78909c; font-size: 0.8em; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .btn { background: #00d4ff; color: #0a0e17; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; font-size: 0.85em; }
         .btn:hover { background: #00b8d4; }
         .btn-outline { background: #0d1520; color: #4fc3f7; border: 1px solid #1a2a4a; }
@@ -42,13 +42,23 @@
         }
         .search-box button:hover { background: #00b8d4; }
         .location-hint { color: #546e7a; font-size: 0.72em; margin-top: 2px; margin-bottom: 10px; }
-        .radius-row { display: flex; gap: 6px; margin-bottom: 12px; }
-        .radius-row .btn { flex: 1; }
         .coords-display { color: #4fc3f7; font-size: 0.75em; text-align: center; margin-bottom: 8px; font-family: monospace; }
-        .stats { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .stat { background: #111827; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; border: 1px solid #1a2a4a; }
-        .stat .n { color: #00d4ff; font-weight: 700; }
+        .stats { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .stat { background: #111827; padding: 5px 10px; border-radius: 6px; font-size: 0.75em; border: 1px solid #1a2a4a; display: flex; align-items: center; gap: 4px; }
+        .stat .n { font-weight: 700; }
+        .stat.fire .n { color: #ff5722; }
+        .stat.earthquake .n { color: #ff9800; }
+        .stat.heatwave .n { color: #f44336; }
+        .stat.wind .n { color: #03a9f4; }
+        .stat.storm .n { color: #5c6bc0; }
+        .stat.air_quality .n { color: #4caf50; }
+        .stat.train_delay .n { color: #ab47bc; }
+        .stat.blackout .n { color: #ffeb3b; }
+        .stat.warning .n { color: #ffc107; }
+        .stat.total .n { color: #00d4ff; }
         .loading { color: #607d8b; text-align: center; padding: 40px; }
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #1a2a4a; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .info-section { margin-top: 20px; border-top: 1px solid #1a2a4a; padding-top: 16px; }
         .info-section summary { color: #4fc3f7; cursor: pointer; font-weight: 600; font-size: 0.9em; padding: 8px 0; }
         .info-section .content { color: #78909c; font-size: 0.8em; line-height: 1.7; padding: 8px 0; }
@@ -56,6 +66,16 @@
         .info-section .tag.ok { border-color: #2a5a3a; color: #69f0ae; }
         .info-section .tag.warn { border-color: #5a4a2a; color: #ffd54f; }
         .info-footer { margin-top: 20px; padding: 12px; background: #111827; border-radius: 8px; border: 1px solid #1a2a4a; font-size: 0.75em; color: #546e7a; text-align: center; }
+        .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.7em; color: #78909c; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        /* MarkerCluster overrides */
+        .marker-cluster-small { background-color: rgba(0,212,255,0.3); }
+        .marker-cluster-small div { background-color: rgba(0,212,255,0.7); }
+        .marker-cluster-medium { background-color: rgba(255,152,0,0.3); }
+        .marker-cluster-medium div { background-color: rgba(255,152,0,0.7); }
+        .marker-cluster-large { background-color: rgba(244,67,54,0.3); }
+        .marker-cluster-large div { background-color: rgba(244,67,54,0.7); }
     </style>
 </head>
 <body>
@@ -81,17 +101,19 @@
         </div>
 
         <div id="stats" class="stats"></div>
-        <div id="events"><div class="loading">Cargando eventos...</div></div>
+        <div class="legend" id="legend"></div>
+        <div id="events"><div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div></div>
 
         <div class="info-section">
             <details>
                 <summary>Fuentes de datos</summary>
                 <div class="content">
-                    <p><strong>AEMET</strong> — Observaciones meteorologicas en tiempo real de 9600+ estaciones en Espana</p>
+                    <p><strong>AEMET</strong> — Alertas meteorologicas de 10.600+ estaciones en Espana</p>
                     <p><strong>USGS</strong> — Terremotos globales M2.5+ en las ultimas 24h</p>
-                    <p><strong>NASA FIRMS</strong> — Incendios activos por satelite (requiere API key)</p>
-                    <p><strong>OpenAQ</strong> — Calidad del aire en ciudades espanolas</p>
-                    <p><strong>Intelligence Hub</strong> — Incendios detectados en noticias de 24 fuentes</p>
+                    <p><strong>RENFE</strong> — Retrasos tren cercanias y alta velocidad (GTFS-RT)</p>
+                    <p><strong>REE</strong> — Demanda electrica en tiempo real</p>
+                    <p><strong>MITECO</strong> — Calidad del aire ICA, 620+ estaciones horarias</p>
+                    <p><strong>Intelligence Hub</strong> — Incendios detectados en 24 fuentes de noticias</p>
                 </div>
             </details>
         </div>
@@ -107,13 +129,43 @@
             </details>
         </div>
         <div class="info-footer">
-            NearMe OSINT v0.1 — Actualizado cada 15 min — <span id="update-time">—</span>
+            NearMe OSINT v0.2 — Actualizado cada 15 min — <span id="update-time">—</span>
         </div>
     </div>
 </div>
 <script>
 const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
 let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON, currentRadius = 200;
+
+const TYPE_COLORS = {
+    fire:         '#ff5722',
+    flood:        '#2196f3',
+    earthquake:   '#ff9800',
+    storm:        '#5c6bc0',
+    wind:         '#03a9f4',
+    snow:         '#b3e5fc',
+    heatwave:     '#f44336',
+    air_quality:  '#4caf50',
+    traffic:      '#78909c',
+    road_incident:'#ff7043',
+    road_closure: '#d84315',
+    train_delay:  '#ab47bc',
+    flight_delay: '#26c6da',
+    blackout:     '#ffeb3b',
+    warning:      '#ffc107',
+    missing:      '#78909c',
+    crime:        '#e53935',
+    news:         '#78909c',
+    other:        '#607d8b',
+};
+
+const LEVEL_COLORS = {
+    critical: '#f44336',
+    alert:    '#ff9800',
+    warning:  '#ffeb3b',
+    info:     '#4fc3f7',
+};
+
 const ICONS = {
     fire: "\uD83D\uDD25", flood: "\uD83C\uDF0A", earthquake: "\uD83C\uDFDB", storm: "\u26C8", wind: "\uD83D\uDCA8",
     snow: "\u2744\uFE0F", heatwave: "\uD83C\uDF21", air_quality: "\uD83C\uDF2B", traffic: "\uD83D\uDE97",
@@ -121,12 +173,13 @@ const ICONS = {
     flight_delay: "\u2708", blackout: "\u26A1", warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D",
     crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
 };
+
 let radiusBtns = { 50: 'r50', 200: 'r200', 500: 'r500' };
 
 function init() {
     map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap', maxZoom: 18,
+        attribution: '&copy; OpenStreetMap', maxZoom: 18,
     }).addTo(map);
     marker = L.circleMarker([DEFAULT_LAT, DEFAULT_LON], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
     circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: currentRadius * 1000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
@@ -190,43 +243,64 @@ function updateRadiusBtns() {
 }
 
 async function loadEvents() {
-    document.getElementById('events').innerHTML = '<div class="loading">Cargando eventos...</div>';
+    document.getElementById('events').innerHTML = '<div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div>';
+    document.getElementById('stats').innerHTML = '';
+    document.getElementById('legend').innerHTML = '';
     try {
-        const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=200`;
+        const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=300`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         render(data);
     } catch (e) {
         document.getElementById('events').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
-        document.getElementById('stats').innerHTML = '';
     }
 }
 
 function render(data) {
     const events = data.events || [];
     const stats = document.getElementById('stats');
-    const byLevel = {};
-    events.forEach(e => { byLevel[e.level] = (byLevel[e.level] || 0) + 1; });
-    stats.innerHTML = Object.entries(byLevel).map(([l, c]) =>
-        `<div class="stat"><span class="n">${c}</span> ${l}</div>`
-    ).join('') + `<div class="stat">${events.length} total</div>`;
+    const legend = document.getElementById('legend');
+
+    const byType = {};
+    events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
+
+    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','blackout','warning','road_incident','other'];
+    const activeTypes = typeOrder.filter(t => byType[t]);
+    stats.innerHTML = activeTypes.map(t => {
+        const c = byType[t];
+        const icon = ICONS[t] || '';
+        return `<div class="stat ${t}"><span class="n">${c}</span> ${icon}</div>`;
+    }).join('') + `<div class="stat total"><span class="n">${events.length}</span> total</div>`;
+
+    legend.innerHTML = activeTypes.map(t => {
+        const color = TYPE_COLORS[t] || '#607d8b';
+        const icon = ICONS[t] || '';
+        return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${icon} ${t.replace('_',' ')}</div>`;
+    }).join('');
 
     document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
 
-    if (window.eventMarkers) window.eventMarkers.forEach(m => map.removeLayer(m));
-    window.eventMarkers = [];
-    const COLORS = { critical: '#f44336', alert: '#ff9800', warning: '#ffeb3b', info: '#4fc3f7' };
+    if (window.clusterGroup) map.removeLayer(window.clusterGroup);
+    window.clusterGroup = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
+
     const markerBounds = [];
     events.forEach(e => {
-        const color = COLORS[e.level] || '#607d8b';
+        const color = TYPE_COLORS[e.event_type] || LEVEL_COLORS[e.level] || '#607d8b';
         const icon = ICONS[e.event_type] || '\uD83D\uDCCC';
-        const m = L.circleMarker([e.lat, e.lon], { radius: 7, color, fillColor: color, fillOpacity: 0.6, weight: 2 })
-            .addTo(map)
-            .bindPopup(`<b>${icon} ${e.title}</b><br>${e.distance_km} km · ${e.source}`);
-        window.eventMarkers.push(m);
+        const m = L.circleMarker([e.lat, e.lon], {
+            radius: e.level === 'alert' || e.level === 'critical' ? 8 : 6,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.7,
+            weight: 2,
+        });
+        m.bindPopup(`<b>${icon} ${e.title}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${e.description || ''}</small>`);
+        window.clusterGroup.addLayer(m);
         markerBounds.push([e.lat, e.lon]);
     });
+    map.addLayer(window.clusterGroup);
+
     if (markerBounds.length > 0) {
         map.fitBounds(markerBounds, { padding: [40, 40], maxZoom: 10 });
     }
@@ -234,10 +308,10 @@ function render(data) {
     const el = document.getElementById('events');
     el.innerHTML = events.map(e => {
         const icon = ICONS[e.event_type] || "\uD83D\uDCCC";
-        const lvl = e.level === 'critical' || e.level === 'alert' ? e.level : '';
-        return `<div class="event ${lvl}" onclick="flyTo(${e.lat},${e.lon})">
+        const color = TYPE_COLORS[e.event_type] || '#607d8b';
+        return `<div class="event" style="border-left-color:${color}" onclick="flyTo(${e.lat},${e.lon})">
             <div class="title">${icon} ${e.title}</div>
-            <div class="dist">${e.distance_km} km · ${e.source}</div>
+            <div class="dist">${e.distance_km} km &middot; ${e.source}</div>
             ${e.description ? `<div class="desc">${e.description}</div>` : ''}
             <div class="meta">${e.municipality || e.region || ''} ${e.country || ''}</div>
         </div>`;
