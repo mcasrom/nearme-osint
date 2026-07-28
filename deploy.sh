@@ -74,13 +74,15 @@ ssh $SERVER "cd $REMOTE_DIR && \
 # Step 5: Restart services
 echo "[5/5] Restarting services..."
 ssh $SERVER "
-    # Run collector once
-    cd $REMOTE_DIR && source venv/bin/activate && python run.py
+    cd $REMOTE_DIR && source venv/bin/activate
 
-    # Restart API
+    # Kill old process on port 8100
+    fuser -k 8100/tcp 2>/dev/null || true
+
+    # Restart API via PM2
     pm2 delete nearme-api 2>/dev/null || true
-    cd $REMOTE_DIR && source venv/bin/activate && \
-    pm2 start 'uvicorn src.api.server:app --host 0.0.0.0 --port 8089' --name nearme-api
+    pm2 start \"\$(which uvicorn)\" --interpreter python3 --name nearme-api -- src.api.server:app --host 0.0.0.0 --port 8100
+    pm2 save
 
     # Reload nginx
     sudo nginx -t && sudo systemctl reload nginx

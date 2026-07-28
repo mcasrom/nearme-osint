@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0e17"/>
+      <stop offset="100%" stop-color="#0d1520"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#0091b5"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#00d4ff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04" stroke="#4fc3f7" stroke-width="0.5">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="180" fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.08"/>
+  <circle cx="100" cy="100" r="280" fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.05"/>
+  <circle cx="1100" cy="530" r="200" fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.06"/>
+  <circle cx="1100" cy="530" r="300" fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.04"/>
+
+  <!-- Event type emoji icons row -->
+  <text x="60" y="120" font-size="32">🔥</text>
+  <text x="110" y="120" font-size="32">🌊</text>
+  <text x="160" y="120" font-size="32">🌍</text>
+  <text x="210" y="120" font-size="32">⚡</text>
+  <text x="260" y="120" font-size="32">🚨</text>
+  <text x="310" y="120" font-size="32">🌡️</text>
+  <text x="360" y="120" font-size="32">🌪️</text>
+  <text x="410" y="120" font-size="32">🚆</text>
+  <text x="460" y="120" font-size="32">🏖️</text>
+  <text x="510" y="120" font-size="32">🌍</text>
+  <text x="560" y="120" font-size="32">📡</text>
+
+  <!-- Accent line -->
+  <rect x="0" y="300" width="1200" height="2" fill="url(#lineGrad)"/>
+
+  <!-- Main title -->
+  <text x="600" y="380" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#00d4ff" text-anchor="middle" letter-spacing="-1">NearMe OSINT</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="440" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#78909c" text-anchor="middle" letter-spacing="0.5">Mapa en tiempo real de eventos e incidencias geolocalizadas</text>
+
+  <!-- Bottom accent bar -->
+  <rect x="440" y="470" width="320" height="3" rx="1.5" fill="url(#accent)"/>
+
+  <!-- URL -->
+  <text x="600" y="520" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#546e7a" text-anchor="middle">nearme.viajeinteligencia.com</text>
+
+  <!-- Small data dots at bottom -->
+  <circle cx="480" cy="570" r="3" fill="#ff5722" opacity="0.7"/>
+  <circle cx="510" cy="575" r="2" fill="#4fc3f7" opacity="0.7"/>
+  <circle cx="540" cy="568" r="2.5" fill="#4caf50" opacity="0.7"/>
+  <circle cx="570" cy="572" r="2" fill="#ffeb3b" opacity="0.7"/>
+  <circle cx="600" cy="570" r="3" fill="#ab47bc" opacity="0.7"/>
+  <circle cx="630" cy="575" r="2" fill="#ff9800" opacity="0.7"/>
+  <circle cx="660" cy="568" r="2.5" fill="#00d4ff" opacity="0.7"/>
+  <circle cx="690" cy="572" r="2" fill="#f44336" opacity="0.7"/>
+  <circle cx="720" cy="570" r="3" fill="#03a9f4" opacity="0.7"/>
+
+  <!-- Radar signal animation graphic -->
+  <g transform="translate(950, 160)" opacity="0.15">
+    <circle cx="0" cy="0" r="60" fill="none" stroke="#00d4ff" stroke-width="1"/>
+    <circle cx="0" cy="0" r="40" fill="none" stroke="#00d4ff" stroke-width="1"/>
+    <circle cx="0" cy="0" r="20" fill="none" stroke="#00d4ff" stroke-width="1"/>
+    <line x1="0" y1="0" x2="50" y2="-35" stroke="#00d4ff" stroke-width="1.5"/>
+    <circle cx="50" cy="-35" r="3" fill="#00d4ff"/>
+  </g>
+</svg>

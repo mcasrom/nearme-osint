@@ -3,7 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NearMe OSINT</title>
+    <title>NearMe OSINT — Mapa de eventos en tiempo real</title>
+    <meta name="description" content="Mapa en tiempo real de eventos e incidencias geolocalizadas: incendios, terremotos, clima, trafico, trenes, calidad del aire y mas en Espana">
+    <meta name="theme-color" content="#0a0e17">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/icon-256.png">
+    <!-- Open Graph / RRSS -->
+    <meta property="og:title" content="NearMe OSINT — Mapa de eventos en tiempo real">
+    <meta property="og:description" content="Incendios, terremotos, alertas meteorologicas, trafico, trenes, calidad del aire y playas en un solo mapa. Datos publicos en tiempo real.">
+    <meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://nearme.viajeinteligencia.com">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NearMe OSINT — Mapa de eventos en tiempo real">
+    <meta name="twitter:description" content="Incendios, terremotos, alertas meteorologicas, trafico, trenes y mas en un solo mapa.">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5/dist/leaflet.markercluster.js"></script>
@@ -262,6 +278,36 @@
         }
         .auth-input:focus { border-color: #00d4ff; }
         .auth-error { color: #ef5350; font-size: 0.78em; margin-bottom: 8px; min-height: 1em; }
+        .hp-field { position: absolute; left: -9999px; opacity: 0; height: 0; width: 0; overflow: hidden; }
+        .reg-benefits {
+            background: #0d1f2d; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px;
+            margin-bottom: 12px; font-size: 0.8em; color: #90a4ae;
+        }
+        .reg-benefits strong { color: #b0bec5; display: block; margin-bottom: 4px; }
+        .reg-benefits ul { margin: 0; padding-left: 16px; }
+        .reg-benefits li { margin-bottom: 2px; }
+        body.light .reg-benefits { background: #eef2f7; border-color: #cfd8dc; }
+        body.light .reg-benefits strong { color: #455a64; }
+
+        .rating-widget {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 20px;
+            padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4); cursor: pointer;
+            transition: transform .2s, opacity .3s;
+        }
+        .rating-widget:hover { transform: scale(1.05); }
+        .rating-widget .label { color: #607d8b; font-size: 0.72em; white-space: nowrap; }
+        .rating-widget .faces { display: flex; gap: 6px; }
+        .rating-widget .face {
+            font-size: 1.5em; cursor: pointer; transition: transform .15s; opacity: 0.5;
+            line-height: 1; user-select: none;
+        }
+        .rating-widget .face:hover { transform: scale(1.4); opacity: 1; }
+        .rating-widget .face.active { opacity: 1; transform: scale(1.2); }
+        .rating-widget.thankyou { cursor: default; }
+        .rating-widget.thankyou .face { cursor: default; opacity: 0.4; }
+        body.light .rating-widget { background: #fff; border-color: #cfd8dc; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         body.light .auth-modal { background: #fff; }
         body.light .auth-input { background: #f5f7fa; color: #263238; }
         body.light .auth-tab { color: #90a4ae; }
@@ -840,9 +886,18 @@ function showAuthModal() {
                 <button class="btn" onclick="doLogin()">Entrar</button>
             </div>
             <div id="authFormRegister" style="display:none">
+                <div class="reg-benefits">
+                    <strong>Beneficios del registro:</strong>
+                    <ul>
+                        <li>🔔 Alertas personalizadas guardadas en el servidor</li>
+                        <li>📱 Acceso desde cualquier dispositivo</li>
+                        <li>🔄 Notificaciones en tiempo real (pronto)</li>
+                    </ul>
+                </div>
                 <input type="text" id="regUser" placeholder="Usuario (min 3 caracteres)" class="auth-input">
                 <input type="email" id="regEmail" placeholder="Email (opcional)" class="auth-input">
                 <input type="password" id="regPass" placeholder="Contraseña (min 6 caracteres)" class="auth-input">
+                <input type="text" id="regWebsite" class="hp-field" tabindex="-1" autocomplete="off">
                 <div class="auth-error" id="authRegError"></div>
                 <button class="btn" onclick="doRegister()">Crear cuenta</button>
             </div>
@@ -875,12 +930,13 @@ async function doRegister() {
     const user = document.getElementById('regUser').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const pass = document.getElementById('regPass').value;
+    const website = document.getElementById('regWebsite').value;
     const err = document.getElementById('authRegError');
     err.textContent = '';
     if (user.length < 3) { err.textContent = 'Minimo 3 caracteres'; return; }
     if (pass.length < 6) { err.textContent = 'Minimo 6 caracteres'; return; }
     try {
-        await doAuth('register', { username: user, password: pass, email: email });
+        await doAuth('register', { username: user, password: pass, email: email, website: website });
         document.getElementById('authOverlay').remove();
     } catch (e) { err.textContent = e.message; }
 }
@@ -1053,6 +1109,52 @@ function updateAlertBadge(count) {
 }
 
 init();
+
+// ===== Rating widget =====
+(function() {
+    const KEY = 'nearme_rating';
+    const LABELS = { 1: '☹️', 2: '😐', 3: '😊' };
+    const NAMES = { 1: 'Negativo', 2: 'Neutral', 3: 'Positivo' };
+
+    function buildWidget() {
+        const w = document.createElement('div');
+        w.className = 'rating-widget';
+        w.id = 'ratingWidget';
+        w.innerHTML = '<span class="label">Valorar</span><div class="faces">' +
+            [1,2,3].map(v => `<span class="face" data-rating="${v}">${LABELS[v]}</span>`).join('') +
+            '</div>';
+        document.body.appendChild(w);
+
+        // Check if already voted
+        const prev = localStorage.getItem(KEY);
+        if (prev) {
+            w.classList.add('thankyou');
+            w.querySelector('.faces').innerHTML = '<span style="color:#607d8b;font-size:0.78em;">Gracias ✓</span>';
+            return;
+        }
+
+        w.querySelectorAll('.face').forEach(el => {
+            el.addEventListener('click', async function(e) {
+                const r = parseInt(this.dataset.rating);
+                // Optimistic UI
+                localStorage.setItem(KEY, r);
+                w.classList.add('thankyou');
+                w.querySelector('.faces').innerHTML = '<span style="color:#607d8b;font-size:0.78em;">Gracias ✓</span>';
+                // Send to API
+                try {
+                    await fetch('/api/rating', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({rating: r})
+                    });
+                } catch {}
+            });
+        });
+    }
+
+    if (document.readyState === 'complete') buildWidget();
+    else window.addEventListener('load', buildWidget);
+})();
 </script>
 </body>
 </html>
