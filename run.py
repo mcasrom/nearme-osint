@@ -34,11 +34,6 @@ def register_collectors():
     except Exception as e:
         logger.warning("No se pudo cargar Copernicus: %s", e)
     try:
-        from src.collectors.ign import IGNCollector
-        COLLECTORS.append(IGNCollector())
-    except Exception as e:
-        logger.warning("No se pudo cargar IGN: %s", e)
-    try:
         from src.collectors.openaq import OpenAQCollector
         COLLECTORS.append(OpenAQCollector())
     except Exception as e:

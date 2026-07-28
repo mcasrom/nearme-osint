@@ -46,6 +46,7 @@ class EarthquakesCollector(BaseCollector):
     def collect(self):
         events = []
         events.extend(self._earthquakes())
+        events.extend(self._earthquakes_spain())
         events.extend(self._firms_fires())
         return events
 
@@ -87,6 +88,43 @@ class EarthquakesCollector(BaseCollector):
                 logger.info("%d terremotos USGS (ultimas 24h)", len(events))
         except Exception as e:
             logger.warning("USGS: %s", e)
+        return events
+
+    def _earthquakes_spain(self):
+        events = []
+        try:
+            resp = requests.get(
+                "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson"
+                "&region=Spain&minmagnitude=1.5&orderby=time&limit=15",
+                timeout=15,
+                headers={"User-Agent": "NearMeOSINT/1.0"},
+            )
+            if resp.status_code != 200:
+                return events
+            data = resp.json()
+            for feat in data.get("features", [])[:15]:
+                props = feat.get("properties", {})
+                coords = feat.get("geometry", {}).get("coordinates", [0, 0, 0])
+                mag = props.get("mag", 0)
+                lat, lon, depth = coords[1], coords[0], coords[2] if len(coords) >= 3 else 0
+                place = props.get("place", "España")
+                level = "info"
+                if mag >= 4:
+                    level = "warning"
+                events.append(Event(
+                    source="usgs_es",
+                    source_id=f"usgses_{props.get('id', '')}",
+                    event_type="earthquake",
+                    subtype=f"mag_{mag}",
+                    lat=lat, lon=lon,
+                    radius_m=max(mag * 10000, 5000),
+                    level=level,
+                    title=f"Terremoto M{mag} - {place}",
+                    description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
+                    country="ES",
+                ))
+        except Exception as e:
+            logger.warning("USGS es: %s", e)
         return events
 
     def _firms_fires(self):

@@ -100,10 +100,14 @@
 - [x] v0.4 → v0.5
 
 ### Sprint 18 — Seguridad, observabilidad y operaciones (28 Jul 2026)
-- [x] Connection pooling con `psycopg2.pool.ThreadedConnectionPool` en db.py — elimina apertura/cierre de conexiones por cada operación
-- [x] Módulo `src/logging.py` con logging JSON estructurado — reemplaza todos los `print()` por `logger.info()`, `logger.warning()`, `logger.error()`
-- [x] Eliminado `verify=False` en MITECO ICA collector — verificación SSL activada
-- [x] `.env` limpio sin credenciales reales + `.env.example` con placeholders — secretos nunca en el repo
+- [x] Connection pooling con `psycopg2.pool.ThreadedConnectionPool` en db.py
+- [x] Módulo `src/logging.py` con logging JSON estructurado
+- [x] Eliminado `verify=False` en MITECO ICA collector
+- [x] `.env` limpio sin credenciales reales + `.env.example` con placeholders
+
+### Sprint 19 — Refactoring y configuración (28 Jul 2026)
+- [x] `src/config.py` — constantes centralizadas (umbrales, URLs, timeouts, etc.)
+- [x] Consolidar USGS duplicado — `src/collectors/ign/` eliminado, lógica integrada en `dgt/EarthquakesCollector`
 
 ---
 
@@ -177,7 +181,6 @@ nearme-osint/
 │       ├── miteco/            # Calidad del aire (ICA)
 │       ├── openaq/            # Calidad del aire (fallback)
 │       ├── copernicus/        # Incendios (no funciona)
-│       ├── ign/               # Terremotos (duplicado)
 │       ├── proteccion_civil/  # Avisos meteorológicos
 │       └── intelhub_bridge.py # Incendios RSS
 ├── frontend/                  # Leaflet + MarkerCluster + vanilla JS
