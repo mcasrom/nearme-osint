@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
+from pathlib import Path
 
 app = FastAPI(title="NearMe OSINT API", version="0.1")
 
@@ -11,6 +14,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 
 
 @app.on_event("startup")
@@ -33,8 +38,8 @@ def nearby(
     lon: float = Query(-3.70, description="Longitud"),
     radius: float = Query(25, description="Radio en km"),
     event_type: Optional[str] = Query(None, description="Filtrar por tipo"),
-    min_level: Optional[str] = Query(None, description="Nivel mínimo (info/warning/alert/critical)"),
-    limit: int = Query(100, description="Límite de resultados"),
+    min_level: Optional[str] = Query(None, description="Nivel minimo (info/warning/alert/critical)"),
+    limit: int = Query(100, description="Limite de resultados"),
 ):
     from src.db import get_events_nearby
     events = get_events_nearby(lat, lon, radius, limit, event_type, min_level)
@@ -62,3 +67,15 @@ def summary(
 def event_types():
     from src.models import EVENT_TYPES
     return EVENT_TYPES
+
+
+@app.get("/")
+def serve_frontend():
+    index = FRONTEND_DIR / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"error": "Frontend not found"}
+
+
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")

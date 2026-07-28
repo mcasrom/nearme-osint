@@ -1,3 +1,4 @@
+import os
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timezone
@@ -5,11 +6,11 @@ from typing import Optional
 from src.models import Event
 
 DB_CONFIG = {
-    "dbname": "nearme_osint",
-    "user": "nearme",
-    "password": "nearme_pass_2026",
-    "host": "localhost",
-    "port": 5432,
+    "dbname": os.environ.get("DB_NAME", "nearme_osint"),
+    "user": os.environ.get("DB_USER", "nearme"),
+    "password": os.environ.get("DB_PASSWORD", "nearme_pass_2026"),
+    "host": os.environ.get("DB_HOST", "localhost"),
+    "port": int(os.environ.get("DB_PORT", "5432")),
 }
 
 
@@ -69,6 +70,9 @@ def save_event(event: Event) -> int:
                 ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s)
         ON CONFLICT (source, source_id)
         DO UPDATE SET
+            lat = EXCLUDED.lat,
+            lon = EXCLUDED.lon,
+            radius_m = EXCLUDED.radius_m,
             level = EXCLUDED.level,
             title = EXCLUDED.title,
             description = EXCLUDED.description,
@@ -105,7 +109,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
     if min_level:
         levels = {"info": 1, "warning": 2, "alert": 3, "critical": 4}
         min_lvl = levels.get(min_level, 1)
-        conditions.append(f"CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END >= %s")
+        conditions.append("CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END >= %s")
         cond_params.append(min_lvl)
     conditions.append("(expires_at IS NULL OR expires_at > NOW())")
     where = " AND ".join(conditions)
