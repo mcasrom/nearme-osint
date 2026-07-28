@@ -45,6 +45,11 @@
         <h1>📍 NearMe OSINT</h1>
         <div class="sub">¿Qué pasa a tu alrededor?</div>
         <button class="locate-btn" onclick="locate()">📍 Usar mi ubicación</button>
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <button class="locate-btn" style="flex:1;font-size:0.8em;" onclick="setRadius(50)">50 km</button>
+            <button class="locate-btn" style="flex:1;font-size:0.8em;background:#0d1520;color:#4fc3f7;border:1px solid #1a2a4a;" onclick="setRadius(200)">200 km</button>
+            <button class="locate-btn" style="flex:1;font-size:0.8em;background:#0d1520;color:#4fc3f7;border:1px solid #1a2a4a;" onclick="setRadius(500)">500 km</button>
+        </div>
         <div id="stats" class="stats"></div>
     <div id="events"><div class="loading">Cargando eventos...</div></div>
 
@@ -94,8 +99,8 @@
 </div>
 </div>
 <script>
-const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
-let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON;
+const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70, DEFAULT_RADIUS = 200;
+let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON, currentRadius = DEFAULT_RADIUS;
 const ICONS = {
     fire: "🔥", flood: "🌊", earthquake: "🏚", storm: "⛈", wind: "💨",
     snow: "❄️", heatwave: "🌡", air_quality: "🌫", traffic: "🚗",
@@ -111,8 +116,8 @@ function init() {
         maxZoom: 18,
     }).addTo(map);
     marker = L.circleMarker([DEFAULT_LAT, DEFAULT_LON], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
-    circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: 25000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
-    loadEvents(DEFAULT_LAT, DEFAULT_LON);
+    circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: DEFAULT_RADIUS * 1000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
+    loadEvents();
 }
 
 function locate() {
@@ -124,15 +129,16 @@ function locate() {
 }
 
 function updateMap() {
-    map.setView([currentLat, currentLon], 12);
+    map.setView([currentLat, currentLon], 8);
     marker.setLatLng([currentLat, currentLon]);
     circle.setLatLng([currentLat, currentLon]);
+    circle.setRadius(currentRadius * 1000);
 }
 
 async function loadEvents() {
     document.getElementById('events').innerHTML = '<div class="loading">Cargando...</div>';
     try {
-        const resp = await fetch(`/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=25&limit=100`);
+        const resp = await fetch(`/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=200`);
         const data = await resp.json();
         render(data);
     } catch (e) {
@@ -154,6 +160,20 @@ function render(data) {
     ).join('') + `<div class="stat">${events.length} total</div>`;
 
     document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
+
+    // Clear old markers
+    if (window.eventMarkers) window.eventMarkers.forEach(m => map.removeLayer(m));
+    window.eventMarkers = [];
+    const COLORS = { critical: '#f44336', alert: '#ff9800', warning: '#ffeb3b', info: '#4fc3f7' };
+    events.forEach(e => {
+        const color = COLORS[e.level] || '#607d8b';
+        const icon = ICONS[e.event_type] || '📌';
+        const m = L.circleMarker([e.lat, e.lon], { radius: 7, color, fillColor: color, fillOpacity: 0.6, weight: 2 })
+            .addTo(map)
+            .bindPopup(`<b>${icon} ${e.title}</b><br>${e.distance_km} km · ${e.source}`);
+        window.eventMarkers.push(m);
+    });
+
     const el = document.getElementById('events');
     el.innerHTML = events.map(e => {
         const icon = ICONS[e.event_type] || "📌";
@@ -165,6 +185,12 @@ function render(data) {
             <div class="meta">${e.municipality || e.region || ''} ${e.country || ''}</div>
         </div>`;
     }).join('');
+}
+
+function setRadius(km) {
+    currentRadius = km;
+    updateMap();
+    loadEvents();
 }
 
 function flyTo(lat, lon) {
