@@ -136,13 +136,19 @@ function updateMap() {
 }
 
 async function loadEvents() {
-    document.getElementById('events').innerHTML = '<div class="loading">Cargando...</div>';
+    document.getElementById('events').innerHTML = '<div class="loading">Cargando eventos...</div>';
     try {
-        const resp = await fetch(`/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=200`);
+        const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=200`;
+        console.log('Fetching:', url);
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
+        console.log('API response:', data.total, 'eventos');
         render(data);
     } catch (e) {
-        document.getElementById('events').innerHTML = '<div class="loading">Error al cargar</div>';
+        console.error('Fetch error:', e);
+        document.getElementById('events').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+        document.getElementById('stats').innerHTML = '';
     }
 }
 
@@ -161,10 +167,12 @@ function render(data) {
 
     document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
 
+    console.log('NearMe render:', events.length, 'eventos');
     // Clear old markers
     if (window.eventMarkers) window.eventMarkers.forEach(m => map.removeLayer(m));
     window.eventMarkers = [];
     const COLORS = { critical: '#f44336', alert: '#ff9800', warning: '#ffeb3b', info: '#4fc3f7' };
+    const markerBounds = [];
     events.forEach(e => {
         const color = COLORS[e.level] || '#607d8b';
         const icon = ICONS[e.event_type] || '📌';
@@ -172,7 +180,11 @@ function render(data) {
             .addTo(map)
             .bindPopup(`<b>${icon} ${e.title}</b><br>${e.distance_km} km · ${e.source}`);
         window.eventMarkers.push(m);
+        markerBounds.push([e.lat, e.lon]);
     });
+    if (markerBounds.length > 0) {
+        map.fitBounds(markerBounds, { padding: [40, 40], maxZoom: 10 });
+    }
 
     const el = document.getElementById('events');
     el.innerHTML = events.map(e => {
