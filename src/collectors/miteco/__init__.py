@@ -2,6 +2,7 @@ import csv
 import io
 import requests
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 ICA_URL = "https://ica.miteco.es/datos/ica-ultima-hora.csv"
@@ -19,6 +20,9 @@ ICA_LEVELS = {
 }
 
 
+logger = get_logger("src.collectors.miteco")
+
+
 class AirQualityCollector(BaseCollector):
     name = "MITECO-CalidadAire"
     interval_minutes = 30
@@ -26,9 +30,9 @@ class AirQualityCollector(BaseCollector):
     def collect(self):
         events = []
         try:
-            resp = requests.get(ICA_URL, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}, verify=False)
+            resp = requests.get(ICA_URL, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"})
             if resp.status_code != 200:
-                print(f"    MITECO: HTTP {resp.status_code}")
+                logger.warning("MITECO: HTTP %s", resp.status_code)
                 return events
 
             reader = csv.DictReader(io.StringIO(resp.text))
@@ -73,7 +77,7 @@ class AirQualityCollector(BaseCollector):
                 except (ValueError, TypeError, KeyError):
                     pass
 
-            print(f"    MITECO: {active_stations} estaciones con calidad aire >= Regular")
+            logger.info("MITECO: %d estaciones con calidad aire >= Regular", active_stations)
         except Exception as e:
-            print(f"    [WARN] MITECO calidad aire: {e}")
+            logger.warning("MITECO calidad aire: %s", e)
         return events

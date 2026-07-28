@@ -1,6 +1,10 @@
 import requests
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
+
+
+logger = get_logger("src.collectors.ign")
 
 
 class IGNCollector(BaseCollector):
@@ -39,5 +43,5 @@ class IGNCollector(BaseCollector):
                         country="ES",
                     ))
         except Exception as e:
-            print(f"    [WARN] USGS: {e}")
+            logger.warning("USGS: %s", e)
         return events

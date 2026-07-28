@@ -2,6 +2,7 @@ import os
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 OPENAQ_API_KEY = os.environ.get("OPENAQ_API_KEY", "")
@@ -23,13 +24,16 @@ THRESHOLDS = {
     "so2": {"warning": 100, "alert": 350},
 }
 
+logger = get_logger("src.collectors.openaq")
+
+
 class OpenAQCollector(BaseCollector):
     name = "OpenAQ"
     interval_minutes = 30
 
     def collect(self):
         if not OPENAQ_API_KEY:
-            print("    [WARN] OPENAQ_API_KEY no configurada, saltando")
+            logger.warning("OPENAQ_API_KEY no configurada, saltando")
             return []
         return self._real_data()
 
@@ -55,7 +59,7 @@ class OpenAQCollector(BaseCollector):
                 )
                 if resp.status_code != 200:
                     if page == 1:
-                        print(f"    [WARN] OpenAQ {param_name}: HTTP {resp.status_code}")
+                        logger.warning("OpenAQ %s: HTTP %s", param_name, resp.status_code)
                     break
                 data = resp.json()
                 results = data.get("results", [])
@@ -89,9 +93,9 @@ class OpenAQCollector(BaseCollector):
                         description=f"{param_name.upper()}: {val} µg/m³ (estación {loc_id})",
                         country="ES",
                     ))
-            print(f"    OpenAQ {param_name}: {len(seen_locations)} ES, {len([e for e in events if e.level in ('alert','warning')])} alertas")
+            logger.info("OpenAQ %s: %d ES, %d alertas", param_name, len(seen_locations), len([e for e in events if e.level in ('alert','warning')]))
         except Exception as e:
-            print(f"    [WARN] OpenAQ {param_name}: {e}")
+            logger.warning("OpenAQ %s: %s", param_name, e)
         return events
 
     def _real_data(self):
@@ -100,5 +104,5 @@ class OpenAQCollector(BaseCollector):
             futs = {ex.submit(self._fetch_param_latest, pid): pname for pid, pname in PARAMETERS.items()}
             for f in as_completed(futs):
                 all_events.extend(f.result())
-        print(f"    OpenAQ total: {len(all_events)} eventos")
+        logger.info("OpenAQ total: %d eventos", len(all_events))
         return all_events

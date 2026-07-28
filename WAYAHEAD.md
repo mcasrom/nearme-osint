@@ -88,14 +88,22 @@
 - [x] Default API endpoint subido de 100→500, max 5000
 - [x] ~446 incendios visibles en radio 200km desde Madrid (antes: 5)
 
-### Sprint 14 — Playas (estacional, 28 Jul 2026)
-- [x] Euskadi GeoJSON: 37 playas costeras con coordenadas
-- [x] Euskadi estado sanitario: E. coli, enterococos, recomendación baño
-- [x] Bizkaia CKAN: bandera, oleaje, temp agua, medusas, ocupación
-- [x] Nuevo collector `src/collectors/playas/`: merge 3 fuentes
-- [x] Nuevo event_type: `beach` con icono 🏖️
-- [x] Flag→level: verde=info, amarilla=warning, roja=alert
-- [x] ~37 eventos/pipe en DB, accesibles vía API
+### Sprint 17 — Alertas personalizadas + registro (28 Jul 2026)
+- [x] "Avísame si hay incendios a <15 km" — alertas por tipo, radio y nivel
+- [x] Sistema de registro/login de usuarios (JWT + PostgreSQL)
+- [x] Alertas persisten en servidor asociadas a cada usuario
+- [x] Modal de configuración con toggle y borrado (vía API autenticada)
+- [x] Browser Notification API
+- [x] Badge con contador de coincidencias en botón Alertas
+- [x] Detección de eventos coincidentes en cada carga
+- [x] Barra de auth en sidebar (login/registro/logout)
+- [x] v0.4 → v0.5
+
+### Sprint 18 — Seguridad, observabilidad y operaciones (28 Jul 2026)
+- [x] Connection pooling con `psycopg2.pool.ThreadedConnectionPool` en db.py — elimina apertura/cierre de conexiones por cada operación
+- [x] Módulo `src/logging.py` con logging JSON estructurado — reemplaza todos los `print()` por `logger.info()`, `logger.warning()`, `logger.error()`
+- [x] Eliminado `verify=False` en MITECO ICA collector — verificación SSL activada
+- [x] `.env` limpio sin credenciales reales + `.env.example` con placeholders — secretos nunca en el repo
 
 ---
 
@@ -119,46 +127,14 @@ TOTAL:        ~5.470
 
 ## 🔜 Próximos sprints
 
-### Sprint 14 — Playas (estacional, 28 Jul 2026)
-- [x] Euskadi GeoJSON: 37 playas costeras con coordenadas
-- [x] Euskadi estado sanitario: E. coli, enterococos, recomendación baño
-- [x] Bizkaia CKAN: bandera, oleaje, temp agua, medusas, ocupación
-- [x] Nuevo collector `src/collectors/playas/`: merge 3 fuentes
-- [x] Nuevo event_type: `beach` con icono 🏖️
-- [x] Flag→level mapping: verde=info, amarilla=warning, roja=alert
-- [x] ~37 eventos/pipe guardados en DB
-- [ ] ~~Resto de CCAA~~ → bloqueado (ver ❌ Fuentes no accesibles)
-
-### Sprint 16 — UX mejorada (28 Jul 2026)
-- [x] Onboarding popup guía primer acceso (localStorage)
-- [x] Botón ayuda manual en sidebar
-- [x] Filtros por tipo de evento (chips toggle, sidebar)
-- [x] Descripción con saltos de línea (| → <br>)
-- [x] Modo oscuro / claro toggle (localStorage)
-- [x] Cero eventos → mensaje amigable
-- [x] fitBounds con try/catch para evitar errores con 0 marcadores
-- [x] v0.3 → v0.4
-
----
-
-## 🔜 Próximos sprints
-
-### Sprint 17 — Alertas personalizadas + registro (28 Jul 2026)
-- [x] "Avísame si hay incendios a <15 km" — alertas por tipo, radio y nivel
-- [x] Sistema de registro/login de usuarios (JWT + PostgreSQL)
-- [x] Alertas persisten en servidor asociadas a cada usuario
-- [x] Modal de configuración con toggle y borrado (vía API autenticada)
-- [x] Browser Notification API
-- [x] Badge con contador de coincidencias en botón Alertas
-- [x] Detección de eventos coincidentes en cada carga
-- [x] Barra de auth en sidebar (login/registro/logout)
-- [x] v0.4 → v0.5
+### Sprint 18 — ?
 
 ---
 
 ## 🐛 Bugs conocidos
 - [ ] ~20% paradas RENFE sin geolocalización (stop_id no encontrado en CSV estaciones)
 - [ ] Coordenadas incendios RSS aproximadas (por provincia), no geoposicionamiento real
+- [ ] Colectores bloqueantes (`requests`) en pipeline secuencial — considerar async + ThreadPoolExecutor
 
 ---
 
@@ -177,10 +153,10 @@ TOTAL:        ~5.470
 ---
 
 ## 🔑 Credenciales (en .env, gitignored)
-- `AEMET_API_KEY`: JWT (exp ~Dic 2026)
-- `DB_*`: PostgreSQL nearme / nearme_pass_2026
-- `NASA_FIRMS_KEY`: **Ya no necesita** — CSVs públicos (Sprint 9)
-- `JWT_SECRET`: HMAC para tokens de usuario (Sprint 17)
+- `.env.example` incluido con placeholders — nunca subir credenciales reales
+- `AEMET_API_KEY`: JWT (exp ~Dic 2026) — configurar en servidor
+- `DB_*`: PostgreSQL nearme / cambiar `DB_PASSWORD` en producción
+- `JWT_SECRET`: HMAC para tokens de usuario — cambiar en producción
 
 ---
 
@@ -190,7 +166,8 @@ nearme-osint/
 ├── run.py                     # Pipeline orchestrator (11 colectores)
 ├── src/
 │   ├── api/server.py          # FastAPI (frontend + API)
-│   ├── db.py                  # PostgreSQL/PostGIS
+│   ├── db.py                  # PostgreSQL/PostGIS con connection pooling
+│   ├── logging.py             # JSON logging module
 │   ├── models.py              # Event dataclass + EVENT_TYPES
 │   └── collectors/
 │       ├── aemet/             # Meteorología (observaciones)
@@ -208,5 +185,6 @@ nearme-osint/
 ├── setup-server.sh            # Provisioning servidor
 ├── WAYAHEAD.md                # Este archivo
 ├── requirements.txt           # Dependencias Python
-└── .env                       # Credenciales (gitignored)
+├── .env.example               # Template de credenciales (gitignored)
+└── .env                       # Credenciales reales (gitignored)
 ```

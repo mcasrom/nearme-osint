@@ -1,9 +1,13 @@
 import os
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 from datetime import datetime, timezone
 from typing import Optional
+from src.logging import get_logger
 from src.models import Event
+
+logger = get_logger("src.db")
 
 DB_CONFIG = {
     "dbname": os.environ.get("DB_NAME", "nearme_osint"),
@@ -13,11 +17,31 @@ DB_CONFIG = {
     "port": int(os.environ.get("DB_PORT", "5432")),
 }
 
+_pool = None
+
+
+def get_pool(minconn=2, maxconn=20):
+    global _pool
+    if _pool is None:
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=minconn,
+            maxconn=maxconn,
+            **DB_CONFIG,
+        )
+    return _pool
+
 
 def get_conn():
-    conn = psycopg2.connect(**DB_CONFIG)
+    pool = get_pool()
+    conn = pool.getconn()
     conn.autocommit = False
     return conn
+
+
+def release_conn(conn):
+    conn.rollback()
+    pool = get_pool()
+    pool.putconn(conn)
 
 
 def init_db():
@@ -74,10 +98,31 @@ def init_db():
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts(user_id)")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS ratings (
+            id SERIAL PRIMARY KEY,
+            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 3),
+            ip TEXT DEFAULT '',
+            user_agent TEXT DEFAULT '',
+            page_url TEXT DEFAULT '',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS saved_locations (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            lat DOUBLE PRECISION NOT NULL,
+            lon DOUBLE PRECISION NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_locations_user ON saved_locations(user_id)")
     conn.commit()
     cur.close()
-    conn.close()
-    print("[OK] Base de datos inicializada")
+    release_conn(conn)
+    logger.info("Base de datos inicializada")
 
 
 def save_event(event: Event) -> int:
@@ -113,7 +158,7 @@ def save_event(event: Event) -> int:
     event_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
-    conn.close()
+    release_conn(conn)
     return event_id
 
 
@@ -148,7 +193,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
     """, params)
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_conn(conn)
     result = []
     for r in rows:
         d = dict(r)
@@ -183,7 +228,7 @@ def clean_expired():
     deleted = cur.rowcount
     conn.commit()
     cur.close()
-    conn.close()
+    release_conn(conn)
     return deleted
 
 
@@ -205,7 +250,7 @@ def create_user(username: str, password_hash: str, email: str = "") -> dict | No
         return None
     finally:
         cur.close()
-        conn.close()
+        release_conn(conn)
 
 
 def get_user_by_username(username: str) -> dict | None:
@@ -214,7 +259,7 @@ def get_user_by_username(username: str) -> dict | None:
     cur.execute("SELECT id, username, email, password_hash, created_at FROM users WHERE username = %s", (username,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_conn(conn)
     return dict(row) if row else None
 
 
@@ -224,7 +269,7 @@ def get_user_by_id(user_id: int) -> dict | None:
     cur.execute("SELECT id, username, email, created_at FROM users WHERE id = %s", (user_id,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_conn(conn)
     return dict(row) if row else None
 
 
@@ -242,7 +287,7 @@ def create_alert(user_id: int, event_type: str = "all", radius_km: float = 15,
     alert = dict(cur.fetchone())
     conn.commit()
     cur.close()
-    conn.close()
+    release_conn(conn)
     if alert.get("created_at"):
         alert["created_at"] = alert["created_at"].isoformat()
     return alert
@@ -257,7 +302,7 @@ def get_user_alerts(user_id: int) -> list[dict]:
     )
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_conn(conn)
     result = []
     for r in rows:
         d = dict(r)
@@ -283,7 +328,7 @@ def update_alert(alert_id: int, user_id: int, **kwargs) -> dict | None:
     row = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
+    release_conn(conn)
     if row:
         d = dict(row)
         if d.get("created_at"):
@@ -299,5 +344,105 @@ def delete_alert(alert_id: int, user_id: int) -> bool:
     deleted = cur.rowcount > 0
     conn.commit()
     cur.close()
-    conn.close()
+    release_conn(conn)
+    return deleted
+
+
+# ----- Ratings -----
+
+def save_rating(rating: int, ip: str = "", user_agent: str = "", page_url: str = "") -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "INSERT INTO ratings (rating, ip, user_agent, page_url) VALUES (%s, %s, %s, %s) RETURNING id, rating, created_at",
+        (rating, ip, user_agent, page_url)
+    )
+    row = dict(cur.fetchone())
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    if row.get("created_at"):
+        row["created_at"] = row["created_at"].isoformat()
+    return row
+
+
+def get_ratings_summary() -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT rating, COUNT(*) as count FROM ratings GROUP BY rating ORDER BY rating")
+    rows = cur.fetchall()
+    cur.execute("SELECT COUNT(*) as total FROM ratings")
+    total = cur.fetchone()["total"]
+    cur.close()
+    release_conn(conn)
+    dist = {1: 0, 2: 0, 3: 0}
+    for r in rows:
+        dist[r["rating"]] = r["count"]
+    return {"total": total, "distribution": dist, "positive_pct": round(dist.get(3, 0) / max(total, 1) * 100, 1)}
+
+
+# ----- Saved Locations -----
+
+def create_location(user_id: int, name: str, lat: float, lon: float) -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "INSERT INTO saved_locations (user_id, name, lat, lon) VALUES (%s, %s, %s, %s) RETURNING id, user_id, name, lat, lon, created_at",
+        (user_id, name.strip(), lat, lon)
+    )
+    row = dict(cur.fetchone())
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    if row.get("created_at"):
+        row["created_at"] = row["created_at"].isoformat()
+    return row
+
+
+def get_user_locations(user_id: int) -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT id, user_id, name, lat, lon, created_at FROM saved_locations WHERE user_id = %s ORDER BY created_at ASC",
+        (user_id,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return result
+
+
+def update_location(location_id: int, user_id: int, name: str) -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "UPDATE saved_locations SET name = %s WHERE id = %s AND user_id = %s RETURNING id, user_id, name, lat, lon, created_at",
+        (name.strip(), location_id, user_id)
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    if row:
+        d = dict(row)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        return d
+    return None
+
+
+def delete_location(location_id: int, user_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM saved_locations WHERE id = %s AND user_id = %s", (location_id, user_id))
+    deleted = cur.rowcount > 0
+    conn.commit()
+    cur.close()
+    release_conn(conn)
     return deleted

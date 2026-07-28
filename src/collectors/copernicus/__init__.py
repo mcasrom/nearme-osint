@@ -1,6 +1,10 @@
 import requests
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
+
+
+logger = get_logger("src.collectors.copernicus")
 
 
 class CopernicusCollector(BaseCollector):
@@ -22,7 +26,7 @@ class CopernicusCollector(BaseCollector):
                 timeout=20
             )
             if resp.status_code != 200:
-                print(f"    GWIS: HTTP {resp.status_code}")
+                logger.warning("GWIS: HTTP %s", resp.status_code)
                 return events
             data = resp.json()
             features = data.get("features", []) if isinstance(data, dict) else data if isinstance(data, list) else []
@@ -61,11 +65,11 @@ class CopernicusCollector(BaseCollector):
                 except (ValueError, TypeError, IndexError):
                     pass
             if events:
-                print(f"    {len(events)} incendios GWIS activos")
+                logger.info("%d incendios GWIS activos", len(events))
             else:
-                print("    GWIS: sin incendios activos en Espana")
+                logger.info("GWIS: sin incendios activos en Espana")
         except Exception as e:
-            print(f"    [WARN] GWIS: {e}")
+            logger.warning("GWIS: %s", e)
         return events
 
     def _copernicus_emergency(self):
@@ -76,11 +80,11 @@ class CopernicusCollector(BaseCollector):
                 timeout=15
             )
             if resp.status_code != 200:
-                print(f"    Copernicus EMS: HTTP {resp.status_code}")
+                logger.warning("Copernicus EMS: HTTP %s", resp.status_code)
                 return events
             ct = resp.headers.get("content-type", "")
             if "json" not in ct:
-                print(f"    Copernicus EMS: respuesta no es JSON ({ct})")
+                logger.warning("Copernicus EMS: respuesta no es JSON (%s)", ct)
                 return events
             data = resp.json()
             features = data.get("features", []) if isinstance(data, dict) else []
@@ -118,9 +122,9 @@ class CopernicusCollector(BaseCollector):
                 except (ValueError, TypeError, IndexError):
                     pass
             if events:
-                print(f"    {len(events)} activaciones Copernicus EMS")
+                logger.info("%d activaciones Copernicus EMS", len(events))
             else:
-                print("    Copernicus EMS: sin activaciones activas")
+                logger.info("Copernicus EMS: sin activaciones activas")
         except Exception as e:
-            print(f"    [WARN] Copernicus EMS: {e}")
+            logger.warning("Copernicus EMS: %s", e)
         return events

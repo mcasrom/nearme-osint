@@ -2,10 +2,14 @@ import os
 import requests
 from datetime import datetime
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 AEMET_API_KEY = os.environ.get("AEMET_API_KEY", "")
 AEMET_BASE = "https://opendata.aemet.es/opendata/api"
+
+
+logger = get_logger("src.collectors.aemet")
 
 
 class AEMETCollector(BaseCollector):
@@ -14,7 +18,7 @@ class AEMETCollector(BaseCollector):
 
     def collect(self):
         if not AEMET_API_KEY:
-            print("    [WARN] AEMET_API_KEY no configurada, saltando AEMET")
+            logger.warning("AEMET_API_KEY no configurada, saltando AEMET")
             return []
         return self._real_data()
 
@@ -38,7 +42,7 @@ class AEMETCollector(BaseCollector):
                 return None
             return data_resp.json()
         except Exception as e:
-            print(f"    [WARN] AEMET {endpoint}: {e}")
+            logger.warning("AEMET %s: %s", endpoint, e)
             return None
 
     def _real_data(self):
@@ -50,7 +54,7 @@ class AEMETCollector(BaseCollector):
         events = []
         data = self._aemet_get_data("observacion/convencional/todas")
         if not data:
-            print("    AEMET: no se pudieron obtener observaciones")
+            logger.info("AEMET: no se pudieron obtener observaciones")
             return events
         items = data if isinstance(data, list) else []
         alerts = []
@@ -119,7 +123,7 @@ class AEMETCollector(BaseCollector):
             except (ValueError, TypeError):
                 pass
         events.extend(alerts)
-        print(f"    {len(items)} estaciones, {len(alerts)} con alertas")
+        logger.info("%d estaciones, %d con alertas", len(items), len(alerts))
         return events
 
 

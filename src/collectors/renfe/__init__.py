@@ -3,9 +3,13 @@ import io
 import requests
 from google.transit import gtfs_realtime_pb2
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 STATIONS_CSV = "https://ssl.renfe.com/ftransit/Fichero_estaciones/estaciones.csv"
+
+
+logger = get_logger("src.collectors.renfe")
 
 
 class RENFEDelaysCollector(BaseCollector):
@@ -34,9 +38,9 @@ class RENFEDelaysCollector(BaseCollector):
                         self._stations[code] = (lat, lon, name)
                 except (ValueError, TypeError):
                     pass
-            print(f"    RENFE: {len(self._stations)} estaciones geolocalizadas")
+            logger.info("RENFE: %d estaciones geolocalizadas", len(self._stations))
         except Exception as e:
-            print(f"    [WARN] RENFE estaciones: {e}")
+            logger.warning("RENFE estaciones: %s", e)
         return self._stations
 
     def collect(self):
@@ -51,7 +55,7 @@ class RENFEDelaysCollector(BaseCollector):
         try:
             resp = requests.get(url, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"})
             if resp.status_code != 200:
-                print(f"    RENFE {feed_type}: HTTP {resp.status_code}")
+                logger.warning("RENFE %s: HTTP %s", feed_type, resp.status_code)
                 return events
 
             feed = gtfs_realtime_pb2.FeedMessage()
@@ -97,7 +101,7 @@ class RENFEDelaysCollector(BaseCollector):
                         country="ES",
                     ))
 
-            print(f"    RENFE {feed_type}: {len(events)} retrasos significativos")
+            logger.info("RENFE %s: %d retrasos significativos", feed_type, len(events))
         except Exception as e:
-            print(f"    [WARN] RENFE {feed_type}: {e}")
+            logger.warning("RENFE %s: %s", feed_type, e)
         return events

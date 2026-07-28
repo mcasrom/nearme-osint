@@ -2,6 +2,7 @@ import re
 import sqlite3
 from pathlib import Path
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 HUB_DB = Path.home() / "intelligence-hub" / "data" / "news.db"
@@ -143,6 +144,9 @@ def score_article(title, source_country):
     return max(score, 0)
 
 
+logger = get_logger("src.collectors.intelhub_bridge")
+
+
 class IntelHubBridge(BaseCollector):
     name = "Intelligence Hub (incendios)"
     interval_minutes = 10
@@ -150,7 +154,7 @@ class IntelHubBridge(BaseCollector):
     def collect(self):
         events = []
         if not HUB_DB.exists():
-            print(f"    [WARN] BD del Hub no encontrada: {HUB_DB}")
+            logger.warning("BD del Hub no encontrada: %s", HUB_DB)
             return events
         try:
             conn = sqlite3.connect(str(HUB_DB))
@@ -224,7 +228,7 @@ class IntelHubBridge(BaseCollector):
                 ))
 
             conn.close()
-            print(f"    {len(rows)} artículos totales, {len(unique)} incendios relevantes")
+            logger.info("%d artículos totales, %d incendios relevantes", len(rows), len(unique))
         except Exception as e:
-            print(f"    [WARN] IntelHub bridge: {e}")
+            logger.warning("IntelHub bridge: %s", e)
         return events

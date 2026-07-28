@@ -3,6 +3,7 @@ import re
 import requests
 from datetime import datetime, timezone
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 EUSKADI_PLAYAS_URL = "https://opendata.euskadi.eus/contenidos/ds_informes_estudios/playas_euskadi_2026/es_def/adjuntos/playas.geojson"
@@ -43,8 +44,11 @@ def _get_json(url: str, timeout: int = 20):
         if r.status_code == 200:
             return r.json()
     except Exception as e:
-        print(f"    [WARN] Error fetching {url}: {e}")
+        logger.warning("Error fetching %s: %s", url, e)
     return None
+
+
+logger = get_logger("src.collectors.playas")
 
 
 class PlayasCollector(BaseCollector):
@@ -57,7 +61,7 @@ class PlayasCollector(BaseCollector):
 
         playas = self._fetch_playas_list()
         if not playas:
-            print("    No se pudo obtener lista de playas")
+            logger.warning("No se pudo obtener lista de playas")
             return []
 
         sanitario = self._fetch_sanitario()
@@ -69,9 +73,9 @@ class PlayasCollector(BaseCollector):
                 if event:
                     events.append(event)
             except Exception as e:
-                print(f"    [WARN] Error con playa {nombre}: {e}")
+                logger.warning("Error con playa %s: %s", nombre, e)
 
-        print(f"    {len(playas)} playas, {len(events)} eventos")
+        logger.info("%d playas, %d eventos", len(playas), len(events))
         return events
 
     def _fetch_playas_list(self) -> dict:
@@ -158,7 +162,7 @@ class PlayasCollector(BaseCollector):
                     }
             return result
         except Exception as e:
-            print(f"    [WARN] Error Bizkaia CKAN: {e}")
+            logger.warning("Error Bizkaia CKAN: %s", e)
             return {}
 
     def _build_event(self, nombre: str, info: dict, sanitario: dict, bizkaia: dict, hoy: str):

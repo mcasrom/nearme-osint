@@ -1,7 +1,11 @@
 import requests
 from datetime import datetime, timedelta, timezone
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
+
+
+logger = get_logger("src.collectors.ree")
 
 
 class REEPowerCollector(BaseCollector):
@@ -31,7 +35,7 @@ class REEPowerCollector(BaseCollector):
                               headers={"User-Agent": "NearMeOSINT/1.0"})
 
             if resp.status_code != 200:
-                print(f"    REE: HTTP {resp.status_code}")
+                logger.warning("REE: HTTP %s", resp.status_code)
                 return events
 
             data = resp.json()
@@ -65,7 +69,7 @@ class REEPowerCollector(BaseCollector):
                         region="Peninsular",
                     ))
 
-            print(f"    REE: {len(events)} eventos de demanda")
+            logger.info("REE: %d eventos de demanda", len(events))
         except Exception as e:
-            print(f"    [WARN] REE: {e}")
+            logger.warning("REE: %s", e)
         return events

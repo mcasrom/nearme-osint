@@ -3,9 +3,13 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 AEMET_API_KEY = os.environ.get("AEMET_API_KEY", "")
+
+
+logger = get_logger("src.collectors.proteccion_civil")
 
 
 class ProteccionCivilCollector(BaseCollector):
@@ -21,7 +25,7 @@ class ProteccionCivilCollector(BaseCollector):
         """Get weather warnings from AEMET (official Spanish meteorological agency)"""
         events = []
         if not AEMET_API_KEY:
-            print("    [WARN] AEMET_API_KEY no configurada, saltando avisos meteorológicos")
+            logger.warning("AEMET_API_KEY no configurada, saltando avisos meteorológicos")
             return events
 
         try:
@@ -32,19 +36,19 @@ class ProteccionCivilCollector(BaseCollector):
             resp = requests.get(f"{base}/avisos_cap/ultimoelaborado/area/es",
                               headers=headers, timeout=20)
             if resp.status_code != 200:
-                print(f"    AEMET avisos: HTTP {resp.status_code}")
+                logger.warning("AEMET avisos: HTTP %s", resp.status_code)
                 return events
 
             body = resp.json()
             data_url = body.get('datos')
             if not data_url:
-                print(f"    AEMET avisos: No data URL")
+                logger.warning("AEMET avisos: No data URL")
                 return events
 
             # Download the CAP (Common Alerting Protocol) XML files
             data_resp = requests.get(data_url, headers=headers, timeout=30)
             if data_resp.status_code != 200:
-                print(f"    AEMET avisos data: HTTP {data_resp.status_code}")
+                logger.warning("AEMET avisos data: HTTP %s", data_resp.status_code)
                 return events
 
             # Parse CAP XML
@@ -75,11 +79,11 @@ class ProteccionCivilCollector(BaseCollector):
                         pass
 
             except Exception as e:
-                print(f"    [WARN] AEMET CAP parse: {e}")
+                logger.warning("AEMET CAP parse: %s", e)
 
-            print(f"    AEMET avisos: {len(events)} alertas meteorológicas")
+            logger.info("AEMET avisos: %d alertas meteorológicas", len(events))
         except Exception as e:
-            print(f"    [WARN] AEMET avisos: {e}")
+            logger.warning("AEMET avisos: %s", e)
         return events
 
     def _parse_cap_xml(self, root):

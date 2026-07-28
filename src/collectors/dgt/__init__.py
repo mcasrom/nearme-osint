@@ -6,6 +6,7 @@ import requests
 from datetime import datetime
 from collections import Counter
 from src.collectors.base import BaseCollector
+from src.logging import get_logger
 from src.models import Event
 
 FIRMS_SOURCES = [
@@ -33,6 +34,9 @@ DGT_TYPE_MAP = {
 
 def _in_spain(lat, lon):
     return SPAIN_BBOX["min_lat"] <= lat <= SPAIN_BBOX["max_lat"] and SPAIN_BBOX["min_lon"] <= lon <= SPAIN_BBOX["max_lon"]
+
+
+logger = get_logger("src.collectors.dgt")
 
 
 class EarthquakesCollector(BaseCollector):
@@ -80,9 +84,9 @@ class EarthquakesCollector(BaseCollector):
                         description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
                         country=props.get("net", ""),
                     ))
-                print(f"    {len(events)} terremotos USGS (ultimas 24h)")
+                logger.info("%d terremotos USGS (ultimas 24h)", len(events))
         except Exception as e:
-            print(f"    [WARN] USGS: {e}")
+            logger.warning("USGS: %s", e)
         return events
 
     def _firms_fires(self):
@@ -136,8 +140,8 @@ class EarthquakesCollector(BaseCollector):
                     except (ValueError, KeyError):
                         continue
             except Exception as e:
-                print(f"    [WARN] FIRMS ({url.split('/')[-1]}): {e}")
-        print(f"    {len(events)} incendios activos en España (FIRMS)")
+                logger.warning("FIRMS: %s", e)
+        logger.info("%d incendios activos en España (FIRMS)", len(events))
         return events
 
 
@@ -150,7 +154,7 @@ class DGTTrafficCollector(BaseCollector):
         try:
             resp = requests.get(DATEX_URL, timeout=30, headers={"User-Agent": "NearMeOSINT/1.0"})
             if resp.status_code != 200:
-                print(f"    DGT DATEX II: HTTP {resp.status_code}")
+                logger.warning("DGT DATEX II: HTTP %s", resp.status_code)
                 return events
             text = resp.text
             records = re.findall(r'<sit:situationRecord[^>]*>(.*?)</sit:situationRecord>', text, re.DOTALL)
@@ -158,9 +162,9 @@ class DGTTrafficCollector(BaseCollector):
                 ev = self._parse_record(record)
                 if ev:
                     events.append(ev)
-            print(f"    {len(events)} incidencias de tráfico DGT")
+            logger.info("%d incidencias de tráfico DGT", len(events))
         except Exception as e:
-            print(f"    [WARN] DGT DATEX II: {e}")
+            logger.warning("DGT DATEX II: %s", e)
         return events
 
     def _parse_record(self, record):

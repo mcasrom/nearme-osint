@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
+from src.logging import get_logger
 from src.models import Event
+
+logger = get_logger("src.collectors.base")
 
 
 class BaseCollector(ABC):
@@ -11,7 +14,7 @@ class BaseCollector(ABC):
         pass
 
     def run(self) -> list[Event]:
-        print(f"  [{self.name}] Recopilando...")
+        logger.info("[%s] Recopilando...", self.name)
         try:
             events = self.collect()
             saved = 0
@@ -21,9 +24,9 @@ class BaseCollector(ABC):
                     save_event(ev)
                     saved += 1
                 except Exception as e:
-                    print(f"    [WARN] Error guardando evento: {e}")
-            print(f"    [OK] {saved}/{len(events)} eventos guardados")
+                    logger.warning("Error guardando evento: %s", e)
+            logger.info("[OK] %d/%d eventos guardados", saved, len(events))
             return events
         except Exception as e:
-            print(f"    [ERROR] {e}")
+            logger.error("%s", e)
             return []
