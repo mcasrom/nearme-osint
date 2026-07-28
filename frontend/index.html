@@ -627,7 +627,7 @@ function onMapClick(e) {
 }
 
 async function searchNearbyPOIs(lat, lon) {
-    const radius = 5000;
+    const radius = 2000;
     const categories = {
         'hospital': 'hospital',
         'clinica': 'clinic',
@@ -640,7 +640,7 @@ async function searchNearbyPOIs(lat, lon) {
     };
     try {
         const queries = Object.entries(categories).map(async ([label, amenity]) => {
-            const q = `[out:json][timeout:10];(node["amenity"="${amenity}"](${lat},${lon}));(way["amenity"="${amenity}"](${lat},${lon});relation["amenity"="${amenity}"](${lat},${lon}););out body;`;
+            const q = `[out:json][timeout:15];(node["amenity"="${amenity}"](around:${radius},${lat},${lon});way["amenity"="${amenity}"](around:${radius},${lat},${lon});relation["amenity"="${amenity}"](around:${radius},${lat},${lon}););out body;`;
             try {
                 const resp = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, {
                     headers: { 'User-Agent': 'NearMeOSINT/1.0' }
