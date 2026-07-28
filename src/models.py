@@ -29,6 +29,7 @@ EVENT_TYPES = {
     "crime": "Incidente seguridad",
     "news": "Noticia local",
     "other": "Otro",
+    "beach": "Playa",
 }
 
 LEVELS = {"info": "info", "warning": "warning", "alert": "alert", "critical": "critical"}

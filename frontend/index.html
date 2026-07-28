@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5/dist/leaflet.markercluster.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.heat@0.2/dist/leaflet-heat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e17; color: #d0dbe8; }
@@ -28,6 +29,15 @@
         .btn-outline { background: #0d1520; color: #4fc3f7; border: 1px solid #1a2a4a; }
         .btn-outline:hover { border-color: #00d4ff; color: #00d4ff; }
         .btn-sm { padding: 6px 10px; font-size: 0.8em; }
+        .btn-danger { background: #d32f2f; color: #fff; }
+        .btn-danger:hover { background: #b71c1c; }
+        .btn-danger-outline { background: #0d1520; color: #ef5350; border: 1px solid #5a2a2a; }
+        .btn-danger-outline:hover { border-color: #ef5350; }
+        .btn-warning-outline { background: #0d1520; color: #ffb300; border: 1px solid #5a4a2a; }
+        .btn-warning-outline:hover { border-color: #ffb300; }
+        .btn-heat { background: #ff6d00; color: #fff; border: none; }
+        .btn-heat:hover { background: #e65100; }
+        .btn-heat.active { background: #d32f2f; box-shadow: 0 0 12px rgba(255,109,0,0.5); }
         .search-box { position: relative; margin-bottom: 12px; }
         .search-box input {
             width: 100%; padding: 10px 40px 10px 12px; border-radius: 8px; border: 1px solid #1a2a4a;
@@ -56,6 +66,8 @@
         .stat.blackout .n { color: #ffeb3b; }
         .stat.warning .n { color: #ffc107; }
         .stat.total .n { color: #00d4ff; }
+        .stat.danger-badge { background: #2a0a0a; border-color: #5a1a1a; }
+        .stat.danger-badge .n { color: #ef5350; }
         .loading { color: #607d8b; text-align: center; padding: 40px; }
         .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #1a2a4a; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -69,21 +81,202 @@
         .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
         .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.7em; color: #78909c; }
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-        /* MarkerCluster overrides */
+        .event .level-badge { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 0.7em; margin-left: 4px; vertical-align: middle; }
+        .level-badge.critical { background: #d32f2f; color: #fff; }
+        .level-badge.alert { background: #f57c00; color: #fff; }
+        .level-badge.warning { background: #fbc02d; color: #000; }
+        .level-badge.info { background: #1976d2; color: #fff; }
+        @keyframes pulse-critical { 0%, 100% { box-shadow: 0 0 6px rgba(211,47,47,0.6); } 50% { box-shadow: 0 0 20px rgba(211,47,47,0.9); } }
+        @keyframes pulse-alert { 0%, 100% { box-shadow: 0 0 4px rgba(245,124,0,0.4); } 50% { box-shadow: 0 0 14px rgba(245,124,0,0.7); } }
         .marker-cluster-small { background-color: rgba(0,212,255,0.3); }
         .marker-cluster-small div { background-color: rgba(0,212,255,0.7); }
         .marker-cluster-medium { background-color: rgba(255,152,0,0.3); }
         .marker-cluster-medium div { background-color: rgba(255,152,0,0.7); }
         .marker-cluster-large { background-color: rgba(244,67,54,0.3); }
         .marker-cluster-large div { background-color: rgba(244,67,54,0.7); }
+        .onboarding-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .onboarding-modal {
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 16px;
+            max-width: 500px; width: 90%; padding: 32px; position: relative;
+        }
+        .onboarding-modal h2 { color: #00d4ff; font-size: 1.4em; margin-bottom: 8px; }
+        .onboarding-modal .sub { color: #78909c; font-size: 0.9em; margin-bottom: 24px; }
+        .onboarding-step { display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start; }
+        .onboarding-step .num {
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 50%;
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9em; color: #00d4ff; flex-shrink: 0;
+        }
+        .onboarding-step .text { color: #b0bec5; font-size: 0.85em; line-height: 1.5; }
+        .onboarding-step .text strong { color: #e0e8f0; }
+        .onboarding-modal .btn { margin-top: 16px; }
+        .filters-wrap { margin-bottom: 12px; }
+        .filters-toggle {
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 8px;
+            padding: 8px 12px; cursor: pointer; font-size: 0.85em;
+            display: flex; align-items: center; justify-content: space-between; color: #b0bec5;
+        }
+        .filters-toggle:hover { border-color: #00d4ff; }
+        .filters-toggle .arrow { transition: transform 0.2s; }
+        .filters-toggle.open .arrow { transform: rotate(180deg); }
+        .filters-body {
+            display: none; background: #111827; border: 1px solid #1a2a4a; border-top: none;
+            border-radius: 0 0 8px 8px; padding: 10px 12px; max-height: 220px; overflow-y: auto;
+        }
+        .filters-body.open { display: flex; flex-wrap: wrap; gap: 6px; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 14px; border: 1px solid #1a2a4a;
+            font-size: 0.75em; cursor: pointer; transition: 0.2s; color: #78909c; background: #0d1520;
+        }
+        .filter-chip.active { background: #1a3a5a; border-color: #00d4ff; color: #e0e8f0; }
+        .filter-chip .count { color: #607d8b; font-size: 0.85em; }
+        .filter-chip.active .count { color: #4fc3f7; }
+        .dark-toggle {
+            position: absolute; top: 16px; right: 16px; cursor: pointer;
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 50%;
+            width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.1em; z-index: 10;
+        }
+        .dark-toggle:hover { border-color: #00d4ff; }
+        body.light { background: #f5f7fa; color: #263238; }
+        body.light #sidebar { background: #fff; border-left-color: #e0e0e0; }
+        body.light h1 { color: #0288d1; }
+        body.light .sub { color: #90a4ae; }
+        body.light .event { background: #f5f7fa; }
+        body.light .event:hover { background: #eceff1; }
+        body.light .event .meta { color: #90a4ae; }
+        body.light .event .desc { color: #78909c; }
+        body.light .search-box input { background: #f5f7fa; border-color: #e0e0e0; color: #263238; }
+        body.light .coords-display { color: #0288d1; }
+        body.light .stat { background: #f5f7fa; border-color: #e0e0e0; }
+        body.light .info-footer { background: #f5f7fa; border-color: #e0e0e0; }
+        body.light .info-section .tag { background: #f5f7fa; }
+        body.light .btn-outline { background: #fff; }
+        body.light .btn-danger-outline { background: #fff; }
+        body.light .btn-warning-outline { background: #fff; }
+        body.light .filters-toggle { background: #f5f7fa; }
+        body.light .filters-body { background: #f5f7fa; }
+        body.light .filter-chip { background: #fff; }
+        body.light .filter-chip.active { background: #e3f2fd; border-color: #0288d1; }
+        body.light .onboarding-modal { background: #fff; }
+        body.light .onboarding-step .num { background: #f5f7fa; }
+        body.light .onboarding-step .text { color: #546e7a; }
+        body.light .onboarding-step .text strong { color: #263238; }
+        body.light .dark-toggle { background: #f5f7fa; }
+        .alert-btn-wrap { display: flex; gap: 6px; margin-bottom: 12px; position: relative; }
+        .alert-badge {
+            position: absolute; top: -4px; right: -4px; background: #d32f2f; color: #fff;
+            border-radius: 50%; width: 18px; height: 18px; font-size: 0.6em;
+            display: none; align-items: center; justify-content: center; font-weight: 700;
+        }
+        .alert-badge.show { display: flex; }
+        .alerts-modal {
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 16px;
+            max-width: 520px; width: 90%; padding: 24px; position: relative; max-height: 90vh; overflow-y: auto;
+        }
+        .alerts-modal h2 { color: #00d4ff; font-size: 1.2em; margin-bottom: 16px; }
+        .alert-card {
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 10px;
+            padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+        }
+        .alert-card .info { flex: 1; }
+        .alert-card .info .label { font-size: 0.85em; font-weight: 600; }
+        .alert-card .info .detail { font-size: 0.75em; color: #78909c; margin-top: 2px; }
+        .alert-card .toggle {
+            width: 40px; height: 22px; border-radius: 11px; border: none; cursor: pointer;
+            position: relative; transition: 0.2s; flex-shrink: 0;
+        }
+        .alert-card .toggle.on { background: #00d4ff; }
+        .alert-card .toggle.off { background: #37474f; }
+        .alert-card .toggle::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: 0.2s;
+        }
+        .alert-card .toggle.on::after { left: 20px; }
+        .alert-card .del {
+            background: none; border: none; color: #607d8b; cursor: pointer;
+            font-size: 1.1em; padding: 4px; flex-shrink: 0;
+        }
+        .alert-card .del:hover { color: #ef5350; }
+        .alert-form { margin-top: 16px; padding: 16px; background: #111827; border-radius: 10px; border: 1px solid #1a2a4a; }
+        .alert-form-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .alert-form select, .alert-form input {
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 6px;
+            color: #d0dbe8; padding: 8px 10px; font-size: 0.8em; flex: 1; min-width: 100px;
+        }
+        .alert-form select:focus, .alert-form input:focus { border-color: #00d4ff; outline: none; }
+        .alert-form .btn-add { background: #00d4ff; color: #0a0e17; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.8em; }
+        .alert-form .btn-add:hover { background: #00b8d4; }
+        .alerts-empty { color: #607d8b; font-size: 0.85em; text-align: center; padding: 24px; }
+        .notif-perm-bar {
+            background: #2a1a0a; border: 1px solid #5a3a1a; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 12px; font-size: 0.78em; color: #ffb300;
+            display: none; align-items: center; gap: 8px;
+        }
+        .notif-perm-bar.show { display: flex; }
+        .notif-perm-bar button {
+            background: #ffb300; color: #0a0e17; border: none; border-radius: 6px;
+            padding: 4px 10px; font-weight: 600; cursor: pointer; font-size: 0.85em;
+        }
+        body.light .alerts-modal { background: #fff; }
+        body.light .alert-card { background: #f5f7fa; border-color: #e0e0e0; }
+        body.light .alert-form { background: #f5f7fa; }
+        body.light .alert-form select, body.light .alert-form input { background: #fff; color: #263238; }
+
+        .auth-bar { margin-bottom: 12px; }
+        .auth-bar .btn-login-bar {
+            width: 100%; background: #111827; border: 1px solid #1a2a4a; border-radius: 8px;
+            padding: 8px 12px; color: #4fc3f7; cursor: pointer; font-size: 0.8em; text-align: center;
+        }
+        .auth-bar .btn-login-bar:hover { border-color: #00d4ff; }
+        .auth-user {
+            display: flex; align-items: center; gap: 8px;
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 8px; padding: 6px 10px;
+        }
+        .auth-user .auth-avatar { font-size: 1em; }
+        .auth-user .auth-name { flex: 1; font-size: 0.82em; font-weight: 600; color: #b0bec5; }
+        .auth-user .btn-logout {
+            background: none; border: none; color: #607d8b; cursor: pointer; font-size: 0.9em; padding: 2px 6px;
+        }
+        .auth-user .btn-logout:hover { color: #ef5350; }
+        body.light .auth-bar .btn-login-bar { background: #f5f7fa; }
+        body.light .auth-user { background: #f5f7fa; }
+        .auth-modal {
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 16px;
+            max-width: 400px; width: 90%; padding: 24px; position: relative;
+        }
+        .auth-modal .btn { margin-top: 8px; }
+        .auth-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #1a2a4a; }
+        .auth-tab {
+            flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
+            padding: 8px; color: #607d8b; cursor: pointer; font-size: 0.85em; font-weight: 600;
+        }
+        .auth-tab.active { color: #00d4ff; border-bottom-color: #00d4ff; }
+        .auth-input {
+            width: 100%; background: #111827; border: 1px solid #1a2a4a; border-radius: 6px;
+            color: #d0dbe8; padding: 10px 12px; font-size: 0.85em; margin-bottom: 8px; outline: none;
+        }
+        .auth-input:focus { border-color: #00d4ff; }
+        .auth-error { color: #ef5350; font-size: 0.78em; margin-bottom: 8px; min-height: 1em; }
+        body.light .auth-modal { background: #fff; }
+        body.light .auth-input { background: #f5f7fa; color: #263238; }
+        body.light .auth-tab { color: #90a4ae; }
+        body.light .auth-tab.active { color: #0288d1; border-bottom-color: #0288d1; }
     </style>
 </head>
 <body>
 <div id="app">
     <div id="map"></div>
     <div id="sidebar">
-        <h1>NearMe OSINT</h1>
-        <div class="sub">Que pasa a tu alrededor</div>
+        <div style="position:relative;">
+            <h1>NearMe OSINT</h1>
+            <div class="sub">Que pasa a tu alrededor</div>
+            <div class="dark-toggle" onclick="toggleDark()" id="darkToggle" title="Modo claro/oscuro">🌙</div>
+        </div>
 
         <div class="search-box">
             <input type="text" id="search-input" placeholder="Buscar ciudad, direccion..." onkeydown="if(event.key==='Enter')searchLocation()" />
@@ -93,11 +286,28 @@
 
         <div class="coords-display" id="coords-display">40.42, -3.70</div>
 
+        <div class="auth-bar" id="authBar">
+            <button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>
+        </div>
+
         <div style="display:flex;gap:6px;margin-bottom:12px;">
-            <button class="btn btn-sm" onclick="locate()" style="flex:1;background:#111827;color:#607d8b;border:1px solid #1a2a4a;">GPS (VPN?)</button>
+            <button class="btn btn-sm" onclick="locate()" style="flex:1;background:#111827;color:#607d8b;border:1px solid #1a2a4a;" title="Usar mi ubicacion">GPS</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(50)" id="r50" style="flex:1;">50 km</button>
             <button class="btn btn-sm" onclick="setRadius(200)" id="r200" style="flex:1;">200 km</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(500)" id="r500" style="flex:1;">500 km</button>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <button class="btn btn-sm btn-heat" onclick="toggleHeatmap()" id="heatBtn" style="flex:1;">Mapa de calor</button>
+            <button class="btn btn-sm btn-outline" onclick="showOnboarding()" style="flex:1;" id="helpBtn">Ayuda</button>
+            <button class="btn btn-sm btn-outline" onclick="showAlertModal()" style="flex:1;position:relative;" id="alertBtn">Alertas</button>
+        </div>
+
+        <div class="filters-wrap" id="filtersWrap">
+            <div class="filters-toggle" onclick="toggleFilters()" id="filtersToggle">
+                <span>Filtrar por tipo</span><span class="arrow">▾</span>
+            </div>
+            <div class="filters-body" id="filtersBody"></div>
         </div>
 
         <div id="stats" class="stats"></div>
@@ -110,6 +320,8 @@
                 <div class="content">
                     <p><strong>AEMET</strong> — Alertas meteorologicas de 10.600+ estaciones en Espana</p>
                     <p><strong>USGS</strong> — Terremotos globales M2.5+ en las ultimas 24h</p>
+                    <p><strong>NASA FIRMS</strong> — Incendios activos por satelite (MODIS+VIIRS), solo Espana</p>
+                    <p><strong>DGT</strong> — Incidencias de trafico DATEX II v3.6 (cortes, obras, accidentes)</p>
                     <p><strong>RENFE</strong> — Retrasos tren cercanias y alta velocidad (GTFS-RT)</p>
                     <p><strong>REE</strong> — Demanda electrica en tiempo real</p>
                     <p><strong>MITECO</strong> — Calidad del aire ICA, 620+ estaciones horarias</p>
@@ -129,13 +341,17 @@
             </details>
         </div>
         <div class="info-footer">
-            NearMe OSINT v0.2 — Actualizado cada 15 min — <span id="update-time">—</span>
+            NearMe OSINT v0.5 — Actualizado cada 15 min — <span id="update-time">—</span>
         </div>
     </div>
 </div>
 <script>
 const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
 let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON, currentRadius = 200;
+let heatmapLayer = null;
+let activeFilters = new Set();
+let allEvents = [];
+let filtersOpen = false;
 
 const TYPE_COLORS = {
     fire:         '#ff5722',
@@ -166,13 +382,59 @@ const LEVEL_COLORS = {
     info:     '#4fc3f7',
 };
 
-const ICONS = {
-    fire: "\uD83D\uDD25", flood: "\uD83C\uDF0A", earthquake: "\uD83C\uDFDB", storm: "\u26C8", wind: "\uD83D\uDCA8",
-    snow: "\u2744\uFE0F", heatwave: "\uD83C\uDF21", air_quality: "\uD83C\uDF2B", traffic: "\uD83D\uDE97",
-    road_incident: "\uD83D\uDEA7", road_closure: "\u26D4", train_delay: "\uD83D\uDE84",
-    flight_delay: "\u2708", blackout: "\u26A1", warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D",
-    crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
+const LEVEL_EMOJI = {
+    critical: '\uD83D\uDEA8',
+    alert:    '\u26A0\uFE0F',
+    warning:  '\u2757',
+    info:     '\u2139\uFE0F',
 };
+
+const FIRE_LEVEL = {
+    critical: '\uD83D\uDD25\uD83D\uDEA8',
+    alert:    '\uD83D\uDD25\u26A0\uFE0F',
+    warning:  '\uD83D\uDD25\u2757',
+    info:     '\uD83D\uDD25',
+};
+
+const ICONS = {
+    fire: "\uD83D\uDD25", flood: "\uD83C\uDF0A", earthquake: "\uD83C\uDFDA\uFE0F", storm: "\u26C8\uFE0F",
+    wind: "\uD83D\uDCA8", snow: "\u2744\uFE0F", heatwave: "\uD83C\uDF21\uFE0F", air_quality: "\uD83C\uDF2B\uFE0F",
+    traffic: "\uD83D\uDE97", road_incident: "\uD83D\uDEA7", road_closure: "\u26D4",
+    train_delay: "\uD83D\uDE84", flight_delay: "\u2708\uFE0F", blackout: "\u26A1",
+    warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D", crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
+    beach: "\uD83C\uDFD6\uFE0F",
+};
+
+const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#880000'];
+
+function fireHeatColor(frp) {
+    if (frp > 200) return '#880000';
+    if (frp > 100) return '#cc0000';
+    if (frp > 50)  return '#ff0000';
+    if (frp > 20)  return '#ff5500';
+    if (frp > 10)  return '#ffaa00';
+    return '#ffff00';
+}
+
+function fireRadius(frp) {
+    if (frp > 200) return 14;
+    if (frp > 100) return 11;
+    if (frp > 50)  return 9;
+    if (frp > 20)  return 7;
+    if (frp > 10)  return 6;
+    return 5;
+}
+
+function levelEmoji(level, eventType) {
+    if (eventType === 'fire' && FIRE_LEVEL[level]) return FIRE_LEVEL[level];
+    return LEVEL_EMOJI[level] || '';
+}
+
+function levelBadge(level, eventType) {
+    if (!level || level === 'info') return '';
+    const emoji = eventType === 'fire' ? (FIRE_LEVEL[level] || '') : (LEVEL_EMOJI[level] || '');
+    return `<span class="level-badge ${level}">${emoji} ${level.toUpperCase()}</span>`;
+}
 
 let radiusBtns = { 50: 'r50', 200: 'r200', 500: 'r500' };
 
@@ -185,7 +447,89 @@ function init() {
     circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: currentRadius * 1000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
     map.on('click', onMapClick);
     updateRadiusBtns();
+    const savedTheme = localStorage.getItem('nearme_theme');
+    if (savedTheme === 'light') document.body.classList.add('light');
+    updateDarkToggle();
+    if (!localStorage.getItem('nearme_onboarding')) setTimeout(showOnboarding, 500);
+    checkAuth();
     loadEvents();
+}
+
+function showOnboarding() {
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.id = 'onboardingOverlay';
+    overlay.innerHTML = `
+        <div class="onboarding-modal">
+            <h2>Bienvenido a NearMe OSINT</h2>
+            <div class="sub">Mapa en tiempo real de eventos e incidencias geolocalizadas</div>
+            <div class="onboarding-step">
+                <div class="num">1</div>
+                <div class="text"><strong>Busca una ubicacion</strong> — Escribe una ciudad en el buscador o haz clic en el mapa para centrar la vista</div>
+            </div>
+            <div class="onboarding-step">
+                <div class="num">2</div>
+                <div class="text"><strong>Ajusta el radio</strong> — Elige 50, 200 o 500 km para ver eventos a tu alrededor</div>
+            </div>
+            <div class="onboarding-step">
+                <div class="num">3</div>
+                <div class="text"><strong>Filtra por tipo</strong> — Usa el panel "Filtrar por tipo" para ver solo lo que te interesa (incendios, trafico, playas...)</div>
+            </div>
+            <div class="onboarding-step">
+                <div class="num">4</div>
+                <div class="text"><strong>Explora los eventos</strong> — Haz clic en un evento de la lista para volar a el en el mapa. Los circulos parpadeantes son alertas activas</div>
+            </div>
+            <button class="btn" onclick="dismissOnboarding()">Entendido</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function dismissOnboarding() {
+    const el = document.getElementById('onboardingOverlay');
+    if (el) el.remove();
+    localStorage.setItem('nearme_onboarding', '1');
+}
+
+function toggleDark() {
+    document.body.classList.toggle('light');
+    localStorage.setItem('nearme_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+    updateDarkToggle();
+}
+
+function updateDarkToggle() {
+    const btn = document.getElementById('darkToggle');
+    btn.textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+}
+
+function toggleFilters() {
+    filtersOpen = !filtersOpen;
+    document.getElementById('filtersToggle').classList.toggle('open', filtersOpen);
+    document.getElementById('filtersBody').classList.toggle('open', filtersOpen);
+}
+
+function toggleFilter(type) {
+    if (activeFilters.has(type)) {
+        activeFilters.delete(type);
+    } else {
+        activeFilters.add(type);
+    }
+    renderFilterChips();
+    renderEvents();
+    renderMapMarkers();
+}
+
+function renderFilterChips() {
+    const body = document.getElementById('filtersBody');
+    const byType = {};
+    allEvents.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
+    const types = Object.keys(byType).sort((a, b) => (byType[b] || 0) - (byType[a] || 0));
+    body.innerHTML = types.map(t => `
+        <div class="filter-chip ${activeFilters.size === 0 || activeFilters.has(t) ? 'active' : ''}"
+             onclick="toggleFilter('${t}')">
+            ${ICONS[t] || ''} ${t.replace('_',' ')} <span class="count">${byType[t]}</span>
+        </div>
+    `).join('');
 }
 
 function onMapClick(e) {
@@ -242,77 +586,173 @@ function updateRadiusBtns() {
     }
 }
 
+function getFRP(e) {
+    const desc = e.description || '';
+    const m = desc.match(/FRP:\s*(\d+(?:\.\d+)?)/i);
+    return m ? parseFloat(m[1]) : 0;
+}
+
+function toggleHeatmap() {
+    const btn = document.getElementById('heatBtn');
+    if (heatmapLayer) {
+        map.removeLayer(heatmapLayer);
+        heatmapLayer = null;
+        btn.className = 'btn btn-sm btn-heat';
+        btn.textContent = 'Mapa de calor';
+    } else {
+        loadEventsWithHeatmap();
+        btn.className = 'btn btn-sm btn-heat active';
+        btn.textContent = 'Desactivar calor';
+    }
+}
+
+function loadEventsWithHeatmap() {
+    const fireLimit = parseInt(currentRadius) >= 500 ? 2000 : 1000;
+    const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=${fireLimit}&event_type=fire`;
+    fetch(url).then(r => r.json()).then(data => {
+        const fires = (data.events || []).filter(e => e.event_type === 'fire' && e.source === 'nasa_firms');
+        const heatData = fires.map(e => [e.lat, e.lon, Math.min(e.subtype ? parseFloat(e.subtype.replace('frp_','')) || 1 : 1, 300) / 100]);
+        if (heatData.length === 0) {
+            const btn = document.getElementById('heatBtn');
+            btn.className = 'btn btn-sm btn-heat';
+            btn.textContent = 'Mapa de calor';
+            alert('No hay incendios en esta zona para el mapa de calor');
+            return;
+        }
+        if (heatmapLayer) map.removeLayer(heatmapLayer);
+        heatmapLayer = L.heatLayer(heatData, {
+            radius: 25, blur: 15, maxZoom: 10,
+            gradient: { 0.2: '#ffff00', 0.4: '#ffaa00', 0.6: '#ff5500', 0.8: '#ff0000', 1.0: '#880000' }
+        }).addTo(map);
+    }).catch(() => {
+        const btn = document.getElementById('heatBtn');
+        btn.className = 'btn btn-sm btn-heat';
+        btn.textContent = 'Mapa de calor';
+    });
+}
+
 async function loadEvents() {
     document.getElementById('events').innerHTML = '<div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div>';
     document.getElementById('stats').innerHTML = '';
     document.getElementById('legend').innerHTML = '';
+    document.getElementById('filtersBody').innerHTML = '';
+    filtersOpen = false;
+    document.getElementById('filtersToggle').classList.remove('open');
+    document.getElementById('filtersBody').classList.remove('open');
+    if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
+    document.getElementById('heatBtn').className = 'btn btn-sm btn-heat';
+    document.getElementById('heatBtn').textContent = 'Mapa de calor';
     try {
-        const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=300`;
+        const radiusInt = parseInt(currentRadius);
+        const eventLimit = radiusInt >= 500 ? 2000 : radiusInt >= 200 ? 1000 : 500;
+        const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=${eventLimit}`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
+        allEvents = data.events || [];
         render(data);
+        checkAlerts(allEvents);
     } catch (e) {
         document.getElementById('events').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
     }
 }
 
+function getFilteredEvents() {
+    if (activeFilters.size === 0) return allEvents;
+    return allEvents.filter(e => activeFilters.has(e.event_type));
+}
+
 function render(data) {
     const events = data.events || [];
+    renderStats(events);
+    renderLegend(events);
+    renderFilterChips();
+    renderEvents();
+    renderMapMarkers();
+    document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
+}
+
+function renderStats(events) {
     const stats = document.getElementById('stats');
-    const legend = document.getElementById('legend');
-
     const byType = {};
+    const alerts = events.filter(e => e.level === 'critical' || e.level === 'alert');
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-
-    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','blackout','warning','road_incident','other'];
+    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
+    const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> \uD83D\uDEA8</div>` : '';
     stats.innerHTML = activeTypes.map(t => {
         const c = byType[t];
         const icon = ICONS[t] || '';
         return `<div class="stat ${t}"><span class="n">${c}</span> ${icon}</div>`;
-    }).join('') + `<div class="stat total"><span class="n">${events.length}</span> total</div>`;
+    }).join('') + alertBadge + `<div class="stat total"><span class="n">${events.length}</span> total</div>`;
+}
 
+function renderLegend(events) {
+    const legend = document.getElementById('legend');
+    const byType = {};
+    events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
+    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
+    const activeTypes = typeOrder.filter(t => byType[t]);
     legend.innerHTML = activeTypes.map(t => {
         const color = TYPE_COLORS[t] || '#607d8b';
         const icon = ICONS[t] || '';
         return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${icon} ${t.replace('_',' ')}</div>`;
     }).join('');
+}
 
-    document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
-
+function renderMapMarkers() {
+    const filtered = getFilteredEvents();
     if (window.clusterGroup) map.removeLayer(window.clusterGroup);
     window.clusterGroup = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
-
     const markerBounds = [];
-    events.forEach(e => {
-        const color = TYPE_COLORS[e.event_type] || LEVEL_COLORS[e.level] || '#607d8b';
+    filtered.forEach(e => {
+        const baseColor = TYPE_COLORS[e.event_type] || LEVEL_COLORS[e.level] || '#607d8b';
+        let color = baseColor;
+        let radius = e.level === 'alert' || e.level === 'critical' ? 8 : 6;
+        let fillOpacity = 0.7;
+        if (e.event_type === 'fire' && e.source === 'nasa_firms') {
+            const frp = getFRP(e);
+            color = fireHeatColor(frp);
+            radius = fireRadius(frp);
+            fillOpacity = 0.9;
+        }
+        const lvlEmoji = levelEmoji(e.level, e.event_type);
         const icon = ICONS[e.event_type] || '\uD83D\uDCCC';
+        const descHtml = e.description ? e.description.replace(/\|/g, '<br>') : '';
         const m = L.circleMarker([e.lat, e.lon], {
-            radius: e.level === 'alert' || e.level === 'critical' ? 8 : 6,
+            radius: radius,
             color: color,
             fillColor: color,
-            fillOpacity: 0.7,
-            weight: 2,
+            fillOpacity: fillOpacity,
+            weight: e.level === 'critical' || e.level === 'alert' ? 3 : 2,
         });
-        m.bindPopup(`<b>${icon} ${e.title}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${e.description || ''}</small>`);
+        m.bindPopup(`<b>${lvlEmoji} ${icon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${descHtml}</small>`);
         window.clusterGroup.addLayer(m);
         markerBounds.push([e.lat, e.lon]);
     });
     map.addLayer(window.clusterGroup);
-
     if (markerBounds.length > 0) {
-        map.fitBounds(markerBounds, { padding: [40, 40], maxZoom: 10 });
+        try { map.fitBounds(markerBounds, { padding: [40, 40], maxZoom: 10 }); } catch(_) {}
     }
+}
 
+function renderEvents() {
+    const filtered = getFilteredEvents();
     const el = document.getElementById('events');
-    el.innerHTML = events.map(e => {
+    if (filtered.length === 0) {
+        el.innerHTML = '<div class="loading" style="padding:20px;color:#607d8b;">Sin eventos en esta zona. Prueba con un radio mayor o cambia de ubicacion</div>';
+        return;
+    }
+    el.innerHTML = filtered.map(e => {
         const icon = ICONS[e.event_type] || "\uD83D\uDCCC";
         const color = TYPE_COLORS[e.event_type] || '#607d8b';
+        const lvl = levelEmoji(e.level, e.event_type);
+        const badge = levelBadge(e.level, e.event_type);
+        const descHtml = e.description ? e.description.replace(/\|/g, '<br>') : '';
         return `<div class="event" style="border-left-color:${color}" onclick="flyTo(${e.lat},${e.lon})">
-            <div class="title">${icon} ${e.title}</div>
+            <div class="title">${lvl} ${icon} ${e.title} ${badge}</div>
             <div class="dist">${e.distance_km} km &middot; ${e.source}</div>
-            ${e.description ? `<div class="desc">${e.description}</div>` : ''}
+            ${descHtml ? `<div class="desc">${descHtml}</div>` : ''}
             <div class="meta">${e.municipality || e.region || ''} ${e.country || ''}</div>
         </div>`;
     }).join('');
@@ -326,6 +766,291 @@ function setRadius(km) {
 }
 
 function flyTo(lat, lon) { map.flyTo([lat, lon], 13); }
+
+// ===== Auth =====
+const TOKEN_KEY = 'nearme_token';
+let currentUser = null;
+
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+
+function clearToken() { localStorage.removeItem(TOKEN_KEY); currentUser = null; }
+
+function isLoggedIn() { return !!getToken(); }
+
+function authHeaders() {
+    const t = getToken();
+    return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : {};
+}
+
+async function checkAuth() {
+    const t = getToken();
+    if (!t) { currentUser = null; updateAuthUI(); return; }
+    try {
+        const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
+        if (r.ok) { currentUser = await r.json(); }
+        else { clearToken(); }
+    } catch { clearToken(); }
+    updateAuthUI();
+}
+
+async function doAuth(method, body) {
+    const r = await fetch('/api/auth/' + method, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    setToken(data.token);
+    currentUser = data.user;
+    updateAuthUI();
+    return data;
+}
+
+function logout() { clearToken(); updateAuthUI(); updateAlertBadge(0); }
+
+function updateAuthUI() {
+    const el = document.getElementById('authBar');
+    if (!el) return;
+    if (currentUser) {
+        el.innerHTML = '<div class="auth-user"><span class="auth-avatar">👤</span><span class="auth-name">' +
+            currentUser.username + '</span><button class="btn-logout" onclick="logout()" title="Cerrar sesion">✕</button></div>';
+    } else {
+        el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>';
+    }
+}
+
+function showAuthModal() {
+    const existing = document.getElementById('authOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.id = 'authOverlay';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `
+        <div class="auth-modal" onclick="event.stopPropagation()">
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="authTabLogin" onclick="switchAuthTab('login')">Iniciar sesion</button>
+                <button class="auth-tab" id="authTabRegister" onclick="switchAuthTab('register')">Registrarse</button>
+            </div>
+            <div id="authFormLogin">
+                <input type="text" id="loginUser" placeholder="Usuario" class="auth-input">
+                <input type="password" id="loginPass" placeholder="Contraseña" class="auth-input">
+                <div class="auth-error" id="authError"></div>
+                <button class="btn" onclick="doLogin()">Entrar</button>
+            </div>
+            <div id="authFormRegister" style="display:none">
+                <input type="text" id="regUser" placeholder="Usuario (min 3 caracteres)" class="auth-input">
+                <input type="email" id="regEmail" placeholder="Email (opcional)" class="auth-input">
+                <input type="password" id="regPass" placeholder="Contraseña (min 6 caracteres)" class="auth-input">
+                <div class="auth-error" id="authRegError"></div>
+                <button class="btn" onclick="doRegister()">Crear cuenta</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function switchAuthTab(tab) {
+    document.getElementById('authTabLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('authTabRegister').classList.toggle('active', tab === 'register');
+    document.getElementById('authFormLogin').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('authFormRegister').style.display = tab === 'register' ? 'block' : 'none';
+    document.getElementById('authError').textContent = '';
+    document.getElementById('authRegError').textContent = '';
+}
+
+async function doLogin() {
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const err = document.getElementById('authError');
+    err.textContent = '';
+    if (!user || !pass) { err.textContent = 'Completa todos los campos'; return; }
+    try {
+        await doAuth('login', { username: user, password: pass });
+        document.getElementById('authOverlay').remove();
+    } catch (e) { err.textContent = e.message; }
+}
+
+async function doRegister() {
+    const user = document.getElementById('regUser').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const pass = document.getElementById('regPass').value;
+    const err = document.getElementById('authRegError');
+    err.textContent = '';
+    if (user.length < 3) { err.textContent = 'Minimo 3 caracteres'; return; }
+    if (pass.length < 6) { err.textContent = 'Minimo 6 caracteres'; return; }
+    try {
+        await doAuth('register', { username: user, password: pass, email: email });
+        document.getElementById('authOverlay').remove();
+    } catch (e) { err.textContent = e.message; }
+}
+
+// ===== Alertas personalizadas (API) =====
+function requestNotifPerm() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') return;
+    Notification.requestPermission();
+}
+
+function showBrowserNotification(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try { new Notification(title, { body, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🔔</text></svg>' }); } catch {}
+}
+
+function getLabel(a) {
+    const t = a.event_type === 'all' ? 'Cualquier tipo' : (ICONS[a.event_type] || '') + ' ' + a.event_type.replace('_', ' ');
+    return t + ' · ' + a.radius_km + ' km · desde ' + a.min_level;
+}
+
+function showAlertModal() {
+    const existing = document.getElementById('alertOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.id = 'alertOverlay';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    if (!isLoggedIn()) {
+        overlay.innerHTML = `
+            <div class="alerts-modal" onclick="event.stopPropagation()">
+                <h2>🔔 Alertas personalizadas</h2>
+                <div class="alerts-empty">
+                    Necesitas una cuenta para crear alertas personalizadas.<br><br>
+                    <button class="btn" onclick="document.getElementById('alertOverlay').remove();showAuthModal();" style="width:auto;display:inline-block;">Crear cuenta gratis</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        return;
+    }
+    overlay.innerHTML = `
+        <div class="alerts-modal" onclick="event.stopPropagation()">
+            <h2>🔔 Alertas personalizadas</h2>
+            <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
+            <div class="alert-form">
+                <div class="alert-form-row">
+                    <select id="alertType">
+                        <option value="all">Cualquier tipo</option>
+                        ${Object.keys(ICONS).map(t => '<option value="' + t + '">' + (ICONS[t] || '') + ' ' + t.replace('_',' ') + '</option>').join('')}
+                    </select>
+                    <input type="number" id="alertRadius" value="15" min="1" max="500" placeholder="Radio km" style="flex:0 0 80px;">
+                    <select id="alertLevel">
+                        <option value="info">Info+</option>
+                        <option value="warning" selected>Warning+</option>
+                        <option value="alert">Alert+</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <button class="btn-add" onclick="createAlert()">+ Nueva alerta</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    loadAlertList();
+}
+
+async function loadAlertList() {
+    const list = document.getElementById('alertList');
+    if (!list) return;
+    const perm = 'Notification' in window ? Notification.permission : 'denied';
+    const permBar = perm === 'default' ? '<div class="notif-perm-bar show">🔔 Activa las notificaciones para recibir alertas en segundo plano<button onclick="requestNotifPerm();this.parentElement.classList.remove(\'show\');">Activar</button></div>' : '';
+    try {
+        const r = await fetch('/api/alerts', { headers: authHeaders() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        const alerts = data.alerts || [];
+        if (alerts.length === 0) {
+            list.innerHTML = permBar + '<div class="alerts-empty">No tienes alertas configuradas. Crea una abajo</div>';
+        } else {
+            list.innerHTML = permBar + alerts.map(a => {
+                const lbl = getLabel(a);
+                const det = a.event_type === 'all' ? 'Todos los tipos' : a.event_type.replace('_', ' ');
+                return '<div class="alert-card"><div class="info"><div class="label">' + lbl + '</div><div class="detail">' + det + '</div></div><button class="toggle ' + (a.enabled ? 'on' : 'off') + '" onclick="toggleAlert(' + a.id + ',' + a.enabled + ')" title="' + (a.enabled ? 'Desactivar' : 'Activar') + '"></button><button class="del" onclick="deleteAlert(' + a.id + ')" title="Eliminar">✕</button></div>';
+            }).join('');
+        }
+    } catch (e) {
+        list.innerHTML = '<div class="alerts-empty">Error al cargar alertas: ' + e.message + '</div>';
+    }
+}
+
+async function createAlert() {
+    const type = document.getElementById('alertType').value;
+    const radius = parseInt(document.getElementById('alertRadius').value) || 15;
+    const level = document.getElementById('alertLevel').value;
+    if (radius < 1 || radius > 500) { alert('Radio entre 1 y 500 km'); return; }
+    try {
+        const r = await fetch('/api/alerts', {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ event_type: type, radius_km: radius, min_level: level, enabled: true })
+        });
+        if (!r.ok) throw new Error('Error al crear alerta');
+        loadAlertList();
+    } catch (e) { alert(e.message); }
+}
+
+async function toggleAlert(id, currentEnabled) {
+    try {
+        const r = await fetch('/api/alerts/' + id, {
+            method: 'PUT', headers: authHeaders(),
+            body: JSON.stringify({ enabled: !currentEnabled })
+        });
+        if (!r.ok) throw new Error('Error');
+        loadAlertList();
+    } catch (e) { alert(e.message); }
+}
+
+async function deleteAlert(id) {
+    try {
+        const r = await fetch('/api/alerts/' + id, { method: 'DELETE', headers: authHeaders() });
+        if (!r.ok) throw new Error('Error');
+        loadAlertList();
+    } catch (e) { alert(e.message); }
+}
+
+async function checkAlerts(events) {
+    if (!isLoggedIn()) return;
+    try {
+        const r = await fetch('/api/alerts', { headers: authHeaders() });
+        if (!r.ok) return;
+        const data = await r.json();
+        const alerts = data.alerts || [];
+        if (alerts.length === 0) { updateAlertBadge(0); return; }
+        let matchCount = 0;
+        let notified = false;
+        const seen = new Set();
+        const lvlOrder = { info: 0, warning: 1, alert: 2, critical: 3 };
+        for (const a of alerts) {
+            if (!a.enabled) continue;
+            for (const e of events) {
+                const key = a.id + ':' + e.lat + ',' + e.lon + ':' + e.title;
+                if (seen.has(key)) continue;
+                if (a.event_type !== 'all' && e.event_type !== a.event_type) continue;
+                if (e.distance_km > a.radius_km) continue;
+                if ((lvlOrder[e.level] || 0) < (lvlOrder[a.min_level] || 0)) continue;
+                seen.add(key);
+                matchCount++;
+                if (!notified) {
+                    notified = true;
+                    const icon = ICONS[e.event_type] || '';
+                    const lvl = e.level || 'info';
+                    showBrowserNotification('🔔 ' + icon + ' ' + e.title,
+                        e.distance_km + ' km · ' + e.source + ' · Nivel: ' + lvl + (e.municipality ? ' · ' + e.municipality : ''));
+                }
+            }
+        }
+        updateAlertBadge(matchCount);
+    } catch { updateAlertBadge(0); }
+}
+
+function updateAlertBadge(count) {
+    const btn = document.getElementById('alertBtn');
+    if (!btn) return;
+    let badge = btn.querySelector('.alert-badge');
+    if (count > 0) {
+        if (!badge) { badge = document.createElement('span'); badge.className = 'alert-badge show'; btn.appendChild(badge); }
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.add('show');
+    } else {
+        if (badge) badge.classList.remove('show');
+    }
+}
 
 init();
 </script>

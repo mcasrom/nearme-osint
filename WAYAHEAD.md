@@ -57,51 +57,102 @@
 - [x] Leyenda visual de tipos activos
 - [x] Stats por tipo con color y emoji
 
+### Sprint 9 — NASA FIRMS (público, sin MAP_KEY) + DGT DATEX II (28 Jul 2026)
+- [x] FIRMS: CSVs públicos de MODIS + VIIRS (sin necesidad de MAP_KEY)
+- [x] 2.018 incendios activos en España por pipeline
+- [x] DGT: DATEX II v3.6 desde `nap.dgt.es` (free, sin auth)
+- [x] 1.242 incidencias de tráfico: cortes, obras, accidentes, retenciones
+- [x] Geolocalización por coordenadas reales + provincia + municipio
+- [x] Frontend actualizado con fuentes DGT y NASA FIRMS
+
+### Sprint 10 — Puntos de calor + emojis por nivel emergencia (28 Jul 2026)
+- [x] Marcadores de fuego: tamaño y color según FRP (gradiente amarillo→rojo→granate)
+- [x] Emoji de nivel emergencia en sidebar: 🚨 critical, ⚠️ alert, ❗ warning, ℹ️ info
+- [x] Badge de nivel (CRITICAL/ALERT/WARNING) en cada evento del listado
+- [x] Mapa de calor (Leaflet.heat) toggle para incendios FIRMS
+- [x] Marcadores críticos/alert con pulso animado
+- [x] Contador de alertas activas en stats
+- [x] Versión frontend v0.3
+
+### Sprint 11 — OpenAQ v3 (29 Jul 2026)
+- [x] Registrada cuenta OpenAQ con news@viajeinteligencia.com, verificada email
+- [x] API key: `74e8929712ebc8825766adb2a5020578679fe923cb87f08cfe3ceb1fdea28255`
+- [x] Colector v3: X-API-Key header, 6 parámetros (pm25, pm10, o3, no2, co, so2), 3 páginas c/u
+- [x] ~980 eventos calidad aire / pipeline, ~77 alertas/warnings
+- [x] Añadido OPENAQ_API_KEY a .env
+- [x] Desplegado en producción
+
+### Sprint 12 — Fix visibilidad incendios en mapa (29 Jul 2026)
+- [x] Diagnosticado: frontend solo cargaba 300 eventos totales, FIRMS (~2.000 incendios) no entraba
+- [x] Límite dinámico: 500/1000/2000 según radio de búsqueda (antes: 300 fijo)
+- [x] Default API endpoint subido de 100→500, max 5000
+- [x] ~446 incendios visibles en radio 200km desde Madrid (antes: 5)
+
+### Sprint 14 — Playas (estacional, 28 Jul 2026)
+- [x] Euskadi GeoJSON: 37 playas costeras con coordenadas
+- [x] Euskadi estado sanitario: E. coli, enterococos, recomendación baño
+- [x] Bizkaia CKAN: bandera, oleaje, temp agua, medusas, ocupación
+- [x] Nuevo collector `src/collectors/playas/`: merge 3 fuentes
+- [x] Nuevo event_type: `beach` con icono 🏖️
+- [x] Flag→level: verde=info, amarilla=warning, roja=alert
+- [x] ~37 eventos/pipe en DB, accesibles vía API
+
 ---
 
-## 📊 Pipeline actual (624 eventos/15min)
+## 📊 Pipeline actual (~5.470 eventos/15min)
 ```
-AEMET:       ~183  heatwave/wind/storm (10.600 estaciones)
-MITECO:      ~249  calidad del aire ICA ≥ Regular (620 estaciones)
-RENFE:       ~123  retrasos tren geolocalizados (GTFS-RT)
-USGS:         ~30  terremotos M2.5+ globales
-IntelHub:     ~30  incendios RSS (24 fuentes)
-REE:           ~9  demanda eléctrica alta
+OpenAQ:       ~  980  calidad del aire (6 parámetros, v3 API)
+NASA FIRMS:   ~2.018  incendios satélite España (MODIS+VIIRS)
+DGT:          ~1.242  incidencias tráfico red estatal (DATEX II)
+RENFE:        ~  749  retrasos tren geolocalizados (GTFS-RT)
+MITECO:       ~  523  calidad del aire ICA (620 estaciones)
+AEMET:        ~  330  heatwave/wind/storm (10.600 estaciones)
+Playas:       ~   37  bandera, oleaje, temp agua, medusas (Euskadi+Bizkaia)
+IntelHub:     ~   30  incendios RSS (24 fuentes)
+REE:          ~   21  demanda eléctrica alta
+USGS:          ~    1  terremotos M2.5+ España (raros)
 ──────────────────────────────
-TOTAL:       ~624
+TOTAL:        ~5.470
 ```
 
 ---
 
 ## 🔜 Próximos sprints
 
-### Sprint 13 — NASA FIRMS (incendios satélite)
-- [ ] Registrarse en Earthdata (`urs.earthdata.nasa.gov`)
-- [ ] Obtener MAP_KEY para FIRMS API
-- [ ] Collector: `firms.modaps.eosdis.nasa.gov/api/area/csv/`
-- [ ] Fire alert/warning por FRP y brillo
+### Sprint 14 — Playas (estacional, 28 Jul 2026)
+- [x] Euskadi GeoJSON: 37 playas costeras con coordenadas
+- [x] Euskadi estado sanitario: E. coli, enterococos, recomendación baño
+- [x] Bizkaia CKAN: bandera, oleaje, temp agua, medusas, ocupación
+- [x] Nuevo collector `src/collectors/playas/`: merge 3 fuentes
+- [x] Nuevo event_type: `beach` con icono 🏖️
+- [x] Flag→level mapping: verde=info, amarilla=warning, roja=alert
+- [x] ~37 eventos/pipe guardados en DB
+- [ ] ~~Resto de CCAA~~ → bloqueado (ver ❌ Fuentes no accesibles)
 
-### Sprint 14 — DGT (carreteras)
-- [ ] Investigar endpoint alternativo (SPA de infocar.dgt.es no tiene API pública)
-- [ ] Opción: scraping de `etraffic.dgt.es` o RSS DGT
-- [ ] Cortes de carretera + obras en tiempo real
+### Sprint 16 — UX mejorada (28 Jul 2026)
+- [x] Onboarding popup guía primer acceso (localStorage)
+- [x] Botón ayuda manual en sidebar
+- [x] Filtros por tipo de evento (chips toggle, sidebar)
+- [x] Descripción con saltos de línea (| → <br>)
+- [x] Modo oscuro / claro toggle (localStorage)
+- [x] Cero eventos → mensaje amigable
+- [x] fitBounds con try/catch para evitar errores con 0 marcadores
+- [x] v0.3 → v0.4
 
-### Sprint 15 — Playas (estacional)
-- [ ] Bizkaia: bandera, oleaje, temp agua, medusas (JSON open data)
-- [ ] Euskadi: estado sanitario playas (GeoJSON)
-- [ ] Valencia: estado mar diario
-- [ ] Solo temporada jun-sep
+---
 
-### Sprint 16 — UX mejorada
-- [ ] Botones radio muestran cuál está activo
-- [ ] Filtros por tipo de evento en sidebar
-- [ ] Popup expandido con más detalles
-- [ ] Modo oscuro / claro toggle
+## 🔜 Próximos sprints
 
-### Sprint 17 — Alertas personalizadas
-- [ ] "Avísame si hay incendios a <15 km"
-- [ ] Push notifications vía Service Worker
-- [ ] Persistencia en localStorage
+### Sprint 17 — Alertas personalizadas + registro (28 Jul 2026)
+- [x] "Avísame si hay incendios a <15 km" — alertas por tipo, radio y nivel
+- [x] Sistema de registro/login de usuarios (JWT + PostgreSQL)
+- [x] Alertas persisten en servidor asociadas a cada usuario
+- [x] Modal de configuración con toggle y borrado (vía API autenticada)
+- [x] Browser Notification API
+- [x] Badge con contador de coincidencias en botón Alertas
+- [x] Detección de eventos coincidentes en cada carga
+- [x] Barra de auth en sidebar (login/registro/logout)
+- [x] v0.4 → v0.5
 
 ---
 
@@ -114,17 +165,22 @@ TOTAL:       ~624
 ## ❌ Fuentes no accesibles
 | Fuente | Motivo |
 |--------|--------|
-| DGT | API bloqueada (timeout/403), SPA sin API pública |
 | AENA | Deniega acceso a datos de puntualidad (interés comercial) |
 | Copernicus/GWIS | Endpoints devuelven 404 |
-| OpenAQ | Requiere API key gratuita (pendiente registrar) |
+| OpenAQ | ~~Requiere API key~~ **(resuelto Sprint 11, ~980 eventos/pipe)** |
+| Murcia COPLA | XML timeout desde Hetzner (red interna 112) |
+| Galicia MeteoGalicia | API playas funciona pero falta lista pública de IDs |
+| AEMET Playas | API funciona pero CSV de IDs (Playas_codigos.csv) devuelve 400 |
+| Valencia estado mar | Solo HTML, sin API pública |
+| Andalucía Oceanaria | Sin API pública |
 
 ---
 
 ## 🔑 Credenciales (en .env, gitignored)
 - `AEMET_API_KEY`: JWT (exp ~Dic 2026)
 - `DB_*`: PostgreSQL nearme / nearme_pass_2026
-- `NASA_FIRMS_KEY`: **Pendiente** (Sprint 13)
+- `NASA_FIRMS_KEY`: **Ya no necesita** — CSVs públicos (Sprint 9)
+- `JWT_SECRET`: HMAC para tokens de usuario (Sprint 17)
 
 ---
 
@@ -138,7 +194,7 @@ nearme-osint/
 │   ├── models.py              # Event dataclass + EVENT_TYPES
 │   └── collectors/
 │       ├── aemet/             # Meteorología (observaciones)
-│       ├── dgt/               # USGS terremotos + NASA FIRMS
+│   ├── dgt/               # DGT tráfico DATEX II + USGS terremotos + NASA FIRMS
 │       ├── renfe/             # Retrasos tren (GTFS-RT + CSV)
 │       ├── ree/               # Demanda eléctrica
 │       ├── miteco/            # Calidad del aire (ICA)

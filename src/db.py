@@ -53,6 +53,27 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_geom ON events USING GIST(geom)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_expires ON events(expires_at) WHERE expires_at IS NOT NULL")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at)")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            event_type TEXT DEFAULT 'all',
+            radius_km DOUBLE PRECISION DEFAULT 15,
+            min_level TEXT DEFAULT 'warning',
+            enabled BOOLEAN DEFAULT true,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts(user_id)")
     conn.commit()
     cur.close()
     conn.close()
@@ -97,7 +118,7 @@ def save_event(event: Event) -> int:
 
 
 def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
-                      limit: int = 100, event_type: Optional[str] = None,
+                      limit: int = 500, event_type: Optional[str] = None,
                       min_level: Optional[str] = None) -> list[dict]:
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -160,6 +181,122 @@ def clean_expired():
     cur = conn.cursor()
     cur.execute("DELETE FROM events WHERE expires_at IS NOT NULL AND expires_at < NOW()")
     deleted = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return deleted
+
+
+# ----- Users & Auth -----
+
+def create_user(username: str, password_hash: str, email: str = "") -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s) RETURNING id, username, email, created_at",
+            (username, email or None, password_hash)
+        )
+        user = dict(cur.fetchone())
+        conn.commit()
+        return user
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_user_by_username(username: str) -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id, username, email, password_hash, created_at FROM users WHERE username = %s", (username,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id, username, email, created_at FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ----- Alerts CRUD -----
+
+def create_alert(user_id: int, event_type: str = "all", radius_km: float = 15,
+                 min_level: str = "warning", enabled: bool = True) -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        """INSERT INTO alerts (user_id, event_type, radius_km, min_level, enabled)
+           VALUES (%s, %s, %s, %s, %s) RETURNING id, user_id, event_type, radius_km, min_level, enabled, created_at""",
+        (user_id, event_type, radius_km, min_level, enabled)
+    )
+    alert = dict(cur.fetchone())
+    conn.commit()
+    cur.close()
+    conn.close()
+    if alert.get("created_at"):
+        alert["created_at"] = alert["created_at"].isoformat()
+    return alert
+
+
+def get_user_alerts(user_id: int) -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT id, user_id, event_type, radius_km, min_level, enabled, created_at FROM alerts WHERE user_id = %s ORDER BY created_at DESC",
+        (user_id,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return result
+
+
+def update_alert(alert_id: int, user_id: int, **kwargs) -> dict | None:
+    allowed = {"event_type", "radius_km", "min_level", "enabled"}
+    updates = {k: v for k, v in kwargs.items() if k in allowed}
+    if not updates:
+        return None
+    sets = ", ".join(f"{k} = %s" for k in updates)
+    vals = list(updates.values()) + [alert_id, user_id]
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        f"UPDATE alerts SET {sets} WHERE id = %s AND user_id = %s RETURNING id, user_id, event_type, radius_km, min_level, enabled, created_at",
+        vals
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    if row:
+        d = dict(row)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        return d
+    return None
+
+
+def delete_alert(alert_id: int, user_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM alerts WHERE id = %s AND user_id = %s", (alert_id, user_id))
+    deleted = cur.rowcount > 0
     conn.commit()
     cur.close()
     conn.close()

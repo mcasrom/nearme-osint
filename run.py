@@ -73,6 +73,11 @@ def register_collectors():
         COLLECTORS.append(IntelHubBridge())
     except Exception as e:
         print(f"[WARN] No se pudo cargar IntelHub bridge: {e}")
+    try:
+        from src.collectors.playas import PlayasCollector
+        COLLECTORS.append(PlayasCollector())
+    except Exception as e:
+        print(f"[WARN] No se pudo cargar Playas: {e}")
 
 
 def run_all():

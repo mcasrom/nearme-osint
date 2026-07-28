@@ -3,3 +3,5 @@ requests>=2.31
 fastapi>=0.104
 uvicorn>=0.24
 python-dotenv>=1.0
+pyjwt>=2.8
+passlib[bcrypt]>=1.7
