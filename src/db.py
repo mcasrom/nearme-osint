@@ -20,12 +20,13 @@ DB_CONFIG = {
 _pool = None
 
 
-def get_pool(minconn=2, maxconn=20):
+def get_pool():
     global _pool
     if _pool is None:
+        from src.config import POOL_MINCONN, POOL_MAXCONN
         _pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=minconn,
-            maxconn=maxconn,
+            minconn=POOL_MINCONN,
+            maxconn=POOL_MAXCONN,
             **DB_CONFIG,
         )
     return _pool

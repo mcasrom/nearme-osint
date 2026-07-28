@@ -1,5 +1,5 @@
 import os
-import requests
+import httpx
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from src.collectors.base import BaseCollector
@@ -16,12 +16,12 @@ class ProteccionCivilCollector(BaseCollector):
     name = "ProtecciónCivil"
     interval_minutes = 30
 
-    def collect(self):
+    async def collect(self):
         events = []
-        events.extend(self._aemet_warnings())
+        events.extend(await self._aemet_warnings())
         return events
 
-    def _aemet_warnings(self):
+    async def _aemet_warnings(self):
         """Get weather warnings from AEMET (official Spanish meteorological agency)"""
         events = []
         if not AEMET_API_KEY:
@@ -32,9 +32,9 @@ class ProteccionCivilCollector(BaseCollector):
             base = "https://opendata.aemet.es/opendata/api"
             headers = {"api_key": AEMET_API_KEY}
 
-            # Try to get latest warnings for all Spain
-            resp = requests.get(f"{base}/avisos_cap/ultimoelaborado/area/es",
-                              headers=headers, timeout=20)
+            async with httpx.AsyncClient(timeout=20, headers=headers) as client:
+                # Try to get latest warnings for all Spain
+                resp = await client.get(f"{base}/avisos_cap/ultimoelaborado/area/es")
             if resp.status_code != 200:
                 logger.warning("AEMET avisos: HTTP %s", resp.status_code)
                 return events

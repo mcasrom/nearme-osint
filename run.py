@@ -1,6 +1,6 @@
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from src.logging import setup_logging, get_logger
@@ -96,21 +96,25 @@ def run_all():
     register_collectors()
     logger.info("Colectores registrados: %d", len(COLLECTORS))
 
-    total_events = 0
-    start = datetime.now(timezone.utc)
-    with ThreadPoolExecutor(max_workers=len(COLLECTORS)) as executor:
-        futures = {executor.submit(c.run): c.name for c in COLLECTORS}
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                events = future.result()
-                total_events += len(events)
-            except Exception as e:
-                logger.error("Error en colector %s: %s", name, e)
-
-    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-    logger.info("Total eventos recolectados: %d (en %.1fs)", total_events, elapsed)
+    total_events = asyncio.run(_run_collectors())
+    logger.info("Total eventos recolectados: %d", total_events)
     logger.info("Pipeline completado")
+
+
+async def _run_collectors():
+    start = datetime.now(timezone.utc)
+    futures = [c.run() for c in COLLECTORS]
+    results = await asyncio.gather(*futures, return_exceptions=True)
+    total_events = 0
+    for i, result in enumerate(results):
+        name = COLLECTORS[i].name
+        if isinstance(result, Exception):
+            logger.error("Error en colector %s: %s", name, result)
+        else:
+            total_events += len(result)
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+    logger.info("Colectores ejecutados en %.1fs", elapsed)
+    return total_events
 
 
 if __name__ == "__main__":

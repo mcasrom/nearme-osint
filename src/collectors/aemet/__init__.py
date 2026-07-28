@@ -1,5 +1,5 @@
 import os
-import requests
+import httpx
 from datetime import datetime
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
@@ -16,31 +16,32 @@ class AEMETCollector(BaseCollector):
     name = "AEMET"
     interval_minutes = 15
 
-    def collect(self):
+    async def collect(self):
         if not AEMET_API_KEY:
             logger.warning("AEMET_API_KEY no configurada, saltando AEMET")
             return []
-        return self._real_data()
+        return await self._real_data()
 
-    def _aemet_get_data(self, endpoint):
+    async def _aemet_get_data(self, endpoint):
         headers = {"api_key": AEMET_API_KEY}
         try:
-            resp = requests.get(f"{AEMET_BASE}/{endpoint}", headers=headers, timeout=15)
-            if resp.status_code != 200:
-                return None
-            body = resp.json()
-            if body.get("estado") != 200:
-                return None
-            data_url = body.get("datos")
-            if not data_url:
-                return None
-            data_resp = requests.get(data_url, headers=headers, timeout=20)
-            if data_resp.status_code != 200:
-                return None
-            text = data_resp.text.strip()
-            if not text or text in ("[]", "null"):
-                return None
-            return data_resp.json()
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{AEMET_BASE}/{endpoint}", headers=headers)
+                if resp.status_code != 200:
+                    return None
+                body = resp.json()
+                if body.get("estado") != 200:
+                    return None
+                data_url = body.get("datos")
+                if not data_url:
+                    return None
+                data_resp = await client.get(data_url, headers=headers, timeout=20)
+                if data_resp.status_code != 200:
+                    return None
+                text = data_resp.text.strip()
+                if not text or text in ("[]", "null"):
+                    return None
+                return data_resp.json()
         except Exception as e:
             logger.warning("AEMET %s: %s", endpoint, e)
             return None

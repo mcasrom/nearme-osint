@@ -1,6 +1,6 @@
 import csv
 import io
-import requests
+import httpx
 from google.transit import gtfs_realtime_pb2
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
@@ -43,17 +43,18 @@ class RENFEDelaysCollector(BaseCollector):
             logger.warning("RENFE estaciones: %s", e)
         return self._stations
 
-    def collect(self):
+    async def collect(self):
         events = []
         stations = self._load_stations()
-        events.extend(self._parse_delays("https://gtfsrt.renfe.com/trip_updates.pb", "cercanias", stations))
-        events.extend(self._parse_delays("https://gtfsrt.renfe.com/trip_updates_LD.pb", "alta_velocidad", stations))
+        events.extend(await self._parse_delays("https://gtfsrt.renfe.com/trip_updates.pb", "cercanias", stations))
+        events.extend(await self._parse_delays("https://gtfsrt.renfe.com/trip_updates_LD.pb", "alta_velocidad", stations))
         return events
 
-    def _parse_delays(self, url, feed_type, stations):
+    async def _parse_delays(self, url, feed_type, stations):
         events = []
         try:
-            resp = requests.get(url, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"})
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(url)
             if resp.status_code != 200:
                 logger.warning("RENFE %s: HTTP %s", feed_type, resp.status_code)
                 return events

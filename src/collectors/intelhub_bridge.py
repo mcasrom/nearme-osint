@@ -151,7 +151,7 @@ class IntelHubBridge(BaseCollector):
     name = "Intelligence Hub (incendios)"
     interval_minutes = 10
 
-    def collect(self):
+    async def collect(self):
         events = []
         if not HUB_DB.exists():
             logger.warning("BD del Hub no encontrada: %s", HUB_DB)

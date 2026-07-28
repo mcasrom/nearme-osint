@@ -10,13 +10,13 @@ class BaseCollector(ABC):
     interval_minutes: int = 30
 
     @abstractmethod
-    def collect(self) -> list[Event]:
+    async def collect(self) -> list[Event]:
         pass
 
-    def run(self) -> list[Event]:
+    async def run(self) -> list[Event]:
         logger.info("[%s] Recopilando...", self.name)
         try:
-            events = self.collect()
+            events = await self.collect()
             saved = 0
             from src.db import save_event
             for ev in events:

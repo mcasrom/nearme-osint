@@ -1,4 +1,4 @@
-import requests
+import httpx
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
@@ -11,20 +11,20 @@ class CopernicusCollector(BaseCollector):
     name = "Copernicus + GWIS"
     interval_minutes = 60
 
-    def collect(self):
+    async def collect(self):
         events = []
-        events.extend(self._gwis_fires())
-        events.extend(self._copernicus_emergency())
+        events.extend(await self._gwis_fires())
+        events.extend(await self._copernicus_emergency())
         return events
 
-    def _gwis_fires(self):
+    async def _gwis_fires(self):
         events = []
         try:
-            resp = requests.get(
-                "https://gwis.jrc.ec.europa.eu/api/active-fires",
-                params={"limit": 30, "country": "ES"},
-                timeout=20
-            )
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.get(
+                    "https://gwis.jrc.ec.europa.eu/api/active-fires",
+                    params={"limit": 30, "country": "ES"},
+                )
             if resp.status_code != 200:
                 logger.warning("GWIS: HTTP %s", resp.status_code)
                 return events
@@ -72,13 +72,13 @@ class CopernicusCollector(BaseCollector):
             logger.warning("GWIS: %s", e)
         return events
 
-    def _copernicus_emergency(self):
+    async def _copernicus_emergency(self):
         events = []
         try:
-            resp = requests.get(
-                "https://emergency.copernicus.eu/mapping/activations-rapid/feed",
-                timeout=15
-            )
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    "https://emergency.copernicus.eu/mapping/activations-rapid/feed",
+                )
             if resp.status_code != 200:
                 logger.warning("Copernicus EMS: HTTP %s", resp.status_code)
                 return events

@@ -1,6 +1,6 @@
 import os
 import re
-import requests
+import httpx
 from datetime import datetime, timezone
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
@@ -38,11 +38,12 @@ def _normalize(name: str) -> str:
     return name
 
 
-def _get_json(url: str, timeout: int = 20):
+async def _get_json(url: str, timeout: int = 20):
     try:
-        r = requests.get(url, timeout=timeout)
-        if r.status_code == 200:
-            return r.json()
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.get(url)
+            if r.status_code == 200:
+                return r.json()
     except Exception as e:
         logger.warning("Error fetching %s: %s", url, e)
     return None
@@ -55,17 +56,18 @@ class PlayasCollector(BaseCollector):
     name = "Playas"
     interval_minutes = 60
 
-    def collect(self):
+    async def collect(self):
+        from src.collectors.playas import _get_json
         hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         events = []
 
-        playas = self._fetch_playas_list()
+        playas = await self._fetch_playas_list()
         if not playas:
             logger.warning("No se pudo obtener lista de playas")
             return []
 
-        sanitario = self._fetch_sanitario()
-        bizkaia = self._fetch_bizkaia_status()
+        sanitario = await self._fetch_sanitario()
+        bizkaia = await self._fetch_bizkaia_status()
 
         for nombre, info in playas.items():
             try:
@@ -78,8 +80,8 @@ class PlayasCollector(BaseCollector):
         logger.info("%d playas, %d eventos", len(playas), len(events))
         return events
 
-    def _fetch_playas_list(self) -> dict:
-        data = _get_json(EUSKADI_PLAYAS_URL)
+    async def _fetch_playas_list(self) -> dict:
+        data = await _get_json(EUSKADI_PLAYAS_URL)
         if not data:
             return {}
         result = {}
@@ -101,8 +103,8 @@ class PlayasCollector(BaseCollector):
             }
         return result
 
-    def _fetch_sanitario(self) -> dict:
-        data = _get_json(EUSKADI_SANITARIO_URL)
+    async def _fetch_sanitario(self) -> dict:
+        data = await _get_json(EUSKADI_SANITARIO_URL)
         if not data:
             return {}
         result = {}
@@ -135,11 +137,12 @@ class PlayasCollector(BaseCollector):
                     }
         return result
 
-    def _fetch_bizkaia_status(self) -> dict:
+    async def _fetch_bizkaia_status(self) -> dict:
         sql = """SELECT * FROM "845e3c78-344d-4015-a367-79bd3ae60744"
                  ORDER BY "DATA/FECHA" DESC LIMIT 200"""
         try:
-            r = requests.get(BIZKAIA_CKAN_URL, params={"sql": sql}, timeout=15)
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.get(BIZKAIA_CKAN_URL, params={"sql": sql})
             if r.status_code != 200:
                 return {}
             data = r.json()

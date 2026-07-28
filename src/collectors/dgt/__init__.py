@@ -2,7 +2,7 @@ import os
 import csv
 import io
 import re
-import requests
+import httpx
 from datetime import datetime
 from collections import Counter
 from src.collectors.base import BaseCollector
@@ -43,21 +43,20 @@ class EarthquakesCollector(BaseCollector):
     name = "USGS + FIRMS"
     interval_minutes = 15
 
-    def collect(self):
+    async def collect(self):
         events = []
-        events.extend(self._earthquakes())
-        events.extend(self._earthquakes_spain())
-        events.extend(self._firms_fires())
+        events.extend(await self._earthquakes())
+        events.extend(await self._earthquakes_spain())
+        events.extend(await self._firms_fires())
         return events
 
-    def _earthquakes(self):
+    async def _earthquakes(self):
         events = []
         try:
-            resp = requests.get(
-                "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson",
-                timeout=15,
-                headers={"User-Agent": "NearMeOSINT/1.0"}
-            )
+            async with httpx.AsyncClient(timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(
+                    "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson",
+                )
             if resp.status_code == 200:
                 data = resp.json()
                 for feat in data.get("features", [])[:30]:
@@ -90,49 +89,55 @@ class EarthquakesCollector(BaseCollector):
             logger.warning("USGS: %s", e)
         return events
 
-    def _earthquakes_spain(self):
+    async def _earthquakes_spain(self):
         events = []
         try:
-            resp = requests.get(
-                "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson"
-                "&region=Spain&minmagnitude=1.5&orderby=time&limit=15",
-                timeout=15,
-                headers={"User-Agent": "NearMeOSINT/1.0"},
-            )
-            if resp.status_code != 200:
-                return events
-            data = resp.json()
-            for feat in data.get("features", [])[:15]:
-                props = feat.get("properties", {})
-                coords = feat.get("geometry", {}).get("coordinates", [0, 0, 0])
-                mag = props.get("mag", 0)
-                lat, lon, depth = coords[1], coords[0], coords[2] if len(coords) >= 3 else 0
-                place = props.get("place", "España")
-                level = "info"
-                if mag >= 4:
-                    level = "warning"
-                events.append(Event(
-                    source="usgs_es",
-                    source_id=f"usgses_{props.get('id', '')}",
-                    event_type="earthquake",
-                    subtype=f"mag_{mag}",
-                    lat=lat, lon=lon,
-                    radius_m=max(mag * 10000, 5000),
-                    level=level,
-                    title=f"Terremoto M{mag} - {place}",
-                    description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
-                    country="ES",
-                ))
+            async with httpx.AsyncClient(
+                timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"}
+            ) as client:
+                resp = await client.get(
+                    "https://earthquake.usgs.gov/fdsnws/event/1/query"
+                    "?format=geojson&region=Spain&minmagnitude=1.5"
+                    "&orderby=time&limit=15",
+                )
+                if resp.status_code != 200:
+                    return events
+                data = resp.json()
+                for feat in data.get("features", [])[:15]:
+                    props = feat.get("properties", {})
+                    coords = feat.get("geometry", {}).get("coordinates", [0, 0, 0])
+                    mag = props.get("mag", 0)
+                    lat, lon, depth = coords[1], coords[0], coords[2] if len(coords) >= 3 else 0
+                    place = props.get("place", "España")
+                    level = "info"
+                    if mag >= 4:
+                        level = "warning"
+                    events.append(Event(
+                        source="usgs_es",
+                        source_id=f"usgses_{props.get('id', '')}",
+                        event_type="earthquake",
+                        subtype=f"mag_{mag}",
+                        lat=lat, lon=lon,
+                        radius_m=max(mag * 10000, 5000),
+                        level=level,
+                        title=f"Terremoto M{mag} - {place}",
+                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
+                        country="ES",
+                    ))
         except Exception as e:
             logger.warning("USGS es: %s", e)
         return events
 
-    def _firms_fires(self):
+    async def _firms_fires(self):
         events = []
         seen = set()
         for url in FIRMS_SOURCES:
             try:
-                resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0 (compatible; NearMeOSINT/1.0)"})
+                async with httpx.AsyncClient(
+                    timeout=30,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; NearMeOSINT/1.0)"},
+                ) as client:
+                    resp = await client.get(url)
                 if resp.status_code != 200:
                     continue
                 reader = csv.DictReader(io.StringIO(resp.text))
@@ -187,10 +192,11 @@ class DGTTrafficCollector(BaseCollector):
     name = "DGT-Tráfico"
     interval_minutes = 5
 
-    def collect(self):
+    async def collect(self):
         events = []
         try:
-            resp = requests.get(DATEX_URL, timeout=30, headers={"User-Agent": "NearMeOSINT/1.0"})
+            async with httpx.AsyncClient(timeout=30, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(DATEX_URL)
             if resp.status_code != 200:
                 logger.warning("DGT DATEX II: HTTP %s", resp.status_code)
                 return events

@@ -1,4 +1,4 @@
-import requests
+import httpx
 from datetime import datetime, timedelta, timezone
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
@@ -12,12 +12,12 @@ class REEPowerCollector(BaseCollector):
     name = "REE"
     interval_minutes = 15
 
-    def collect(self):
+    async def collect(self):
         events = []
-        events.extend(self._demand_data())
+        events.extend(await self._demand_data())
         return events
 
-    def _demand_data(self):
+    async def _demand_data(self):
         events = []
         try:
             now = datetime.now(timezone.utc)
@@ -31,8 +31,8 @@ class REEPowerCollector(BaseCollector):
                 'time_trunc': 'hour'
             }
 
-            resp = requests.get(url, params=params, timeout=20,
-                              headers={"User-Agent": "NearMeOSINT/1.0"})
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(url, params=params)
 
             if resp.status_code != 200:
                 logger.warning("REE: HTTP %s", resp.status_code)

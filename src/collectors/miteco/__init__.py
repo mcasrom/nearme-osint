@@ -1,6 +1,6 @@
 import csv
 import io
-import requests
+import httpx
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
@@ -27,10 +27,11 @@ class AirQualityCollector(BaseCollector):
     name = "MITECO-CalidadAire"
     interval_minutes = 30
 
-    def collect(self):
+    async def collect(self):
         events = []
         try:
-            resp = requests.get(ICA_URL, timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"})
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(ICA_URL)
             if resp.status_code != 200:
                 logger.warning("MITECO: HTTP %s", resp.status_code)
                 return events
