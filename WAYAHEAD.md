@@ -112,7 +112,12 @@
 - [x] Migrar a `httpx.AsyncClient` — `collect()` async en todos los colectores, `asyncio.gather()` en runner
 - [x] Reemplazar PBKDF2 por bcrypt via `passlib` en auth de `server.py`
 - [x] Módulo `src/metrics.py` — PipelineMetrics registra latencia y éxito por colector
-- [x] Endpoint `/api/metrics` expone resumen de ejecuciones recientes, `requests` eliminado
+- [x] Endpoint `/api/metrics` expone resumen de ejecuciones recientes
+
+### Sprint 20 — Mejoras de interfaz (28 Jul 2026)
+- [x] Auto-refresh del mapa cada 5 minutos sin recargar página
+- [x] Botón manual de refresh (🔄) en el footer del sidebar
+- [x] Toggle de auto-refresh + countdown hasta próximo refresh, `requests` eliminado
 
 ---
 

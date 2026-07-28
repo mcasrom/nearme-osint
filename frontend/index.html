@@ -387,7 +387,11 @@
             </details>
         </div>
         <div class="info-footer">
-            NearMe OSINT v0.5 — Actualizado cada 15 min — <span id="update-time">—</span>
+            NearMe OSINT v0.5 &nbsp;—&nbsp; Auto-refresh cada 5 min &nbsp;—&nbsp; <span id="update-time">—</span>
+            <button id="refreshBtn" class="btn btn-sm btn-outline" style="float:right;font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
+            <label style="float:right;font-size:0.7em;margin-right:4px;color:#607d8b;">
+                <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"> Auto
+            </label>
         </div>
     </div>
 </div>
@@ -398,6 +402,9 @@ let heatmapLayer = null;
 let activeFilters = new Set();
 let allEvents = [];
 let filtersOpen = false;
+let autoRefreshEnabled = false;
+let autoRefreshTimer = null;
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 const TYPE_COLORS = {
     fire:         '#ff5722',
@@ -716,6 +723,60 @@ function render(data) {
     renderEvents();
     renderMapMarkers();
     document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
+    if (autoRefreshEnabled) scheduleNextRefresh();
+}
+
+function toggleAutoRefresh() {
+    autoRefreshEnabled = !autoRefreshEnabled;
+    const btn = document.getElementById('autoRefreshToggle');
+    if (autoRefreshEnabled) {
+        btn.checked = true;
+        startAutoRefresh();
+    } else {
+        btn.checked = false;
+        stopAutoRefresh();
+    }
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh();
+    autoRefreshTimer = setInterval(() => {
+        loadEvents();
+    }, AUTO_REFRESH_MS);
+    scheduleNextRefresh();
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
+    const el = document.getElementById('nextRefresh');
+    if (el) el.remove();
+}
+
+function scheduleNextRefresh() {
+    const el = document.getElementById('nextRefresh');
+    if (el) el.remove();
+    if (!autoRefreshEnabled) return;
+    const footer = document.querySelector('.info-footer');
+    if (!footer) return;
+    const span = document.createElement('span');
+    span.id = 'nextRefresh';
+    span.style.fontSize = '0.7em';
+    span.style.color = '#607d8b';
+    span.style.marginLeft = '8px';
+    const secs = Math.ceil(AUTO_REFRESH_MS / 1000);
+    span.textContent = `Próximo refresh en ${secs}s`;
+    footer.appendChild(span);
+    setTimeout(() => {
+        const e = document.getElementById('nextRefresh');
+        if (e) e.textContent = 'Actualizando...';
+    }, (secs - 10) * 1000);
+}
+
+function manualRefresh() {
+    loadEvents();
 }
 
 function renderStats(events) {
