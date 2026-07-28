@@ -49,10 +49,15 @@ TOTAL:       ~624
 
 ---
 
+### Sprint 12 — Frontend visual (28 Jul 2026)
+- [x] Colores por tipo de evento en mapa (fire=rojo, air_quality=verde, train=purple, etc.)
+- [x] Leaflet.markerCluster para agrupar marcadores
+- [x] Loading spinner animado
+- [x] Leyenda visual de tipos activos
+- [x] Stats por tipo con color y emoji
+- [x] Sidebar mejorada: fuentes actualizadas, version v0.2
+
 ## 🔧 Técnico pendiente
-- [ ] Colores por tipo de evento en mapa
-- [ ] Agrupar marcadores (Leaflet.markercluster)
-- [ ] Indicador de carga/error cuando la API no responde
 - [ ] Botones de radio muestran cuál está activo
 
 ## 🐛 Bugs conocidos
