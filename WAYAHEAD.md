@@ -108,7 +108,8 @@
 ### Sprint 19 — Refactoring y configuración (28 Jul 2026)
 - [x] `src/config.py` — constantes centralizadas (umbrales, URLs, timeouts, etc.)
 - [x] Consolidar USGS duplicado — `src/collectors/ign/` eliminado, lógica integrada en `dgt/EarthquakesCollector`
-- [x] Paralelizar colectores con `ThreadPoolExecutor` en `run.py` — ejecuta todos los colectores en paralelo en vez de secuencialmente
+- [x] Paralelizar colectores con `ThreadPoolExecutor` en `run.py`
+- [x] Migrar a `httpx.AsyncClient` — `collect()` async en todos los colectores, `asyncio.gather()` en runner, `requests` eliminado
 
 ---
 

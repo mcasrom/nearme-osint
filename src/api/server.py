@@ -1,15 +1,16 @@
 import os
-import hashlib
-import secrets
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import FastAPI, Query, HTTPException, Depends
+from fastapi import FastAPI, Query, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
+from passlib.hash import bcrypt
 from typing import Optional
 from pathlib import Path
 
@@ -29,22 +30,48 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "nearme_dev_secret_change_in_prod_2026
 JWT_ALGO = "HS256"
 JWT_EXPIRY_HOURS = 72
 
+# ----- Anti-fraud -----
+_rate_limiter = defaultdict(list)  # ip -> [timestamps]
+RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
+RATE_LIMIT_MAX = 5  # max registrations per window
+
+
+def _clean_rate_limiter():
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW
+    for ip in list(_rate_limiter.keys()):
+        _rate_limiter[ip] = [t for t in _rate_limiter[ip] if t > cutoff]
+        if not _rate_limiter[ip]:
+            del _rate_limiter[ip]
+
+
+def check_rate_limit(ip: str):
+    _clean_rate_limiter()
+    if len(_rate_limiter.get(ip, [])) >= RATE_LIMIT_MAX:
+        wait = int(RATE_LIMIT_WINDOW - (time.time() - _rate_limiter[ip][0]))
+        raise HTTPException(status_code=429, detail=f"Demasiados registros. Intenta en {wait // 60} minutos")
+
+
+def record_attempt(ip: str):
+    _rate_limiter[ip].append(time.time())
+
+
+BLACKLIST_PATTERNS = [
+    r'http[s]?://', r'www\.', r'\.com', r'\.xyz', r'\.top',
+    r'[0-9]{8,}',  # 8+ digits (phone numbers)
+]
+
+HONEYPOT_FIELDS = {'website', 'url', 'hp_field'}
+
 
 # ----- Auth helpers -----
 
 def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
-    return f"{salt}${h}"
+    return bcrypt.hash(password)
 
 
 def check_password(password: str, stored: str) -> bool:
-    parts = stored.split("$")
-    if len(parts) != 2:
-        return False
-    salt, expected = parts
-    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
-    return h == expected
+    return bcrypt.verify(password, stored)
 
 
 def create_token(user_id: int, username: str) -> str:
@@ -78,6 +105,9 @@ class RegisterBody(BaseModel):
     username: str = Field(min_length=3, max_length=32)
     password: str = Field(min_length=6, max_length=128)
     email: str = ""
+    website: str = ""
+    url: str = ""
+    hp_field: str = ""
 
 
 class LoginBody(BaseModel):
@@ -153,12 +183,29 @@ def event_types():
 # ----- Auth endpoints -----
 
 @app.post("/api/auth/register")
-def register(body: RegisterBody):
+def register(body: RegisterBody, request: Request):
+    # Honeypot: if any hidden field was filled, reject silently
+    if body.website or body.url or body.hp_field:
+        raise HTTPException(status_code=400, detail="Registro invalido")
+
+    # Rate limit by IP (respect X-Forwarded-For behind nginx proxy)
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+    check_rate_limit(ip)
+
+    # Username blacklist
+    import re
+    for pat in BLACKLIST_PATTERNS:
+        if re.search(pat, body.username.lower()):
+            raise HTTPException(status_code=400, detail="Nombre de usuario no valido")
+
     from src.db import create_user
     pw_hash = hash_password(body.password)
     user = create_user(body.username.strip(), pw_hash, body.email.strip())
     if not user:
         raise HTTPException(status_code=409, detail="El nombre de usuario ya existe")
+
+    record_attempt(ip)
     token = create_token(user["id"], user["username"])
     return {"user": user, "token": token}
 
@@ -214,6 +261,29 @@ def delete_alert(alert_id: int, user: dict = Depends(get_current_user)):
     if not delete_alert(alert_id, user["id"]):
         raise HTTPException(status_code=404, detail="Alerta no encontrada")
     return {"ok": True}
+
+
+class RatingBody(BaseModel):
+    rating: int = Field(ge=1, le=3)
+
+
+# ----- Rating endpoints -----
+
+@app.post("/api/rating")
+def submit_rating(body: RatingBody, request: Request):
+    from src.db import save_rating
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "")
+    ua = request.headers.get("User-Agent", "")
+    ref = request.headers.get("Referer", "")
+    result = save_rating(body.rating, ip, ua, ref)
+    return {"ok": True, "rating": result}
+
+
+@app.get("/api/ratings")
+def ratings_summary():
+    from src.db import get_ratings_summary
+    return get_ratings_summary()
 
 
 @app.get("/")
