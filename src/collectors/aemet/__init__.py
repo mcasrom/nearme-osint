@@ -14,8 +14,8 @@ class AEMETCollector(BaseCollector):
 
     def collect(self):
         if not AEMET_API_KEY:
-            print("    [WARN] AEMET_API_KEY no configurada, usando datos simulados")
-            return self._mock_data()
+            print("    [WARN] AEMET_API_KEY no configurada, saltando AEMET")
+            return []
         return self._real_data()
 
     def _aemet_get_data(self, endpoint):
@@ -122,16 +122,4 @@ class AEMETCollector(BaseCollector):
         print(f"    {len(items)} estaciones, {len(alerts)} con alertas")
         return events
 
-    def _mock_data(self):
-        return [
-            Event(source="aemet", source_id="aemet_mock_01", event_type="storm",
-                  subtype="tormentas", lat=40.42, lon=-3.70, radius_m=50000,
-                  level="alert", title="Aviso naranja por tormentas",
-                  description="Precipitacion acumulada en 1h: 30 l/m2. Probabilidad: 80%",
-                  country="ES", region="Madrid"),
-            Event(source="aemet", source_id="aemet_mock_02", event_type="heatwave",
-                  subtype="ola de calor", lat=37.38, lon=-5.99, radius_m=40000,
-                  level="warning", title="Aviso amarillo por altas temperaturas",
-                  description="Temperatura maxima: 38C. Umbral: 36C.",
-                  country="ES", region="Sevilla"),
-        ]
+

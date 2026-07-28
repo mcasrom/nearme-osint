@@ -8,9 +8,16 @@ from src.models import Event
 HUB_DB = Path.home() / "intelligence-hub" / "data" / "news.db"
 
 FIRE_KEYWORDS = [
-    "incendio", "incendios", "incendie", "incendies", "fire", "fires",
-    "feu", "feux", "fuego", "foc", "brand", "wildfire", "megafeu",
-    "forestal", "forestier", "forêt", "forest",
+    "incendio", "incendios", "incendie", "incendies", "incendio",
+    "fire", "fires", "feu", "feux", "fuego", "foc",
+    "wildfire", "megafeu", "forestal", "forestier", "forêt", "forest",
+    "pyromane", "pyromanes", "bomberos", "sapeurs",
+]
+
+FALSE_POSITIVES = [
+    "brandenburg", "brande", "brandt", "brandi",
+    "firewall", "firestone", "firefox", "firefighter",
+    "facebook", "firenze",
 ]
 
 FIRE_LEVELS = {
@@ -104,6 +111,8 @@ class IntelHubBridge(BaseCollector):
                 title = row["title"]
                 title_lower = title.lower()
                 if any(kw in title_lower for kw in FIRE_KEYWORDS):
+                    if any(fp in title_lower for fp in FALSE_POSITIVES):
+                        continue
                     loc_name, lat, lon = extract_location(title)
                     level = "alert"
                     for kw, lvl in FIRE_LEVELS.items():
