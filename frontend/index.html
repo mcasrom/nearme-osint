@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NearMe OSINT</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e17; color: #d0dbe8; }
+        #app { display: flex; height: 100vh; }
+        #map { flex: 1; }
+        #sidebar { width: 420px; overflow-y: auto; padding: 16px; background: #0d1520; border-left: 1px solid #1a2a4a; }
+        h1 { color: #00d4ff; font-size: 1.3em; margin-bottom: 4px; }
+        .sub { color: #607d8b; font-size: 0.8em; margin-bottom: 16px; }
+        .event { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #607d8b; background: #111827; cursor: pointer; transition: 0.2s; }
+        .event:hover { border-color: #00d4ff; }
+        .event.critical { border-left-color: #f44336; }
+        .event.alert { border-left-color: #ff9800; }
+        .event.warning { border-left-color: #ffeb3b; }
+        .event .title { font-weight: 600; font-size: 0.9em; }
+        .event .meta { color: #607d8b; font-size: 0.75em; margin-top: 4px; }
+        .event .dist { color: #4fc3f7; font-size: 0.75em; }
+        .event .desc { color: #78909c; font-size: 0.8em; margin-top: 4px; }
+        .locate-btn { background: #00d4ff; color: #0a0e17; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 12px; width: 100%; }
+        .locate-btn:hover { background: #00b8d4; }
+        .stats { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .stat { background: #111827; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; border: 1px solid #1a2a4a; }
+        .stat .n { color: #00d4ff; font-weight: 700; }
+        .loading { color: #607d8b; text-align: center; padding: 40px; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="map"></div>
+    <div id="sidebar">
+        <h1>📍 NearMe OSINT</h1>
+        <div class="sub">¿Qué pasa a tu alrededor?</div>
+        <button class="locate-btn" onclick="locate()">📍 Usar mi ubicación</button>
+        <div id="stats" class="stats"></div>
+        <div id="events"><div class="loading">Cargando eventos...</div></div>
+    </div>
+</div>
+<script>
+const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
+let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON;
+const ICONS = {
+    fire: "🔥", flood: "🌊", earthquake: "🏚", storm: "⛈", wind: "💨",
+    snow: "❄️", heatwave: "🌡", air_quality: "🌫", traffic: "🚗",
+    road_incident: "🚧", road_closure: "⛔", train_delay: "🚄",
+    flight_delay: "✈", blackout: "⚡", warning: "⚠️", missing: "🔍",
+    crime: "🚨", news: "📰", other: "📌",
+};
+
+function init() {
+    map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18,
+    }).addTo(map);
+    marker = L.circleMarker([DEFAULT_LAT, DEFAULT_LON], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
+    circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: 25000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
+    loadEvents(DEFAULT_LAT, DEFAULT_LON);
+}
+
+function locate() {
+    if (!navigator.geolocation) return alert('Geolocalización no disponible');
+    navigator.geolocation.getCurrentPosition(
+        pos => { currentLat = pos.coords.latitude; currentLon = pos.coords.longitude; updateMap(); loadEvents(); },
+        () => alert('No se pudo obtener la ubicación')
+    );
+}
+
+function updateMap() {
+    map.setView([currentLat, currentLon], 12);
+    marker.setLatLng([currentLat, currentLon]);
+    circle.setLatLng([currentLat, currentLon]);
+}
+
+async function loadEvents() {
+    document.getElementById('events').innerHTML = '<div class="loading">Cargando...</div>';
+    try {
+        const resp = await fetch(`/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=25&limit=100`);
+        const data = await resp.json();
+        render(data);
+    } catch (e) {
+        document.getElementById('events').innerHTML = '<div class="loading">Error al cargar</div>';
+    }
+}
+
+function render(data) {
+    const events = data.events || [];
+    const stats = document.getElementById('stats');
+    const byLevel = {};
+    const byType = {};
+    events.forEach(e => {
+        byLevel[e.level] = (byLevel[e.level] || 0) + 1;
+        byType[e.event_type] = (byType[e.event_type] || 0) + 1;
+    });
+    stats.innerHTML = Object.entries(byLevel).map(([l, c]) =>
+        `<div class="stat"><span class="n">${c}</span> ${l}</div>`
+    ).join('') + `<div class="stat">${events.length} total</div>`;
+
+    const el = document.getElementById('events');
+    el.innerHTML = events.map(e => {
+        const icon = ICONS[e.event_type] || "📌";
+        const lvl = e.level === 'critical' || e.level === 'alert' ? e.level : '';
+        return `<div class="event ${lvl}" onclick="flyTo(${e.lat},${e.lon})">
+            <div class="title">${icon} ${e.title}</div>
+            <div class="dist">${e.distance_km} km · ${e.source}</div>
+            ${e.description ? `<div class="desc">${e.description}</div>` : ''}
+            <div class="meta">${e.municipality || e.region || ''} ${e.country || ''}</div>
+        </div>`;
+    }).join('');
+}
+
+function flyTo(lat, lon) {
+    map.flyTo([lat, lon], 13);
+}
+
+init();
+</script>
+</body>
+</html>
