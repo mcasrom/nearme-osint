@@ -1,5 +1,6 @@
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from src.logging import setup_logging, get_logger
@@ -96,11 +97,19 @@ def run_all():
     logger.info("Colectores registrados: %d", len(COLLECTORS))
 
     total_events = 0
-    for collector in COLLECTORS:
-        events = collector.run()
-        total_events += len(events)
+    start = datetime.now(timezone.utc)
+    with ThreadPoolExecutor(max_workers=len(COLLECTORS)) as executor:
+        futures = {executor.submit(c.run): c.name for c in COLLECTORS}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                events = future.result()
+                total_events += len(events)
+            except Exception as e:
+                logger.error("Error en colector %s: %s", name, e)
 
-    logger.info("Total eventos recolectados: %d", total_events)
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+    logger.info("Total eventos recolectados: %d (en %.1fs)", total_events, elapsed)
     logger.info("Pipeline completado")
 
 
