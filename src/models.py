@@ -2,6 +2,7 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
 
+from src.config import EVENT_STATUS_ACTIVE
 
 EVENT_TYPES = {
     "fire": "Incendio",
@@ -50,6 +51,7 @@ class Event:
     country: str = ""
     region: str = ""
     municipality: str = ""
+    status: str = EVENT_STATUS_ACTIVE
     raw_json: Optional[dict] = None
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())

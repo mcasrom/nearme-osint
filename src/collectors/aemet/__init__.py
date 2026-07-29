@@ -14,6 +14,7 @@ logger = get_logger("src.collectors.aemet")
 
 class AEMETCollector(BaseCollector):
     name = "AEMET"
+    source = "aemet"
     interval_minutes = 15
 
     async def collect(self):

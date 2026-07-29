@@ -10,6 +10,7 @@ logger = get_logger("src.collectors.ree")
 
 class REEPowerCollector(BaseCollector):
     name = "REE"
+    source = "ree"
     interval_minutes = 15
 
     async def collect(self):

@@ -14,6 +14,7 @@ logger = get_logger("src.collectors.renfe")
 
 class RENFEDelaysCollector(BaseCollector):
     name = "RENFE"
+    source = "renfe"
     interval_minutes = 15
 
     def __init__(self):

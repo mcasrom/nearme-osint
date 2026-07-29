@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from src.logging import get_logger
 from src.models import Event
+from src.config import DEFAULT_TTL_HOURS, DEFAULT_TTL_FALLBACK_HOURS, EVENT_STATUS_ACTIVE, EVENT_STATUS_RESOLVED, EVENT_STATUS_UPDATED
 
 logger = get_logger("src.db")
 
@@ -78,6 +79,21 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_geom ON events USING GIST(geom)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_expires ON events(expires_at) WHERE expires_at IS NOT NULL")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at)")
+
+    # Migration: add status column if missing (runs before index creation)
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='events' AND column_name='status'
+            ) THEN
+                ALTER TABLE events ADD COLUMN status TEXT DEFAULT 'active';
+            END IF;
+        END
+        $$;
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -126,15 +142,33 @@ def init_db():
     logger.info("Base de datos inicializada")
 
 
+def _event_to_row(event: Event) -> tuple:
+    expires_at = event.expires_at
+    if not expires_at:
+        ttl_hours = DEFAULT_TTL_HOURS.get(event.event_type, DEFAULT_TTL_FALLBACK_HOURS)
+        expires_at = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+    return (
+        event.source, event.source_id, event.event_type, event.subtype,
+        event.lat, event.lon, event.radius_m, event.level,
+        event.title, event.description, event.country, event.region, event.municipality,
+        EVENT_STATUS_ACTIVE,
+        psycopg2.extras.Json(event.raw_json) if event.raw_json else None,
+        event.lon, event.lat,
+        now, event.updated_at, expires_at
+    )
+
+
 def save_event(event: Event) -> int:
     conn = get_conn()
     cur = conn.cursor()
+    row = _event_to_row(event)
     cur.execute("""
         INSERT INTO events (source, source_id, event_type, subtype, lat, lon, radius_m,
                             level, title, description, country, region, municipality,
-                            raw_json, geom, created_at, updated_at, expires_at)
+                            status, raw_json, geom, created_at, updated_at, expires_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s)
+                %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s)
         ON CONFLICT (source, source_id)
         DO UPDATE SET
             lat = EXCLUDED.lat,
@@ -143,24 +177,59 @@ def save_event(event: Event) -> int:
             level = EXCLUDED.level,
             title = EXCLUDED.title,
             description = EXCLUDED.description,
+            status = EXCLUDED.status,
             raw_json = EXCLUDED.raw_json,
             geom = EXCLUDED.geom,
+            created_at = events.created_at,
             updated_at = NOW(),
             expires_at = EXCLUDED.expires_at
         RETURNING id
-    """, (
-        event.source, event.source_id, event.event_type, event.subtype,
-        event.lat, event.lon, event.radius_m, event.level,
-        event.title, event.description, event.country, event.region, event.municipality,
-        psycopg2.extras.Json(event.raw_json) if event.raw_json else None,
-        event.lon, event.lat,
-        event.created_at, event.updated_at, event.expires_at
-    ))
+    """, row)
     event_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     release_conn(conn)
     return event_id
+
+
+def save_events_batch(events: list[Event]) -> int:
+    """Batch upsert multiple events in a single connection/transaction."""
+    if not events:
+        return 0
+    conn = get_conn()
+    cur = conn.cursor()
+    saved = 0
+    for event in events:
+        try:
+            row = _event_to_row(event)
+            cur.execute("""
+                INSERT INTO events (source, source_id, event_type, subtype, lat, lon, radius_m,
+                                    level, title, description, country, region, municipality,
+                                    status, raw_json, geom, created_at, updated_at, expires_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s)
+                ON CONFLICT (source, source_id)
+                DO UPDATE SET
+                    lat = EXCLUDED.lat,
+                    lon = EXCLUDED.lon,
+                    radius_m = EXCLUDED.radius_m,
+                    level = EXCLUDED.level,
+                    title = EXCLUDED.title,
+                    description = EXCLUDED.description,
+                    status = EXCLUDED.status,
+                    raw_json = EXCLUDED.raw_json,
+                    geom = EXCLUDED.geom,
+                    created_at = events.created_at,
+                    updated_at = NOW(),
+                    expires_at = EXCLUDED.expires_at
+            """, row)
+            saved += 1
+        except Exception as e:
+            logger.warning("Error guardando evento batch: %s", e)
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return saved
 
 
 def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
@@ -179,17 +248,19 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
         conditions.append("CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END >= %s")
         cond_params.append(min_lvl)
     conditions.append("(expires_at IS NULL OR expires_at > NOW())")
+    conditions.append("status != %s")
+    cond_params.append(EVENT_STATUS_RESOLVED)
     where = " AND ".join(conditions)
     params = [lon, lat] + cond_params + [lon, lat, radius_km * 1000, limit]
     cur.execute(f"""
         SELECT id, source, source_id, event_type, subtype, lat, lon, radius_m,
                level, title, description, country, region, municipality,
-               created_at, updated_at, expires_at,
+               status, created_at, updated_at, expires_at,
                ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography) as distance_m
         FROM events
         WHERE {where}
           AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)
-        ORDER BY distance_m ASC, level DESC, created_at DESC
+        ORDER BY status ASC, distance_m ASC, level DESC, created_at DESC
         LIMIT %s
     """, params)
     rows = cur.fetchall()
@@ -199,6 +270,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
     for r in rows:
         d = dict(r)
         d["distance_km"] = round(d.pop("distance_m", 0) / 1000, 1) if d.get("distance_m") else 0
+        d["status"] = d.get("status", EVENT_STATUS_ACTIVE)
         if d.get("created_at"):
             d["created_at"] = d["created_at"].isoformat()
         if d.get("updated_at"):
@@ -220,6 +292,44 @@ def get_events_summary(lat: float, lon: float, radius_km: float = 25) -> dict:
         if lvl in ("alert", "critical"):
             summary["critical"].append(ev)
     return summary
+
+
+def resolve_events(source: str, active_ids: set[str]) -> int:
+    """Mark events from source not in active_ids as resolved."""
+    if not active_ids:
+        return 0
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE events
+        SET status = %s, updated_at = NOW()
+        WHERE source = %s
+          AND source_id != ALL(%s)
+          AND status = %s
+    """, (EVENT_STATUS_RESOLVED, source, list(active_ids), EVENT_STATUS_ACTIVE))
+    resolved = cur.rowcount
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return resolved
+
+
+def resolve_all_before(source: str, cutoff: str) -> int:
+    """Mark events from source last updated before cutoff as resolved."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE events
+        SET status = %s, updated_at = NOW()
+        WHERE source = %s
+          AND updated_at < %s::timestamptz
+          AND status = %s
+    """, (EVENT_STATUS_RESOLVED, source, cutoff, EVENT_STATUS_ACTIVE))
+    resolved = cur.rowcount
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return resolved
 
 
 def clean_expired():

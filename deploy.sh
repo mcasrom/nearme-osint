@@ -47,7 +47,11 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -q -r requirements.txt
 
-# Copy .env from local if provided
+# Create .env from template if it doesn't exist
+if [ ! -f .env ]; then
+    cp .env.example .env
+    echo "    Archivo .env creado desde .env.example — edítalo con credenciales reales"
+fi
 echo "    Provisioning done."
 PROVISION
 }
@@ -61,6 +65,7 @@ rsync -avz --delete \
     --exclude '*.pyc' \
     --exclude 'data/' \
     --exclude 'logs/' \
+    --exclude '.env' \
     ./ $SERVER:$REMOTE_DIR/
 
 # Step 4: Install deps + init DB

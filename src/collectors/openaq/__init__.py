@@ -28,6 +28,7 @@ logger = get_logger("src.collectors.openaq")
 
 class OpenAQCollector(BaseCollector):
     name = "OpenAQ"
+    source = "openaq"
     interval_minutes = 30
 
     async def collect(self):

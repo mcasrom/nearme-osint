@@ -76,7 +76,7 @@
 
 ### Sprint 11 — OpenAQ v3 (29 Jul 2026)
 - [x] Registrada cuenta OpenAQ con news@viajeinteligencia.com, verificada email
-- [x] API key: `74e8929712ebc8825766adb2a5020578679fe923cb87f08cfe3ceb1fdea28255`
+
 - [x] Colector v3: X-API-Key header, 6 parámetros (pm25, pm10, o3, no2, co, so2), 3 páginas c/u
 - [x] ~980 eventos calidad aire / pipeline, ~77 alertas/warnings
 - [x] Añadido OPENAQ_API_KEY a .env

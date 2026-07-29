@@ -41,6 +41,7 @@ logger = get_logger("src.collectors.dgt")
 
 class EarthquakesCollector(BaseCollector):
     name = "USGS + FIRMS"
+    source = ["usgs", "usgs_es", "nasa_firms"]
     interval_minutes = 15
 
     async def collect(self):
@@ -190,6 +191,7 @@ class EarthquakesCollector(BaseCollector):
 
 class DGTTrafficCollector(BaseCollector):
     name = "DGT-Tráfico"
+    source = "dgt"
     interval_minutes = 5
 
     async def collect(self):

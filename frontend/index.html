@@ -25,6 +25,13 @@
     <meta name="twitter:title" content="NearMe OSINT — Mapa de eventos en tiempo real">
     <meta name="twitter:description" content="Incendios, terremotos, alertas meteorologicas, trafico, trenes y mas en un solo mapa.">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
+    <style>
+      .kofi-fixed {
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        transition: transform 0.2s;
+      }
+      .kofi-fixed:hover { transform: scale(1.05); }
+    </style>
     <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5/dist/leaflet.markercluster.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5/dist/MarkerCluster.css" />
@@ -104,6 +111,8 @@
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
         .event .level-badge { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 0.7em; margin-left: 4px; vertical-align: middle; }
         .level-badge.critical { background: #d32f2f; color: #fff; }
+        .share-btn { background:none; border:none; color:#4fc3f7; cursor:pointer; padding:0 4px; font-size:1em; line-height:1; float:right; }
+        .share-btn:hover { color:#00d4ff; }
         .level-badge.alert { background: #f57c00; color: #fff; }
         .level-badge.warning { background: #fbc02d; color: #000; }
         .level-badge.info { background: #1976d2; color: #fff; }
@@ -173,6 +182,7 @@
         body.light .event .desc { color: #78909c; }
         body.light .search-box input { background: #f5f7fa; border-color: #e0e0e0; color: #263238; }
         body.light .coords-display { color: #0288d1; }
+        body.light #locSelect { background: #f5f7fa; border-color: #e0e0e0; color: #263238; }
         body.light .stat { background: #f5f7fa; border-color: #e0e0e0; }
         body.light .info-footer { background: #f5f7fa; border-color: #e0e0e0; }
         body.light .info-section .tag { background: #f5f7fa; }
@@ -318,6 +328,26 @@
         body.light .auth-tab { color: #90a4ae; }
         body.light .auth-tab.active { color: #0288d1; border-bottom-color: #0288d1; }
 
+        .detail-modal {
+            background: #0d1520; border: 1px solid #1a2a4a; border-radius: 16px;
+            max-width: 520px; width: 90%; padding: 24px; position: relative; max-height: 85vh; overflow-y: auto;
+        }
+        .detail-modal h2 { color: #00d4ff; font-size: 1.1em; margin-bottom: 8px; }
+        .detail-modal .close-detail { position: absolute; top: 12px; right: 16px; background: none; border: none; color: #607d8b; font-size: 1.3em; cursor: pointer; }
+        .detail-modal .close-detail:hover { color: #ef5350; }
+        .detail-body { color: #b0bec5; font-size: 0.85em; line-height: 1.6; }
+        .detail-body .field { margin-bottom: 6px; }
+        .detail-body .field strong { color: #d0dbe8; }
+        .detail-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .detail-actions .btn-detail { flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; border: 1px solid #1a2a4a; background: #111827; color: #b0bec5; cursor: pointer; font-size: 0.78em; text-align: center; text-decoration: none; }
+        .detail-actions .btn-detail:hover { border-color: #00d4ff; color: #00d4ff; }
+        .detail-actions .btn-detail.primary { background: #00d4ff; color: #0a0e17; border-color: #00d4ff; font-weight: 600; }
+        .detail-actions .btn-detail.primary:hover { background: #00b8d4; }
+        body.light .detail-modal { background: #fff; }
+        body.light .detail-body { color: #546e7a; }
+        body.light .detail-body .field strong { color: #263238; }
+        body.light .detail-actions .btn-detail { background: #f5f7fa; color: #546e7a; }
+
         .poi-header { font-weight: 700; font-size: 0.85em; padding: 8px 10px; background: #0a0e17; border-radius: 6px 6px 0 0; color: #00d4ff; display: flex; justify-content: space-between; align-items: center; }
         .poi-close { cursor: pointer; font-size: 1.1em; color: #607d8b; }
         .poi-category { padding: 4px 10px; font-size: 0.78em; border-bottom: 1px solid #1a2a4a; background: #111827; }
@@ -366,6 +396,15 @@
 
         <div class="auth-bar" id="authBar">
             <button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>
+        </div>
+
+        <div id="savedLocationsBar" style="display:none;margin-bottom:8px;">
+            <div style="display:flex;gap:4px;">
+                <select id="locSelect" style="flex:1;background:#111827;border:1px solid #1a2a4a;border-radius:6px;color:#d0dbe8;padding:6px 8px;font-size:0.78em;cursor:pointer;outline:none;" onchange="jumpToLocation(this.value)">
+                    <option value="">— Ubicaciones guardadas —</option>
+                </select>
+                <button class="btn-sm btn-outline" onclick="saveCurrentLocation()" style="font-size:0.7em;padding:4px 10px;flex-shrink:0;" title="Guardar ubicacion actual">📌 Guardar</button>
+            </div>
         </div>
 
         <div style="display:flex;gap:6px;margin-bottom:12px;">
@@ -429,6 +468,10 @@
             <label style="font-size:0.7em;color:#607d8b;cursor:pointer;">
                 <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"> Auto
             </label>
+            <a href="https://ko-fi.com/m_castillo" target="_blank" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;" title="Apoyar el proyecto">
+              <img src="https://storage.ko-fi.com/cdn/kofi2.png" height="20" alt="Ko-fi" style="border:none;" />
+              <span style="font-size:0.7em;color:#ff5e5b;">Apoyar</span>
+            </a>
         </div>
     </div>
 </div>
@@ -438,6 +481,7 @@ let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON, cur
 let heatmapLayer = null;
 let activeFilters = new Set();
 let allEvents = [];
+let lastEventsCache = null;
 let filtersOpen = false;
 let autoRefreshEnabled = false;
 let autoRefreshTimer = null;
@@ -529,6 +573,12 @@ function levelBadge(level, eventType) {
 let radiusBtns = { 50: 'r50', 200: 'r200', 500: 'r500' };
 
 function init() {
+    var savedRadius = parseInt(localStorage.getItem('nearme_radius'));
+    if (savedRadius && [50, 200, 500].indexOf(savedRadius) >= 0) currentRadius = savedRadius;
+    try {
+        var savedFilters = JSON.parse(localStorage.getItem('nearme_filters'));
+        if (savedFilters && Array.isArray(savedFilters)) savedFilters.forEach(function(f) { activeFilters.add(f); });
+    } catch(e) {}
     map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', maxZoom: 18,
@@ -604,6 +654,7 @@ function toggleFilter(type) {
     } else {
         activeFilters.add(type);
     }
+    localStorage.setItem('nearme_filters', JSON.stringify(Array.from(activeFilters)));
     renderFilterChips();
     renderEvents();
     renderMapMarkers();
@@ -811,10 +862,21 @@ async function loadEvents() {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         allEvents = data.events || [];
+        lastEventsCache = { data: data, ts: Date.now() };
         render(data);
         checkAlerts(allEvents);
     } catch (e) {
-        document.getElementById('events').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+        if (lastEventsCache) {
+            allEvents = lastEventsCache.data.events || [];
+            var banner = document.createElement('div');
+            banner.style.cssText = 'background:#2a1a0a;border:1px solid #5a3a1a;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:0.78em;color:#ffb300;text-align:center;';
+            banner.textContent = '📡 Sin conexion — mostrando datos de ' + new Date(lastEventsCache.ts).toLocaleString('es-ES');
+            render(lastEventsCache.data);
+            var eventsEl = document.getElementById('events');
+            if (eventsEl) eventsEl.insertBefore(banner, eventsEl.firstChild);
+        } else {
+            document.getElementById('events').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+        }
     }
 }
 
@@ -958,29 +1020,140 @@ function renderEvents() {
         el.innerHTML = '<div class="loading" style="padding:20px;color:#607d8b;">Sin eventos en esta zona. Prueba con un radio mayor o cambia de ubicacion</div>';
         return;
     }
-    el.innerHTML = filtered.map(e => {
+    el.innerHTML = filtered.map(function(e, idx) {
         const icon = ICONS[e.event_type] || "\uD83D\uDCCC";
         const color = TYPE_COLORS[e.event_type] || '#607d8b';
         const lvl = levelEmoji(e.level, e.event_type);
         const badge = levelBadge(e.level, e.event_type);
         const descHtml = e.description ? e.description.replace(/\|/g, '<br>') : '';
-        return `<div class="event" style="border-left-color:${color}" onclick="flyTo(${e.lat},${e.lon})">
-            <div class="title">${lvl} ${icon} ${e.title} ${badge}</div>
-            <div class="dist">${e.distance_km} km &middot; ${e.source}</div>
-            ${descHtml ? `<div class="desc">${descHtml}</div>` : ''}
-            <div class="meta">${e.municipality || e.region || ''} ${e.country || ''}</div>
-        </div>`;
+        var shareBtn = navigator.share ? '<button class="share-btn" data-idx="' + idx + '" onclick="event.stopPropagation();shareEvent(allEvents[' + idx + '])" title="Compartir">📤</button>' : '';
+        return '<div class="event" style="border-left-color:' + color + '" onclick="showEventDetail(' + idx + ')">\
+            <div class="title">' + lvl + ' ' + icon + ' ' + e.title + ' ' + badge + '</div>\
+            <div class="dist">' + e.distance_km + ' km &middot; ' + e.source + ' ' + shareBtn + '</div>\
+            ' + (descHtml ? '<div class="desc">' + descHtml + '</div>' : '') + '\
+            <div class="meta">' + (e.municipality || e.region || '') + ' ' + (e.country || '') + '</div>\
+        </div>';
     }).join('');
 }
 
 function setRadius(km) {
     currentRadius = km;
+    localStorage.setItem('nearme_radius', km);
     updateRadiusBtns();
     updateMap();
     loadEvents();
 }
 
 function flyTo(lat, lon) { map.flyTo([lat, lon], 13); }
+
+function shareEvent(e) {
+    if (!navigator.share) return;
+    const text = e.title + ' - ' + e.distance_km + 'km · ' + e.source;
+    const url = 'https://www.google.com/maps?q=' + e.lat + ',' + e.lon;
+    navigator.share({ title: e.title || 'NearMe OSINT', text, url }).catch(function(){});
+}
+
+function showEventDetail(idx) {
+    var events = getFilteredEvents();
+    var e = events[idx];
+    if (!e) return;
+    var overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.id = 'detailOverlay';
+    overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+    var desc = e.description || '';
+    var levelLabel = e.level || 'info';
+    var levelColor = LEVEL_COLORS[levelLabel] || '#607d8b';
+    var typeName = e.event_type.replace(/_/g, ' ');
+    var mapsUrl = 'https://www.google.com/maps?q=' + e.lat + ',' + e.lon;
+    var wazeUrl = 'https://www.waze.com/ul?ll=' + e.lat + ',' + e.lon + '&navigate=yes';
+    var lvlEmoji = levelEmoji(e.level, e.event_type);
+    var icon = ICONS[e.event_type] || '\uD83D\uDCCC';
+    var shareHtml = navigator.share ? '<a href="#" class="btn-detail" onclick="event.preventDefault();shareEvent(getFilteredEvents()[' + idx + ']);">📤 Compartir</a>' : '';
+    overlay.innerHTML = '\
+        <div class="detail-modal" onclick="event.stopPropagation()">\
+            <button class="close-detail" onclick="this.closest(\'#detailOverlay\').remove()">&times;</button>\
+            <h2>' + lvlEmoji + ' ' + icon + ' ' + (e.title || '') + '</h2>\
+            <div class="detail-body">\
+                <div class="field"><strong>Tipo:</strong> ' + typeName + '</div>\
+                <div class="field"><strong>Nivel:</strong> <span style="color:' + levelColor + ';font-weight:600;">' + levelLabel.toUpperCase() + '</span></div>\
+                <div class="field"><strong>Distancia:</strong> ' + e.distance_km + ' km</div>\
+                <div class="field"><strong>Fuente:</strong> ' + e.source + '</div>\
+                ' + (e.municipality ? '<div class="field"><strong>Municipio:</strong> ' + e.municipality + '</div>' : '') + '\
+                ' + (e.region ? '<div class="field"><strong>Region:</strong> ' + e.region + '</div>' : '') + '\
+                ' + (e.country ? '<div class="field"><strong>Pais:</strong> ' + e.country + '</div>' : '') + '\
+                ' + (desc ? '<div class="field"><strong>Descripcion:</strong><br>' + desc.replace(/\|/g, '<br>') + '</div>' : '') + '\
+                ' + (e.created_at ? '<div class="field" style="color:#607d8b;font-size:0.78em;">Creado: ' + e.created_at + '</div>' : '') + '\
+            </div>\
+            <div class="detail-actions">\
+                <a href="#" class="btn-detail primary" onclick="event.preventDefault();document.getElementById(\'detailOverlay\').remove();flyTo(' + e.lat + ',' + e.lon + ');">📍 Volar en mapa</a>\
+                <a href="' + mapsUrl + '" target="_blank" class="btn-detail" rel="noopener">🗺️ Google Maps</a>\
+                <a href="' + wazeUrl + '" target="_blank" class="btn-detail" rel="noopener">📍 Waze</a>\
+                ' + shareHtml + '\
+            </div>\
+        </div>';
+    document.body.appendChild(overlay);
+}
+
+// ===== Saved Locations =====
+
+async function saveCurrentLocation() {
+    if (!isLoggedIn()) return;
+    const name = prompt('Nombre para esta ubicacion:', currentLat.toFixed(4) + ', ' + currentLon.toFixed(4));
+    if (!name || !name.trim()) return;
+    try {
+        const r = await fetch('/api/locations', {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ name: name.trim(), lat: currentLat, lon: currentLon })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        loadSavedLocations();
+    } catch (e) { alert('Error al guardar: ' + e.message); }
+}
+
+async function loadSavedLocations() {
+    const select = document.getElementById('locSelect');
+    if (!select) return;
+    try {
+        const r = await fetch('/api/locations', { headers: authHeaders() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        const locs = data.locations || [];
+        select.innerHTML = '<option value="">— Ubicaciones guardadas —</option>'
+            + locs.map(l => '<option value="' + l.id + '" data-lat="' + l.lat + '" data-lon="' + l.lon + '">' + l.name.replace(/</g,'&lt;') + '</option>').join('')
+            + '<option value="__manage" disabled>──────────</option>';
+        if (locs.length > 0) {
+            locs.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = '__del_' + l.id;
+                opt.textContent = '✕ Eliminar ' + l.name;
+                opt.style.color = '#ef5350';
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) { /* silently fail, not critical */ }
+}
+
+function jumpToLocation(val) {
+    if (!val || val === '') return;
+    if (val.startsWith('__del_')) {
+        const id = parseInt(val.replace('__del_', ''));
+        if (confirm('Eliminar esta ubicacion?')) {
+            fetch('/api/locations/' + id, { method: 'DELETE', headers: authHeaders() }).then(r => {
+                if (r.ok) loadSavedLocations();
+            }).catch(() => {});
+        }
+        document.getElementById('locSelect').value = '';
+        return;
+    }
+    const opt = document.querySelector('#locSelect option[value="' + val + '"]');
+    if (opt) {
+        currentLat = parseFloat(opt.dataset.lat);
+        currentLon = parseFloat(opt.dataset.lon);
+        updateMap();
+        loadEvents();
+    }
+}
 
 // ===== Auth =====
 const TOKEN_KEY = 'nearme_token';
@@ -1027,11 +1200,14 @@ function logout() { clearToken(); updateAuthUI(); updateAlertBadge(0); }
 function updateAuthUI() {
     const el = document.getElementById('authBar');
     if (!el) return;
+    const locBar = document.getElementById('savedLocationsBar');
     if (currentUser) {
         el.innerHTML = '<div class="auth-user"><span class="auth-avatar">👤</span><span class="auth-name">' +
             currentUser.username + '</span><button class="btn-logout" onclick="logout()" title="Cerrar sesion">✕</button></div>';
+        if (locBar) { locBar.style.display = 'block'; loadSavedLocations(); }
     } else {
         el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>';
+        if (locBar) locBar.style.display = 'none';
     }
 }
 
@@ -1231,36 +1407,45 @@ async function deleteAlert(id) {
 
 async function checkAlerts(events) {
     if (!isLoggedIn()) return;
+    var ALERTS_SEEN_KEY = 'nearme_alerts_seen';
     try {
         const r = await fetch('/api/alerts', { headers: authHeaders() });
         if (!r.ok) return;
         const data = await r.json();
         const alerts = data.alerts || [];
         if (alerts.length === 0) { updateAlertBadge(0); return; }
-        let matchCount = 0;
-        let notified = false;
-        const seen = new Set();
-        const lvlOrder = { info: 0, warning: 1, alert: 2, critical: 3 };
-        for (const a of alerts) {
+        var alreadyNotified = {};
+        try { alreadyNotified = JSON.parse(localStorage.getItem(ALERTS_SEEN_KEY)) || {}; } catch(e) {}
+        var now = Date.now();
+        var cutoff = now - 86400000;
+        var newNotified = {};
+        var matchCount = 0;
+        var firstTitles = [];
+        var lvlOrder = { info: 0, warning: 1, alert: 2, critical: 3 };
+        for (var a of alerts) {
             if (!a.enabled) continue;
-            for (const e of events) {
-                const key = a.id + ':' + e.lat + ',' + e.lon + ':' + e.title;
-                if (seen.has(key)) continue;
+            for (var e of events) {
+                var key = a.id + ':' + e.lat + ',' + e.lon + ':' + e.title;
                 if (a.event_type !== 'all' && e.event_type !== a.event_type) continue;
                 if (e.distance_km > a.radius_km) continue;
                 if ((lvlOrder[e.level] || 0) < (lvlOrder[a.min_level] || 0)) continue;
-                seen.add(key);
                 matchCount++;
-                if (!notified) {
-                    notified = true;
-                    const icon = ICONS[e.event_type] || '';
-                    const lvl = e.level || 'info';
-                    showBrowserNotification('🔔 ' + icon + ' ' + e.title,
-                        e.distance_km + ' km · ' + e.source + ' · Nivel: ' + lvl + (e.municipality ? ' · ' + e.municipality : ''));
+                if (!alreadyNotified[key] && firstTitles.length < 3) {
+                    firstTitles.push(ICONS[e.event_type] || '' + ' ' + e.title);
                 }
+                newNotified[key] = now;
             }
         }
+        Object.keys(alreadyNotified).forEach(function(k) {
+            if (alreadyNotified[k] > cutoff) newNotified[k] = alreadyNotified[k];
+        });
+        localStorage.setItem(ALERTS_SEEN_KEY, JSON.stringify(newNotified));
         updateAlertBadge(matchCount);
+        if (firstTitles.length > 0) {
+            var msg = matchCount + ' evento' + (matchCount !== 1 ? 's' : '') + ' coinciden con tus alertas';
+            if (firstTitles.length <= 3) msg += ': ' + firstTitles.join(', ');
+            showBrowserNotification('🔔 ' + matchCount + ' alerta' + (matchCount !== 1 ? 's' : ''), msg);
+        }
     } catch { updateAlertBadge(0); }
 }
 
@@ -1335,5 +1520,8 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+<a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" title="Apoyar el proyecto en Ko-fi" style="background:#ff5e5b;color:#fff;padding:8px 16px;border-radius:24px;font-size:14px;font-weight:bold;text-decoration:none;display:flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(0,0,0,0.3);">
+  ☕ Invítame a un café
+</a>
 </body>
 </html>

@@ -54,6 +54,7 @@ logger = get_logger("src.collectors.playas")
 
 class PlayasCollector(BaseCollector):
     name = "Playas"
+    source = "playas"
     interval_minutes = 60
 
     async def collect(self):

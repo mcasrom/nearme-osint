@@ -149,6 +149,7 @@ logger = get_logger("src.collectors.intelhub_bridge")
 
 class IntelHubBridge(BaseCollector):
     name = "Intelligence Hub (incendios)"
+    source = "intelhub"
     interval_minutes = 10
 
     async def collect(self):

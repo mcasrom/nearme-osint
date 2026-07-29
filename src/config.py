@@ -6,8 +6,8 @@ Import from this module instead of hard-coding values in collectors.
 from pathlib import Path
 
 # ── Database ──────────────────────────────────────────────────
-POOL_MINCONN = 2
-POOL_MAXCONN = 20
+POOL_MINCONN = 5
+POOL_MAXCONN = 200
 
 
 # ── Server ────────────────────────────────────────────────────
@@ -211,6 +211,33 @@ PLAYAS_BIZKAIA_CKAN_URL = (
 PLAYAS_INTERVAL_MINUTES = 60
 PLAYAS_REQUEST_TIMEOUT = 20
 PLAYAS_BEACH_RADIUS_M = 500
+
+
+# ── Event Status & TTL ───────────────────────────────────────
+EVENT_STATUS_ACTIVE = "active"
+EVENT_STATUS_RESOLVED = "resolved"
+EVENT_STATUS_UPDATED = "updated"
+
+DEFAULT_TTL_HOURS = {
+    "road_closure": 48,
+    "road_incident": 24,
+    "traffic": 6,
+    "fire": 24,
+    "earthquake": 48,
+    "warning": 48,
+    "train_delay": 6,
+    "air_quality": 6,
+    "beach": 24,
+    "flood": 48,
+    "storm": 24,
+    "wind": 12,
+    "snow": 24,
+    "heatwave": 24,
+    "blackout": 24,
+    "water_cut": 24,
+}
+
+DEFAULT_TTL_FALLBACK_HOURS = 72
 
 
 # ── Pipeline ─────────────────────────────────────────────────

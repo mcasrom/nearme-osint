@@ -25,6 +25,7 @@ logger = get_logger("src.collectors.miteco")
 
 class AirQualityCollector(BaseCollector):
     name = "MITECO-CalidadAire"
+    source = "miteco"
     interval_minutes = 30
 
     async def collect(self):

@@ -353,6 +353,35 @@ def delete_alert(alert_id: int, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+class LocationBody(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    lat: float
+    lon: float
+
+
+# ----- Saved Locations endpoints -----
+
+@app.get("/api/locations")
+def list_locations(user: dict = Depends(get_current_user)):
+    from src.db import get_user_locations
+    return {"locations": get_user_locations(user["id"])}
+
+
+@app.post("/api/locations")
+def create_location(body: LocationBody, user: dict = Depends(get_current_user)):
+    from src.db import create_location
+    loc = create_location(user["id"], body.name, body.lat, body.lon)
+    return loc
+
+
+@app.delete("/api/locations/{location_id}")
+def delete_location(location_id: int, user: dict = Depends(get_current_user)):
+    from src.db import delete_location
+    if not delete_location(location_id, user["id"]):
+        raise HTTPException(status_code=404, detail="Ubicacion no encontrada")
+    return {"ok": True}
+
+
 class RatingBody(BaseModel):
     rating: int = Field(ge=1, le=3)
 

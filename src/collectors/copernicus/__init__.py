@@ -9,6 +9,7 @@ logger = get_logger("src.collectors.copernicus")
 
 class CopernicusCollector(BaseCollector):
     name = "Copernicus + GWIS"
+    source = ["gwis", "copernicus"]
     interval_minutes = 60
 
     async def collect(self):

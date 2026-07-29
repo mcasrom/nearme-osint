@@ -14,6 +14,7 @@ logger = get_logger("src.collectors.proteccion_civil")
 
 class ProteccionCivilCollector(BaseCollector):
     name = "ProtecciónCivil"
+    source = "aemet_avisos"
     interval_minutes = 30
 
     async def collect(self):
