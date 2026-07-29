@@ -3,11 +3,12 @@ import csv
 import io
 import re
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import Counter
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
+from src.config import DGT_MAX_AGE_HOURS
 
 FIRMS_SOURCES = [
     "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv",
@@ -234,6 +235,22 @@ class DGTTrafficCollector(BaseCollector):
             return None
         start_time_m = re.search(r'<com:overallStartTime[^>]*>([^<]+)</com:overallStartTime>', record)
         start_time = start_time_m.group(1) if start_time_m else ""
+        if start_time:
+            try:
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                if (datetime.now(timezone.utc) - start_dt).total_seconds() > DGT_MAX_AGE_HOURS * 3600:
+                    return None
+            except ValueError:
+                pass
+        end_time_m = re.search(r'<com:overallEndTime[^>]*>([^<]+)</com:overallEndTime>', record)
+        end_time = end_time_m.group(1) if end_time_m else ""
+        if end_time:
+            try:
+                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                if end_dt < datetime.now(timezone.utc):
+                    return None
+            except ValueError:
+                pass
         source_id_m = re.search(r'id="([^"]+)"', record)
         source_id = f"dgt_{source_id_m.group(1) if source_id_m else f'{lat}_{lon}'}"
         municipality_clean = municipality.encode("utf-8", errors="ignore").decode("utf-8") if municipality else ""

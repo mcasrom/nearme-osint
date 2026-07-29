@@ -105,6 +105,7 @@ DGT_SEVERITY_MAP = {
     "medium": "warning",
     "low": "info",
 }
+DGT_MAX_AGE_HOURS = 12
 
 
 # ── OpenAQ ───────────────────────────────────────────────────
