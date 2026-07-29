@@ -29,8 +29,15 @@
       .kofi-fixed {
         position: fixed; bottom: 20px; right: 20px; z-index: 9999;
         transition: transform 0.2s;
+        background: #ff5e5b; color: #fff; padding: 10px 18px; border-radius: 24px;
+        font-size: 14px; font-weight: bold; text-decoration: none;
+        display: flex; align-items: center; gap: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        opacity: 0; transform: translateY(10px); pointer-events: none;
+        transition: opacity 0.5s, transform 0.5s;
       }
       .kofi-fixed:hover { transform: scale(1.05); }
+      .kofi-fixed.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
     </style>
     <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5/dist/leaflet.markercluster.js"></script>
@@ -305,7 +312,7 @@
         body.light .reg-benefits strong { color: #455a64; }
 
         .rating-widget {
-            position: fixed; bottom: 60px; right: 10px; z-index: 9999;
+            position: fixed; bottom: 60px; left: 10px; z-index: 9999;
             background: #0d1520; border: 1px solid #1a2a4a; border-radius: 20px;
             padding: 8px 16px; display: flex; align-items: center; gap: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4); cursor: pointer;
@@ -468,10 +475,6 @@
             <label style="font-size:0.7em;color:#607d8b;cursor:pointer;">
                 <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"> Auto
             </label>
-            <a href="https://ko-fi.com/m_castillo" target="_blank" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;" title="Apoyar el proyecto">
-              <img src="https://storage.ko-fi.com/cdn/kofi2.png" height="20" alt="Ko-fi" style="border:none;" />
-              <span style="font-size:0.7em;color:#ff5e5b;">Apoyar</span>
-            </a>
         </div>
     </div>
 </div>
@@ -894,6 +897,10 @@ function render(data) {
     renderMapMarkers();
     document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
     if (autoRefreshEnabled) scheduleNextRefresh();
+    var kofiCount = parseInt(localStorage.getItem('nearme_kofi_loads') || '0');
+    kofiCount++;
+    localStorage.setItem('nearme_kofi_loads', kofiCount);
+    if (kofiCount >= 2) document.getElementById('kofiBtn').classList.add('show');
 }
 
 function toggleAutoRefresh() {
@@ -1520,8 +1527,6 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-<a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" title="Apoyar el proyecto en Ko-fi" style="background:#ff5e5b;color:#fff;padding:8px 16px;border-radius:24px;font-size:14px;font-weight:bold;text-decoration:none;display:flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(0,0,0,0.3);">
-  ☕ Invítame a un café
-</a>
+<a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" id="kofiBtn" title="Invitame a un cafe">☕ Invítame un café</a>
 </body>
 </html>
