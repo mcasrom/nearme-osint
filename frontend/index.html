@@ -900,7 +900,14 @@ function render(data) {
     var kofiCount = parseInt(localStorage.getItem('nearme_kofi_loads') || '0');
     kofiCount++;
     localStorage.setItem('nearme_kofi_loads', kofiCount);
-    if (kofiCount >= 2) document.getElementById('kofiBtn').classList.add('show');
+    if (kofiCount >= 2) {
+        var btn = document.getElementById('kofiBtn');
+        if (btn) {
+            btn.classList.add('show');
+            var msgs = ['☕ Invítame un café', '❤️ Apoya el proyecto', '☕ ¿Útil? Invítame un café', '🍺 Invítame una cerveza'];
+            btn.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+        }
+    }
 }
 
 function toggleAutoRefresh() {
@@ -1527,6 +1534,6 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-<a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" id="kofiBtn" title="Invitame a un cafe">☕ Invítame un café</a>
+<a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" id="kofiBtn" title="Apoyar el proyecto"></a>
 </body>
 </html>
