@@ -8,7 +8,6 @@ from collections import Counter
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
-from src.config import DGT_MAX_AGE_HOURS
 
 FIRMS_SOURCES = [
     "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv",
@@ -235,13 +234,6 @@ class DGTTrafficCollector(BaseCollector):
             return None
         start_time_m = re.search(r'<com:overallStartTime[^>]*>([^<]+)</com:overallStartTime>', record)
         start_time = start_time_m.group(1) if start_time_m else ""
-        if start_time:
-            try:
-                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                if (datetime.now(timezone.utc) - start_dt).total_seconds() > DGT_MAX_AGE_HOURS * 3600:
-                    return None
-            except ValueError:
-                pass
         end_time_m = re.search(r'<com:overallEndTime[^>]*>([^<]+)</com:overallEndTime>', record)
         end_time = end_time_m.group(1) if end_time_m else ""
         if end_time:

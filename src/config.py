@@ -105,7 +105,6 @@ DGT_SEVERITY_MAP = {
     "medium": "warning",
     "low": "info",
 }
-DGT_MAX_AGE_HOURS = 12
 
 
 # ── OpenAQ ───────────────────────────────────────────────────
@@ -220,8 +219,8 @@ EVENT_STATUS_RESOLVED = "resolved"
 EVENT_STATUS_UPDATED = "updated"
 
 DEFAULT_TTL_HOURS = {
-    "road_closure": 48,
-    "road_incident": 24,
+    "road_closure": 12,
+    "road_incident": 12,
     "traffic": 6,
     "fire": 24,
     "earthquake": 48,
