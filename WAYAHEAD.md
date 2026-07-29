@@ -220,3 +220,12 @@ nearme-osint/
 ├── .env.example               # Template de credenciales (gitignored)
 └── .env                       # Credenciales reales (gitignored)
 ```
+
+---
+
+## ⏳ Pendiente Ko-fi
+- [ ] Crear 2 tiers de membresía mensual (€3 Colaborador, €10 Mecenas)
+- [ ] Subir meta de €20 → €50 con desglose (electricidad + dominio + APIs)
+- [ ] Usar feed de Ko-fi para anunciar deploys nuevos
+- [ ] Widget en frontend muestre barra de progreso de la meta
+- [ ] Separar CTA por proyecto en el About de Ko-fi
