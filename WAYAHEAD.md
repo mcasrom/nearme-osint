@@ -251,6 +251,9 @@ TOTAL:        ~5.470
 - [x] Meta description de la página en inglés
 - [x] Logo SVG rediseñado a 240x240 (radar + data dots, escalable)
 
+**Borrador primer comentario maker para PH:**
+> Hey PH! I'm a solo dev in Spain — built NearMe because I was tired of checking 5 different apps to know if there's a wildfire, a train delay, or a weather alert near me. It pulls from NASA FIRMS, USGS, AEMET, DGT, RENFE and more, normalizes everything into one event schema (severity levels, TTL expiry, freshness badges), and renders it as a PWA you can install offline. Built with async Python collectors → PostGIS → FastAPI → Leaflet, with a TTL-based event lifecycle that auto-expires stale data. Currently Spain-only because that's where the open data APIs I integrated live — but the pipeline is source-agnostic, so adding another country is mostly "write a new collector." Open source, feedback and contributions welcome.
+
 ## 📖 Metodología
 
 ### Arquitectura
