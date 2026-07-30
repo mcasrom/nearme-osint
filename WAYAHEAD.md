@@ -171,6 +171,15 @@ TOTAL:        ~5.470
 - [x] MITECO: validación duplicada `indice < 3` (código muerto)
 - [x] deploy.sh actualizado: rsync + PM2 restart con código local (incluye botón Ko-fi + sprints 22-23)
 
+### Sprint 24 — Iconos emoji en mapa + mejoras (30 Jul 2026)
+- [x] Reemplazo de `L.circleMarker` por `L.divIcon` con emoji del tipo de evento
+- [x] Incendios: unificados al mismo sistema `L.divIcon` con tamaño y color según FRP
+- [x] Tamaño de icono variable por severidad (critical=34px, alert=30px, warning/info=28px)
+- [x] Pulso CSS glow en iconos critical/alert
+- [x] Tooltip `title` en cada icono mostrando tipo y severidad
+- [x] Cluster personalizado: emoji del tipo dominante + contador + color según nivel máximo de severidad
+- [x] Cluster con badge de nivel crítico si contiene eventos critical/alert
+
 ## 🔜 Próximos sprints
 
 ---

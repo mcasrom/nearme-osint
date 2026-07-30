@@ -553,13 +553,13 @@ function fireHeatColor(frp) {
     return '#ffff00';
 }
 
-function fireRadius(frp) {
-    if (frp > 200) return 14;
-    if (frp > 100) return 11;
-    if (frp > 50)  return 9;
-    if (frp > 20)  return 7;
-    if (frp > 10)  return 6;
-    return 5;
+function fireSize(frp) {
+    if (frp > 200) return 36;
+    if (frp > 100) return 32;
+    if (frp > 50)  return 30;
+    if (frp > 20)  return 28;
+    if (frp > 10)  return 26;
+    return 24;
 }
 
 function levelEmoji(level, eventType) {
@@ -1000,66 +1000,84 @@ function renderMapMarkers() {
         iconCreateFunction: function(cluster) {
             const children = cluster.getAllChildMarkers();
             const counts = {};
+            let maxLvl = 0;
+            const lvlOrder = {critical:4, alert:3, warning:2, info:1};
             children.forEach(m => {
                 const t = m.options.eventType || 'other';
                 counts[t] = (counts[t] || 0) + 1;
+                const l = lvlOrder[m.options.eventLevel] || 0;
+                if (l > maxLvl) maxLvl = l;
             });
             let topType = 'other', topCount = 0;
             for (const t in counts) {
                 if (counts[t] > topCount) { topCount = counts[t]; topType = t; }
             }
+            const lvlNames = {4:'critical',3:'alert',2:'warning',1:'info'};
+            const maxLevelName = lvlNames[maxLvl] || 'info';
+            const lvlColor = LEVEL_COLORS[maxLevelName] || '#607d8b';
             const topEmoji = ICONS[topType] || '\uD83D\uDCCC';
             const size = cluster.getChildCount() < 100 ? 40 : 50;
+            const glow = maxLvl >= 3 ? `box-shadow:0 0 12px ${lvlColor}88;` : '';
             return L.divIcon({
                 html: `<div style="
                     width:${size}px;height:${size}px;border-radius:50%;
                     background:rgba(10,14,23,0.85);
-                    border:2px solid ${TYPE_COLORS[topType] || '#607d8b'};
+                    border:2px solid ${lvlColor};
                     display:flex;flex-direction:column;align-items:center;justify-content:center;
                     font-size:${size < 45 ? 14 : 12}px;color:#fff;
-                    box-shadow:0 2px 8px rgba(0,0,0,0.4);
-                "><span>${topEmoji}</span><span style="font-size:10px;font-weight:700;line-height:1">${cluster.getChildCount()}</span></div>`,
+                    ${glow}
+                " title="${cluster.getChildCount()} eventos (max ${maxLevelName})">
+                    <span>${topEmoji}</span>
+                    <span style="font-size:10px;font-weight:700;line-height:1">${cluster.getChildCount()}</span>
+                </div>`,
                 className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
             });
         },
     });
     const markerBounds = [];
+    const lvlOrder = {critical:4, alert:3, warning:2, info:1};
     filtered.forEach(e => {
         const lvlEmoji = levelEmoji(e.level, e.event_type);
         const evIcon = ICONS[e.event_type] || '\uD83D\uDCCC';
         const descHtml = e.description ? e.description.replace(/\|/g, '<br>') : '';
         const lvlColor = LEVEL_COLORS[e.level] || '#607d8b';
 
-        // Fires: keep circleMarker with FRP-based sizing
-        if (e.event_type === 'fire' && e.source === 'nasa_firms') {
+        // Size by severity + type
+        let size = 28;
+        if (e.event_type === 'fire') {
             const frp = getFRP(e);
-            const color = fireHeatColor(frp);
-            const radius = fireRadius(frp);
-            const m = L.circleMarker([e.lat, e.lon], {
-                radius, color, fillColor: color, fillOpacity: 0.9,
-                weight: e.level === 'critical' || e.level === 'alert' ? 3 : 2,
-                eventType: e.event_type,
-            });
-            m.bindPopup(`<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${descHtml}</small>`);
-            window.clusterGroup.addLayer(m);
-            markerBounds.push([e.lat, e.lon]);
-            return;
+            size = fireSize(frp);
+        } else if (lvlOrder[e.level] >= 4) {
+            size = 34;
+        } else if (lvlOrder[e.level] >= 3) {
+            size = 30;
         }
 
-        // Non-fire: icon marker with emoji + colored border
+        // Fire: heat-colored background
+        let bgColor = lvlColor + '22';
+        if (e.event_type === 'fire') {
+            const frp = getFRP(e);
+            bgColor = fireHeatColor(frp);
+        }
+
+        const isHigh = lvlOrder[e.level] >= 3;
+        const pulse = isHigh ? `animation:pulse-${e.level} 2s infinite;` : '';
+        const glow = isHigh ? `box-shadow:0 0 10px ${lvlColor}99;` : 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+
         const m = L.marker([e.lat, e.lon], {
             icon: L.divIcon({
                 html: `<div style="
-                    width:28px;height:28px;border-radius:50%;
-                    background:${lvlColor}22;
+                    width:${size}px;height:${size}px;border-radius:50%;
+                    background:${bgColor};
                     border:2px solid ${lvlColor};
                     display:flex;align-items:center;justify-content:center;
-                    font-size:14px;line-height:1;
-                    box-shadow:${e.level === 'critical' || e.level === 'alert' ? '0 0 8px ' + lvlColor + '88' : '0 1px 4px rgba(0,0,0,0.3)'};
-                ">${evIcon}</div>`,
-                className: '', iconSize: [28, 28], iconAnchor: [14, 14],
+                    font-size:${Math.round(size * 0.5)}px;line-height:1;
+                    ${pulse}${glow}
+                " title="${e.event_type} (${e.level})">${evIcon}</div>`,
+                className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
             }),
             eventType: e.event_type,
+            eventLevel: e.level,
         });
         m.bindPopup(`<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${descHtml}</small>`);
         window.clusterGroup.addLayer(m);
