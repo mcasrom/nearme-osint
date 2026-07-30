@@ -446,15 +446,15 @@
             <details>
                 <summary>🗺️ Como leer el mapa</summary>
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
-                    <p>Cada punto en el mapa es un evento. Su <strong>icono</strong> indica el tipo: 🔥 incendio, 🚧 obra, 🌡️ calor extremo, 🌫️ calidad del aire, 🚨 delito, etc.</p>
-                    <p>El <strong>borde</strong> del circulo muestra la gravedad:<br>
-                    <span style="color:#4fc3f7;">● azul = info</span><br>
-                    <span style="color:#ffeb3b;">● amarillo = warning</span><br>
-                    <span style="color:#ff9800;">● naranja = alert</span><br>
-                    <span style="color:#f44336;">● rojo = critical</span></p>
-                    <p>Los iconos que <strong>palpitan</strong> son alertas activas (alert/critical). El <strong>tamano</strong> del icono indica intensidad: incendios grandes = 🔥 mas grande.</p>
-                    <p>Los <strong>clusters</strong> (circulos con numero) agrupan eventos cercanos. Muestran el icono del tipo dominante y el numero de eventos. El borde del cluster refleja la gravedad maxima del grupo.</p>
-                    <p>Al hacer clic en un evento del listado lateral, el mapa vuela a su ubicacion.</p>
+                    <p>Cada punto en el mapa representa un evento geolocalizado. El <strong>icono</strong> identifica el tipo: 🔥 incendio, 🌡️ clima, 🚧 trafico, 🌫️ calidad del aire, 🚆 tren, 🏖️ playa, 📰 noticias, etc.</p>
+                    <p>El <strong>borde</strong> del circulo indica la gravedad:<br>
+                    <span style="color:#4fc3f7;">● azul = info</span> — sin riesgo, datos normales (clima, aire)<br>
+                    <span style="color:#ffeb3b;">● amarillo = warning</span> — precaucion<br>
+                    <span style="color:#ff9800;">● naranja = alert</span> — peligro<br>
+                    <span style="color:#f44336;">● rojo = critical</span> — emergencia</p>
+                    <p>Los iconos con <strong>pulso</strong> son alertas activas (alert/critical). El <strong>tamano</strong> varia con la intensidad (incendios grandes = 🔥 mayor).</p>
+                    <p>Los <strong>clusters</strong> agrupan eventos cercanos. Muestran el icono del tipo dominante, el numero de eventos, y el color del borde segun la gravedad maxima del grupo.</p>
+                    <p>Haz clic en un evento del listado lateral para volar al punto en el mapa. El badge de frescura (🟢<30min, 🟠<2h, 🔴≥2h) indica hace cuanto se actualizo.</p>
                 </div>
             </details>
         </div>
@@ -462,24 +462,25 @@
             <details>
                 <summary>📡 Fuentes de datos y metodologia</summary>
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
-                    <p>NearMe agrega <strong>11 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos:</p>
+                    <p>NearMe agrega <strong>11 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos. El estado 🟢🟡🔴 se actualiza cada 60s desde el servidor:</p>
                     <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:8px 0;">
                         <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th><th style="text-align:center;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Estado</th></tr>
-                        <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite MODIS+VIIRS</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
-                        <tr id="src-dgt"><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes DATEX II</td><td style="padding:3px 6px;">5 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite (MODIS+VIIRS)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-dgt"><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes (DATEX II)</td><td style="padding:3px 6px;">5 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-aemet"><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Meteo continuo + alertas (10.600 est.)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-renfe"><td style="padding:3px 6px;">RENFE</td><td style="padding:3px 6px;">🚆 Retrasos tren GTFS-RT</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-miteco"><td style="padding:3px 6px;">MITECO</td><td style="padding:3px 6px;">🌫️ Calidad aire ICA (620 est.)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-openaq"><td style="padding:3px 6px;">OpenAQ</td><td style="padding:3px 6px;">🌫️ Calidad aire 6 parametros</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-usgs"><td style="padding:3px 6px;">USGS</td><td style="padding:3px 6px;">🏚️ Terremotos M2.5+ global</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
-                        <tr id="src-proteccion_civil"><td style="padding:3px 6px;">Proteccion Civil</td><td style="padding:3px 6px;">⚠️ Avisos meteorologicos AEMET CAP</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-proteccion_civil"><td style="padding:3px 6px;">Proteccion Civil</td><td style="padding:3px 6px;">⚠️ Avisos meteorologicos (AEMET CAP)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-ree"><td style="padding:3px 6px;">REE</td><td style="padding:3px 6px;">⚡ Demanda electrica tiempo real</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
-                        <tr id="src-intelhub"><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-intelhub"><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Noticias e incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-playas"><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                     </table>
                     <div id="staleBanner" style="display:none;background:#2a0a0a;border:1px solid #5a1a1a;border-radius:6px;padding:6px 10px;font-size:0.85em;color:#ef5350;margin:6px 0;"></div>
-                    <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento tiene un TTL (tiempo de vida). Cuando la fuente deja de reportarlo, se marca como "resuelto" automaticamente. Los eventos sin actualizacion expiran segun su tipo (incendios 24h, trafico 12h, etc.).</p>
-                    <p><strong>Niveles:</strong> info → warning → alert → critical. El nivel lo determina cada fuente segun sus umbrales (FRP en incendios, magnitud en terremotos, ICA en aire, etc.).</p>
+                    <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento se crea cuando la fuente lo reporta y expira segun su TTL (incendios 24h, clima 3h, trafico 12h, terremotos 48h...). Si la fuente deja de reportarlo, se marca como "resuelto" automaticamente en el siguiente ciclo.</p>
+                    <p><strong>Niveles:</strong> info (azul, datos normales) → warning (amarillo, precaucion) → alert (naranja, peligro) → critical (rojo, emergencia). El nivel lo asigna cada fuente segun umbrales: FRP en incendios, magnitud en terremotos, ICA en aire, temperatura en clima.</p>
+                    <p><strong>Frescura:</strong> Cada evento lleva un badge 🟢<30min 🟠<2h 🔴≥2h. El timestamp del servidor aparece en el pie del panel.</p>
                 </div>
             </details>
         </div>
@@ -487,13 +488,15 @@
             <details>
                 <summary>Sobre NearMe OSINT</summary>
                 <div class="content">
-                    <p>Agregador de datos publicos geolocalizados. APIs, RSS y fuentes abiertas en un flujo unico de eventos con coordenadas.</p>
+                    <p>Agregador de datos publicos geolocalizados en tiempo real. 11 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.</p>
+                    <p><strong>Arquitectura:</strong> Colectores async (Python/httpx) → PostgreSQL+PostGIS → FastAPI → Leaflet (PWA). Pipeline cron cada 15 min con monitoreo persistente en <code>collector_runs</code>.</p>
                     <p><strong>Autor:</strong> El Mapa y El Codigo</p>
                     <p><strong>Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
                     <p><strong>Codigo:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
                     <p style="margin-top:8px;"><strong>📱 PWA — Instalar como app</strong></p>
-                    <p>Añade NearMe a tu pantalla de inicio en cualquier tablet o smartphone. Funciona offline, sin navegador visible, con notificaciones y auto-refresh cada 5 minutos.</p>
-                    <p>Chrome y Android: busca el icono de instalar en la barra de direcciones. iOS: comparte → Añadir a pantalla de inicio.</p>
+                    <p>Añade NearMe a tu pantalla de inicio. Funciona offline con datos cacheados, sin navegador visible, con auto-refresh cada 5 minutos y alertas push.</p>
+                    <p>Chrome/Android: icono de instalar en la barra de direcciones. iOS: Compartir → Añadir a pantalla de inicio.</p>
+                    <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">v0.8 — 30 Jul 2026 — <a href="/admin" style="color:#4fc3f7;">Admin</a></p>
                 </div>
             </details>
         </div>
