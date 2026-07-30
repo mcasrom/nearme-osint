@@ -2,6 +2,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -17,7 +18,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from passlib.hash import bcrypt
 from typing import Optional
-from pathlib import Path
 
 app = FastAPI(title="NearMe OSINT API", version="0.2")
 security = HTTPBearer()
