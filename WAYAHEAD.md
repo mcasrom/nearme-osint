@@ -241,6 +241,8 @@ TOTAL:        ~5.470
 - [x] Limpieza automática de registros >60 días
 - [x] `/admin` protegido con password vía `ADMIN_PASSWORD` en `.env` (sessionStorage, caduca al cerrar navegador)
 - [x] Default en código = `CHANGE_ME_IN_PRODUCTION` — forzar cambio en producción
+- [x] Fix: nginx proxy `/admin` al backend (no servirlo como estático)
+- [x] Fix: `load_dotenv(override=True)` para que `.env` tenga prioridad sobre el entorno del proceso
 
 ## 📖 Metodología
 
