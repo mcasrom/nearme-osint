@@ -160,6 +160,25 @@ def health():
     summary = metrics.summary()
     last = metrics.last_n(1)
 
+    if summary.get("total_runs", 0) == 0 and db_ok:
+        from src.db import get_collector_status
+        db_status = get_collector_status()
+        total = sum(c.get("runs_24h", 0) for c in db_status)
+        ok = sum(c.get("successes_24h", 0) for c in db_status)
+        total_events = sum(c.get("events_24h", 0) for c in db_status)
+        last_run_ts = max((c["last_run"] for c in db_status if c.get("last_run")), default=None)
+        return {
+            "status": "ok",
+            "service": "NearMe OSINT",
+            "version": "0.3",
+            "database": "connected",
+            "pipeline_total_runs": total,
+            "pipeline_success_rate": round(ok / total * 100, 1) if total > 0 else 0,
+            "total_events_24h": total_events,
+            "last_collector_run": last_run_ts,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
     status = "ok" if db_ok else "degraded"
     return {
         "status": status,
@@ -168,6 +187,7 @@ def health():
         "database": "connected" if db_ok else "error",
         "pipeline_total_runs": summary.get("total_runs", 0),
         "pipeline_success_rate": summary.get("success_rate", 0),
+        "total_events_24h": summary.get("total_events", 0),
         "last_collector_run": last[0] if last else None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -456,7 +476,33 @@ def collector_runs(n: int = 50):
 @app.get("/api/metrics")
 def metrics():
     from src.metrics import PipelineMetrics
-    return PipelineMetrics.get().summary()
+    summary = PipelineMetrics.get().summary()
+    if summary.get("total_runs", 0) > 0:
+        return summary
+    from src.db import get_collector_status
+    db_status = get_collector_status()
+    if not db_status:
+        return summary
+    total = sum(c.get("runs_24h", 0) for c in db_status)
+    ok = sum(c.get("successes_24h", 0) for c in db_status)
+    total_events = sum(c.get("events_24h", 0) for c in db_status)
+    total_latency = sum(c.get("last_latency", 0) for c in db_status if c.get("last_latency"))
+    by_collector = {}
+    for c in db_status:
+        by_collector[c["collector"]] = {
+            "runs": c.get("runs_24h", 0),
+            "successes": c.get("successes_24h", 0),
+            "total_events": c.get("events_24h", 0),
+            "total_latency": c.get("last_latency", 0),
+        }
+    return {
+        "total_runs": total,
+        "success_rate": round(ok / total * 100, 1) if total > 0 else 0,
+        "total_events": total_events,
+        "total_latency_s": round(total_latency, 2),
+        "by_collector": by_collector,
+        "source": "db",
+    }
 
 
 @app.get("/admin")
