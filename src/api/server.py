@@ -3,6 +3,10 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(Path(__file__).parent.parent.parent, ".env"))
+
 import httpx
 import jwt
 from fastapi import FastAPI, Query, HTTPException, Depends, Request
