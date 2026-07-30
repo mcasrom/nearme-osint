@@ -2,7 +2,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from src.logging import get_logger
 from src.models import Event
@@ -146,7 +146,7 @@ def _event_to_row(event: Event) -> tuple:
     expires_at = event.expires_at
     if not expires_at:
         ttl_hours = DEFAULT_TTL_HOURS.get(event.event_type, DEFAULT_TTL_FALLBACK_HOURS)
-        expires_at = datetime.now(timezone.utc).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat()
     now = datetime.now(timezone.utc).isoformat()
     return (
         event.source, event.source_id, event.event_type, event.subtype,

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import httpx
 from src.collectors.base import BaseCollector

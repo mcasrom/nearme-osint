@@ -47,7 +47,8 @@ class ProteccionCivilCollector(BaseCollector):
                 return events
 
             # Download the CAP (Common Alerting Protocol) XML files
-            data_resp = requests.get(data_url, headers=headers, timeout=30)
+            async with httpx.AsyncClient(timeout=30, headers=headers) as client:
+                data_resp = await client.get(data_url)
             if data_resp.status_code != 200:
                 logger.warning("AEMET avisos data: HTTP %s", data_resp.status_code)
                 return events

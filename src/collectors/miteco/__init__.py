@@ -51,8 +51,6 @@ class AirQualityCollector(BaseCollector):
                         continue
 
                     level = ICA_LEVELS.get(indice, "info")
-                    if indice < 3:
-                        continue
 
                     lat = float(row["latitud"])
                     lon = float(row["longitud"])

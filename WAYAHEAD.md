@@ -161,6 +161,16 @@ TOTAL:        ~5.470
 
 ---
 
+### Sprint 23 — Bugfixes críticos (30 Jul 2026)
+- [x] AEMET: `_fetch_observaciones()` sin `await` en llamada a `_aemet_get_data()` → nunca recolectaba datos meteorológicos
+- [x] OpenAQ: faltaba `import asyncio` → `NameError` en `asyncio.gather()`
+- [x] ProtecciónCivil: `requests.get()` bloqueante dentro de método async + `requests` no importado → `NameError`
+- [x] RENFE: `requests.get()` en `_load_stations()` sin import → `NameError`
+- [x] db.py `_event_to_row`: cuando `expires_at` es `None`, asignaba `datetime.now()` en vez de `now + TTL` → eventos sin expiración caducaban inmediatamente
+- [x] server.py: `try/except` silencioso en `init_db()` ocultaba errores de inicialización de BD
+- [x] MITECO: validación duplicada `indice < 3` (código muerto)
+- [x] deploy.sh actualizado: rsync + PM2 restart con código local (incluye botón Ko-fi + sprints 22-23)
+
 ## 🔜 Próximos sprints
 
 ---

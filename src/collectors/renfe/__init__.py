@@ -1,6 +1,7 @@
 import csv
 import io
 import httpx
+import requests
 from google.transit import gtfs_realtime_pb2
 from src.collectors.base import BaseCollector
 from src.logging import get_logger

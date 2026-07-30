@@ -133,10 +133,12 @@ class AlertUpdate(BaseModel):
 @app.on_event("startup")
 def startup():
     from src.db import init_db
+    from src.logging import get_logger
+    _log = get_logger("src.api.server")
     try:
         init_db()
-    except Exception:
-        pass
+    except Exception as e:
+        _log.error("Error inicializando BD: %s", e)
 
 
 @app.get("/health")

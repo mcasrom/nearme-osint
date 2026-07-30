@@ -47,14 +47,14 @@ class AEMETCollector(BaseCollector):
             logger.warning("AEMET %s: %s", endpoint, e)
             return None
 
-    def _real_data(self):
+    async def _real_data(self):
         events = []
-        events.extend(self._fetch_observaciones())
+        events.extend(await self._fetch_observaciones())
         return events
 
-    def _fetch_observaciones(self):
+    async def _fetch_observaciones(self):
         events = []
-        data = self._aemet_get_data("observacion/convencional/todas")
+        data = await self._aemet_get_data("observacion/convencional/todas")
         if not data:
             logger.info("AEMET: no se pudieron obtener observaciones")
             return events
