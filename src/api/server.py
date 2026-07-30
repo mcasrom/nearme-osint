@@ -170,7 +170,7 @@ def health():
         return {
             "status": "ok",
             "service": "NearMe OSINT",
-            "version": "0.3",
+            "version": "0.9",
             "database": "connected",
             "pipeline_total_runs": total,
             "pipeline_success_rate": round(ok / total * 100, 1) if total > 0 else 0,
@@ -183,7 +183,7 @@ def health():
     return {
         "status": status,
         "service": "NearMe OSINT",
-        "version": "0.3",
+        "version": "0.9",
         "database": "connected" if db_ok else "error",
         "pipeline_total_runs": summary.get("total_runs", 0),
         "pipeline_success_rate": summary.get("success_rate", 0),

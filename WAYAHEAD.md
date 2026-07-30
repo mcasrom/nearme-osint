@@ -220,6 +220,12 @@ TOTAL:        ~5.470
 - [x] Porcentaje de fuentes operativas con color según umbral (≥80% verde, ≥50% naranja, <50% rojo)
 - [x] Se actualiza automáticamente cada 60s con el mismo ciclo de `refreshSourceStatus`
 
+### Sprint 29 — Privacidad y transparencia para lanzamiento público (30 Jul 2026)
+- [x] Nueva sección "Privacidad y datos" en sidebar con disclosure de datos recogidos
+- [x] Explicación del sistema de alertas en el modal: "como funciona" (guardado en servidor, comparación local en navegador, contador + notificación)
+- [x] Política clara: no compartir datos, no analytics, no tracking, sin cookies, sin IPs, sin geolocalización de usuario
+- [x] Email de contacto para solicitar baja de cuenta
+
 ## 📖 Metodología
 
 ### Arquitectura

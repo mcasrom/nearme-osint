@@ -505,15 +505,29 @@
                     <p><strong>Autor:</strong> El Mapa y El Codigo</p>
                     <p><strong>Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
                     <p><strong>Codigo:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
+                    <p><strong>Privacidad:</strong> Sin analytics, sin tracking, sin publicidad. No compartimos datos. <a href="#" onclick="event.preventDefault();showPrivacy()" style="color:#4fc3f7;">Detalles</a></p>
+                    <p><strong>Apoyar:</strong> <a href="https://ko-fi.com/elmapayelcodigo" style="color:#ff6d00;" target="_blank">☕ ko-fi.com/elmapayelcodigo</a></p>
                     <p style="margin-top:8px;"><strong>📱 PWA — Instalar como app</strong></p>
                     <p>Añade NearMe a tu pantalla de inicio. Funciona offline con datos cacheados, sin navegador visible, con auto-refresh cada 5 minutos y alertas push.</p>
                     <p>Chrome/Android: icono de instalar en la barra de direcciones. iOS: Compartir → Añadir a pantalla de inicio.</p>
-                    <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">v0.8 — 30 Jul 2026 — <a href="/admin" style="color:#4fc3f7;">Admin</a></p>
+                    <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">v0.9 — 30 Jul 2026 — <a href="/admin" style="color:#4fc3f7;">Admin</a></p>
+                </div>
+            </details>
+        </div>
+        <div class="info-section">
+            <details>
+                <summary>🔒 Privacidad y datos</summary>
+                <div class="content" style="font-size:0.82em;line-height:1.6;">
+                    <p><strong>Que datos guardamos:</strong> Al registrarse, almacenamos tu nombre de usuario, email (opcional), y un hash cifrado de tu contraseña (bcrypt). Tambien guardas tus alertas y ubicaciones favoritas.</p>
+                    <p><strong>Para que:</strong> Exclusivamente para el sistema de alertas — comparamos los eventos del mapa contra tus criterios (tipo, radio, nivel) y te notificamos en el navegador. El email se usaria solo para alertas por correo (proximamente).</p>
+                    <p><strong>Que NO hacemos:</strong> No compartimos, vendemos ni cedemos datos a terceros. No hay analytics, rastreadores, cookies de seguimiento ni publicidad. No almacenamos IPs ni geolocalizacion del usuario.</p>
+                    <p><strong>Control:</strong> Puedes borrar tus alertas en cualquier momento desde el panel. Para eliminar tu cuenta, escribe a <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a>.</p>
+                    <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">Este proyecto es software libre (MIT). El codigo es auditabile en GitHub.</p>
                 </div>
             </details>
         </div>
         <div class="info-footer">
-            <span>NearMe OSINT v0.8 — PWA &amp; POI &nbsp;—&nbsp; Auto-refresh 5min &nbsp;—&nbsp; <span id="update-time">—</span></span>
+            <span>NearMe OSINT v0.9 — PWA &amp; POI &nbsp;—&nbsp; Auto-refresh 5min &nbsp;—&nbsp; <span id="update-time">—</span></span>
             <button id="poiBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;cursor:pointer;" onclick="searchNearbyPOIs(currentLat, currentLon)" title="Buscar cerca">📍 Cerca</button>
             <button id="refreshBtn" class="btn btn-sm btn-outline" style="font-size:0.7em;" onclick="manualRefresh()" title="Recargar ahora">🔄</button>
             <label style="font-size:0.7em;color:#607d8b;cursor:pointer;">
@@ -759,6 +773,18 @@ function init() {
     checkAuth();
     refreshSourceStatus();
     loadEvents();
+}
+
+function showPrivacy() {
+    var ds = document.querySelectorAll('.info-section details');
+    for (var d of ds) {
+        var s = d.querySelector('summary');
+        if (s && s.textContent.includes('Privacidad')) {
+            d.open = true;
+            d.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+    }
 }
 
 function showOnboarding() {
@@ -1575,6 +1601,7 @@ function showAlertModal() {
         <div class="alerts-modal" onclick="event.stopPropagation()">
             <h2>🔔 Alertas personalizadas</h2>
             <div style="font-size:0.78em;color:#78909c;margin-bottom:12px;line-height:1.5;">
+                <strong>Como funciona:</strong> Tus alertas se guardan en el servidor. Cada vez que el mapa carga eventos, los comparamos en tu navegador con tus criterios. Si hay coincidencias, el boton 🔔 muestra el contador y te llega una notificacion del navegador (si lo permites).<br><br>
                 Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona
             </div>
             <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
