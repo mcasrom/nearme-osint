@@ -30,6 +30,7 @@ FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 JWT_SECRET = os.environ.get("JWT_SECRET", "nearme_dev_secret_change_in_prod_2026")
 JWT_ALGO = "HS256"
 JWT_EXPIRY_HOURS = 72
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "nearme_admin_2026")
 
 # ----- Anti-fraud -----
 _rate_limiter = defaultdict(list)  # ip -> [timestamps]
@@ -511,6 +512,11 @@ def serve_admin():
     if admin.exists():
         return FileResponse(str(admin))
     return {"error": "Admin page not found"}
+
+
+@app.post("/api/admin/check")
+def admin_check(body: dict):
+    return {"ok": body.get("password", "") == ADMIN_PASSWORD}
 
 
 @app.get("/")

@@ -30,9 +30,23 @@
         .nav { margin-bottom:16px; font-size:0.85em; }
         .auto-refresh { float:right; font-size:0.78em; color:#607d8b; cursor:pointer; user-select:none; }
         .auto-refresh input { margin-right:4px; vertical-align:middle; }
+        .btn { background:#00d4ff; color:#0a0e17; border:none; padding:8px 16px; border-radius:8px; font-weight:600; cursor:pointer; width:100%; font-size:0.9em; }
+        .btn:hover { background:#00b8d4; }
     </style>
 </head>
 <body>
+    <div id="loginOverlay" style="position:fixed;inset:0;background:#0a0e17;display:flex;align-items:center;justify-content:center;z-index:999;">
+        <div style="text-align:center;max-width:320px;">
+            <div style="font-size:2em;margin-bottom:12px;">🔐</div>
+            <h1 style="color:#00d4ff;font-size:1.1em;margin-bottom:8px;">Admin — NearMe OSINT</h1>
+            <div style="color:#607d8b;font-size:0.85em;margin-bottom:20px;">Introduce la contraseña de administrador</div>
+            <input type="password" id="adminPass" placeholder="Contraseña" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #1a2a4a;background:#111827;color:#d0dbe8;font-size:0.9em;outline:none;margin-bottom:12px;" onkeydown="if(event.key==='Enter')doAdminLogin()">
+            <div id="adminLoginError" style="color:#f44336;font-size:0.8em;margin-bottom:8px;display:none;"></div>
+            <button class="btn" onclick="doAdminLogin()" style="background:#00d4ff;color:#0a0e17;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;font-size:0.9em;">Entrar</button>
+        </div>
+    </div>
+
+    <div id="adminContent" style="display:none;">
     <div class="nav"><a href="/">← Volver al mapa</a></div>
     <h1>📊 Admin — NearMe OSINT</h1>
     <div class="sub">Monitoreo de pipeline, colectores y estado del sistema</div>
@@ -52,7 +66,46 @@
         <table><thead><tr><th>#</th><th>Colector</th><th>Timestamp</th><th>Resultado</th><th>Eventos</th><th>Latencia</th></tr></thead><tbody id="runsBody"></tbody></table>
     </div>
 
+    </div>
+
     <script>
+    const ADMIN_KEY = 'nearme_admin_auth';
+
+    function checkAdminAuth() {
+        if (sessionStorage.getItem(ADMIN_KEY) === '1') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminContent').style.display = 'block';
+            return true;
+        }
+        return false;
+    }
+
+    async function doAdminLogin() {
+        var pass = document.getElementById('adminPass').value;
+        var err = document.getElementById('adminLoginError');
+        err.style.display = 'none';
+        if (!pass) { err.textContent = 'Introduce la contraseña'; err.style.display = 'block'; return; }
+        try {
+            var r = await fetch('/api/admin/check', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({password: pass})
+            });
+            var data = await r.json();
+            if (data.ok) {
+                sessionStorage.setItem(ADMIN_KEY, '1');
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+                initAdmin();
+            } else {
+                err.textContent = 'Contraseña incorrecta';
+                err.style.display = 'block';
+            }
+        } catch(e) {
+            err.textContent = 'Error de conexión: ' + e.message;
+            err.style.display = 'block';
+        }
+    }
+
     const REFRESH_MS = 10000;
     let refreshTimer = null;
 
@@ -148,8 +201,14 @@
         else stopRefresh();
     }
 
-    loadAll();
-    startRefresh();
+    function initAdmin() {
+        loadAll();
+        startRefresh();
+    }
+
+    if (!checkAdminAuth()) {
+        document.getElementById('adminPass').focus();
+    }
     </script>
 </body>
 </html>
