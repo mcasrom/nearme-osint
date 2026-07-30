@@ -143,7 +143,34 @@ def startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "NearMe OSINT", "version": "0.2"}
+    from src.db import get_conn, release_conn
+    db_ok = False
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        release_conn(conn)
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    from src.metrics import PipelineMetrics
+    metrics = PipelineMetrics.get()
+    summary = metrics.summary()
+    last = metrics.last_n(1)
+
+    status = "ok" if db_ok else "degraded"
+    return {
+        "status": status,
+        "service": "NearMe OSINT",
+        "version": "0.3",
+        "database": "connected" if db_ok else "error",
+        "pipeline_total_runs": summary.get("total_runs", 0),
+        "pipeline_success_rate": summary.get("success_rate", 0),
+        "last_collector_run": last[0] if last else None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.get("/api/nearby")
@@ -163,6 +190,7 @@ def nearby(
         "radius_km": radius,
         "total": len(events),
         "events": events,
+        "server_ts": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -407,10 +435,36 @@ def ratings_summary():
     return get_ratings_summary()
 
 
+@app.get("/api/status")
+def collector_status():
+    from src.db import get_collector_status
+    return {"collectors": get_collector_status()}
+
+
+@app.get("/api/status/pipeline")
+def pipeline_status():
+    from src.db import get_last_pipeline_run
+    return get_last_pipeline_run() or {"timestamp": None, "collectors": 0, "successful": 0, "total_events": 0}
+
+
+@app.get("/api/status/runs")
+def collector_runs(n: int = 50):
+    from src.metrics import PipelineMetrics
+    return {"runs": PipelineMetrics.get().last_n(n)}
+
+
 @app.get("/api/metrics")
 def metrics():
     from src.metrics import PipelineMetrics
     return PipelineMetrics.get().summary()
+
+
+@app.get("/admin")
+def serve_admin():
+    admin = FRONTEND_DIR / "admin.html"
+    if admin.exists():
+        return FileResponse(str(admin))
+    return {"error": "Admin page not found"}
 
 
 @app.get("/")

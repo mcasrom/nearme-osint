@@ -464,19 +464,20 @@
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
                     <p>NearMe agrega <strong>11 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos:</p>
                     <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:8px 0;">
-                        <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th></tr>
-                        <tr><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite MODIS+VIIRS</td><td style="padding:3px 6px;">15 min</td></tr>
-                        <tr><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes DATEX II</td><td style="padding:3px 6px;">5 min</td></tr>
-                        <tr><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Temp. extremas, viento, lluvia (10.600 est.)</td><td style="padding:3px 6px;">15 min</td></tr>
-                        <tr><td style="padding:3px 6px;">RENFE</td><td style="padding:3px 6px;">🚆 Retrasos tren GTFS-RT</td><td style="padding:3px 6px;">15 min</td></tr>
-                        <tr><td style="padding:3px 6px;">MITECO</td><td style="padding:3px 6px;">🌫️ Calidad aire ICA (620 est.)</td><td style="padding:3px 6px;">30 min</td></tr>
-                        <tr><td style="padding:3px 6px;">OpenAQ</td><td style="padding:3px 6px;">🌫️ Calidad aire 6 parametros</td><td style="padding:3px 6px;">30 min</td></tr>
-                        <tr><td style="padding:3px 6px;">USGS</td><td style="padding:3px 6px;">🏚️ Terremotos M2.5+ global</td><td style="padding:3px 6px;">15 min</td></tr>
-                        <tr><td style="padding:3px 6px;">Proteccion Civil</td><td style="padding:3px 6px;">⚠️ Avisos meteorologicos AEMET CAP</td><td style="padding:3px 6px;">30 min</td></tr>
-                        <tr><td style="padding:3px 6px;">REE</td><td style="padding:3px 6px;">⚡ Demanda electrica tiempo real</td><td style="padding:3px 6px;">15 min</td></tr>
-                        <tr><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td></tr>
-                        <tr><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td></tr>
+                        <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th><th style="text-align:center;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Estado</th></tr>
+                        <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite MODIS+VIIRS</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-dgt"><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes DATEX II</td><td style="padding:3px 6px;">5 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-aemet"><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Temp. extremas, viento, lluvia (10.600 est.)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-renfe"><td style="padding:3px 6px;">RENFE</td><td style="padding:3px 6px;">🚆 Retrasos tren GTFS-RT</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-miteco"><td style="padding:3px 6px;">MITECO</td><td style="padding:3px 6px;">🌫️ Calidad aire ICA (620 est.)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-openaq"><td style="padding:3px 6px;">OpenAQ</td><td style="padding:3px 6px;">🌫️ Calidad aire 6 parametros</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-usgs"><td style="padding:3px 6px;">USGS</td><td style="padding:3px 6px;">🏚️ Terremotos M2.5+ global</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-proteccion_civil"><td style="padding:3px 6px;">Proteccion Civil</td><td style="padding:3px 6px;">⚠️ Avisos meteorologicos AEMET CAP</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-ree"><td style="padding:3px 6px;">REE</td><td style="padding:3px 6px;">⚡ Demanda electrica tiempo real</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-intelhub"><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-playas"><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                     </table>
+                    <div id="staleBanner" style="display:none;background:#2a0a0a;border:1px solid #5a1a1a;border-radius:6px;padding:6px 10px;font-size:0.85em;color:#ef5350;margin:6px 0;"></div>
                     <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento tiene un TTL (tiempo de vida). Cuando la fuente deja de reportarlo, se marca como "resuelto" automaticamente. Los eventos sin actualizacion expiran segun su tipo (incendios 24h, trafico 12h, etc.).</p>
                     <p><strong>Niveles:</strong> info → warning → alert → critical. El nivel lo determina cada fuente segun sus umbrales (FRP en incendios, magnitud en terremotos, ICA en aire, etc.).</p>
                 </div>
@@ -573,6 +574,83 @@ const ICONS = {
 
 const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#880000'];
 
+const SOURCE_INTERVALS = {
+    nasa_firms: 15, dgt: 5, aemet: 15, renfe: 15, miteco: 30,
+    openaq: 30, usgs: 15, proteccion_civil: 30, ree: 15, intelhub: 10, playas: 60,
+};
+
+function timeAgo(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return '< 1 min';
+    if (mins < 60) return mins + ' min';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ' + (mins % 60) + 'min';
+    return Math.floor(hrs / 24) + 'd';
+}
+
+async function refreshSourceStatus() {
+    try {
+        const resp = await fetch('/api/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        (data.collectors || []).forEach(function(c) {
+            var tr = document.getElementById('src-' + c.collector);
+            if (!tr) return;
+            var td = tr.querySelector('.src-status');
+            if (!td) return;
+            var interval = SOURCE_INTERVALS[c.collector] || 60;
+            var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
+            var isStale = staleMins > interval * 2;
+            var dotColor = isStale ? '#f44336' : (c.last_success ? '#4caf50' : '#ff9800');
+            var title = (c.last_success ? 'Ok' : 'Error') + ' — ' + (c.last_run ? timeAgo(c.last_run) : 'nunca');
+            if (isStale) title = 'Stale — ' + (c.last_run ? timeAgo(c.last_run) : 'nunca');
+            td.innerHTML = '<span style="color:' + dotColor + ';font-size:1.2em;" title="' + title + '">●</span>';
+        });
+    } catch (e) {
+        // silent
+    }
+}
+
+var staleBannerTimer = null;
+
+function updateStaleBanner() {
+    var banner = document.getElementById('staleBanner');
+    var msg = '';
+    (document.querySelectorAll('.src-status') || []).forEach(function(td) {
+        var span = td.querySelector('span');
+        if (!span || !span.style) return;
+        if (span.style.color === 'red' || span.style.color === '#f44336') {
+            var tr = td.closest('tr');
+            if (tr) {
+                var name = tr.querySelector('td:first-child');
+                if (name) msg += (msg ? ', ' : '') + name.textContent.trim();
+            }
+        }
+    });
+    if (banner) {
+        if (msg) {
+            banner.innerHTML = '⚠️ Fuentes sin actualizar: ' + msg;
+            banner.style.display = 'block';
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+    staleBannerTimer = setTimeout(function() { refreshSourceStatus(); updateStaleBanner(); }, 60000);
+}
+
+function freshnessBadge(updatedAt) {
+    if (!updatedAt) return '';
+    const diff = Date.now() - new Date(updatedAt).getTime();
+    const mins = Math.floor(diff / 60000);
+    let color = '#607d8b';
+    if (mins < 30) color = '#4caf50';
+    else if (mins < 120) color = '#ff9800';
+    else if (mins >= 120) color = '#f44336';
+    return `<span class="freshness-badge" style="font-size:0.7em;color:${color};margin-left:4px;">${timeAgo(updatedAt)}</span>`;
+}
+
 function fireHeatColor(frp) {
     if (frp > 200) return '#880000';
     if (frp > 100) return '#cc0000';
@@ -627,6 +705,7 @@ function init() {
     updateDarkToggle();
     if (!localStorage.getItem('nearme_onboarding')) setTimeout(showOnboarding, 500);
     checkAuth();
+    refreshSourceStatus();
     loadEvents();
 }
 
@@ -931,7 +1010,10 @@ function render(data) {
     renderFilterChips();
     renderEvents();
     renderMapMarkers();
-    document.getElementById('update-time').textContent = new Date().toLocaleString('es-ES');
+    document.getElementById('update-time').textContent = data.server_ts
+        ? new Date(data.server_ts).toLocaleString('es-ES')
+        : new Date().toLocaleString('es-ES');
+    document.getElementById('update-time').dataset.ts = data.server_ts || '';
     if (autoRefreshEnabled) scheduleNextRefresh();
     var kofiCount = parseInt(localStorage.getItem('nearme_kofi_loads') || '0');
     kofiCount++;
@@ -1139,8 +1221,9 @@ function renderEvents() {
         const badge = levelBadge(e.level, e.event_type);
         const descHtml = e.description ? e.description.replace(/\|/g, '<br>') : '';
         var shareBtn = navigator.share ? '<button class="share-btn" data-idx="' + idx + '" onclick="event.stopPropagation();shareEvent(allEvents[' + idx + '])" title="Compartir">📤</button>' : '';
+        var fresh = freshnessBadge(e.updated_at);
         return '<div class="event" style="border-left-color:' + color + '" onclick="showEventDetail(' + idx + ')">\
-            <div class="title">' + lvl + ' ' + icon + ' ' + e.title + ' ' + badge + '</div>\
+            <div class="title">' + lvl + ' ' + icon + ' ' + e.title + ' ' + badge + fresh + '</div>\
             <div class="dist">' + e.distance_km + ' km &middot; ' + e.source + ' ' + shareBtn + '</div>\
             ' + (descHtml ? '<div class="desc">' + descHtml + '</div>' : '') + '\
             <div class="meta">' + (e.municipality || e.region || '') + ' ' + (e.country || '') + '</div>\

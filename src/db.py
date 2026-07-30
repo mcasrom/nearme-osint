@@ -136,6 +136,19 @@ def init_db():
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_locations_user ON saved_locations(user_id)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS collector_runs (
+            id SERIAL PRIMARY KEY,
+            collector TEXT NOT NULL,
+            success BOOLEAN NOT NULL,
+            latency_s DOUBLE PRECISION NOT NULL,
+            events INT NOT NULL,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cr_collector ON collector_runs(collector)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cr_ts ON collector_runs(timestamp)")
     conn.commit()
     cur.close()
     release_conn(conn)
@@ -331,6 +344,75 @@ def resolve_all_before(source: str, cutoff: str) -> int:
     release_conn(conn)
     return resolved
 
+
+# ----- Collector Runs -----
+
+def save_collector_run(collector: str, success: bool, latency_s: float, events: int):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO collector_runs (collector, success, latency_s, events) VALUES (%s, %s, %s, %s)",
+        (collector, success, round(latency_s, 3), events)
+    )
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+
+
+def get_collector_status() -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        WITH latest AS (
+            SELECT DISTINCT ON (collector) collector, success, latency_s, events, timestamp
+            FROM collector_runs
+            ORDER BY collector, timestamp DESC
+        ),
+        stats AS (
+            SELECT collector,
+                   COUNT(*) AS total_runs,
+                   SUM(CASE WHEN success THEN 1 ELSE 0 END) AS successes,
+                   SUM(events) AS total_events,
+                   MAX(timestamp) AS last_ts
+            FROM collector_runs
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            GROUP BY collector
+        )
+        SELECT l.collector, l.success AS last_success, l.latency_s AS last_latency,
+               l.events AS last_events, l.timestamp AS last_run,
+               COALESCE(s.total_runs, 0) AS runs_24h,
+               COALESCE(s.successes, 0) AS successes_24h,
+               COALESCE(s.total_events, 0) AS events_24h
+        FROM latest l
+        LEFT JOIN stats s ON l.collector = s.collector
+        ORDER BY l.collector
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    return [dict(r) for r in rows]
+
+
+def get_last_pipeline_run() -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT timestamp, COUNT(*) AS collectors,
+               SUM(CASE WHEN success THEN 1 ELSE 0 END) AS successful,
+               SUM(events) AS total_events
+        FROM collector_runs
+        WHERE timestamp > (SELECT MAX(timestamp) - INTERVAL '5 minutes' FROM collector_runs)
+        GROUP BY timestamp
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """)
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    return dict(row) if row else None
+
+
+# ----- Expired cleanup -----
 
 def clean_expired():
     conn = get_conn()

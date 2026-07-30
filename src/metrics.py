@@ -15,13 +15,20 @@ class PipelineMetrics:
         return cls._instance
 
     def record_run(self, collector_name: str, success: bool, latency_s: float, events: int) -> None:
-        self._runs.append({
+        run = {
             "collector": collector_name,
             "success": success,
             "latency_s": round(latency_s, 3),
             "events": events,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        self._runs.append(run)
+        # Persist to DB (fire-and-forget, no reconnect retry)
+        try:
+            from src.db import save_collector_run
+            save_collector_run(collector_name, success, latency_s, events)
+        except Exception:
+            pass
 
     def last_run(self) -> List[Dict]:
         return list(self._runs)

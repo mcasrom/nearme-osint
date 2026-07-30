@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NearMe OSINT — Admin</title>
+    <meta name="robots" content="noindex,nofollow">
+    <style>
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#0a0e17; color:#e0e0e0; padding:20px; }
+        h1 { color:#00d4ff; font-size:1.4em; margin-bottom:4px; }
+        .sub { color:#607d8b; font-size:0.85em; margin-bottom:20px; }
+        .dashboard { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:24px; }
+        .card { background:#111827; border-radius:8px; padding:14px 16px; border:1px solid #1a2a4a; }
+        .card .val { font-size:1.6em; font-weight:700; }
+        .card .lbl { font-size:0.78em; color:#607d8b; margin-top:4px; }
+        .ok { color:#4caf50; }
+        .warn { color:#ff9800; }
+        .err { color:#f44336; }
+        table { width:100%; border-collapse:collapse; font-size:0.85em; margin-top:8px; }
+        th { text-align:left; padding:8px 10px; border-bottom:1px solid #1a2a4a; color:#78909c; font-weight:600; }
+        td { padding:6px 10px; border-bottom:1px solid #0d1a2a; }
+        tr:hover td { background:#0f1a2a; }
+        .section-title { font-size:1.1em; color:#00d4ff; margin:20px 0 8px; }
+        .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.75em; font-weight:600; }
+        .badge.ok { background:#1a3a1a; color:#4caf50; }
+        .badge.fail { background:#3a1a1a; color:#f44336; }
+        a { color:#4fc3f7; text-decoration:none; }
+        a:hover { text-decoration:underline; }
+        .nav { margin-bottom:16px; font-size:0.85em; }
+        .auto-refresh { float:right; font-size:0.78em; color:#607d8b; cursor:pointer; user-select:none; }
+        .auto-refresh input { margin-right:4px; vertical-align:middle; }
+    </style>
+</head>
+<body>
+    <div class="nav"><a href="/">← Volver al mapa</a></div>
+    <h1>📊 Admin — NearMe OSINT</h1>
+    <div class="sub">Monitoreo de pipeline, colectores y estado del sistema</div>
+
+    <div class="dashboard" id="summaryCards"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="section-title">🤖 Estado por colector</div>
+        <label class="auto-refresh"><input type="checkbox" id="autoRefresh" checked onchange="toggleRefresh()"> Auto 10s</label>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;">
+        <table><thead><tr><th>Colector</th><th>Última ejecución</th><th>Estado</th><th>Eventos</th><th>Latencia</th><th>24h runs</th><th>24h éxito</th><th>24h eventos</th></tr></thead><tbody id="collectorBody"></tbody></table>
+    </div>
+
+    <div class="section-title">🔄 Últimas ejecuciones</div>
+    <div class="card" style="padding:0;overflow-x:auto;">
+        <table><thead><tr><th>#</th><th>Colector</th><th>Timestamp</th><th>Resultado</th><th>Eventos</th><th>Latencia</th></tr></thead><tbody id="runsBody"></tbody></table>
+    </div>
+
+    <script>
+    const REFRESH_MS = 10000;
+    let refreshTimer = null;
+
+    async function loadAll() {
+        try {
+            const [statusResp, runsResp, healthResp] = await Promise.all([
+                fetch('/api/status'),
+                fetch('/api/status/runs?n=50'),
+                fetch('/health'),
+            ]);
+            const status = await statusResp.json();
+            const runs = await runsResp.json();
+            const health = await healthResp.json();
+            render(status, runs, health);
+        } catch (e) {
+            document.getElementById('collectorBody').innerHTML = '<tr><td colspan="8" style="color:#f44336;text-align:center;">Error: ' + e.message + '</td></tr>';
+        }
+    }
+
+    function render(status, runs, health) {
+        var collectors = status.collectors || [];
+        var runsList = runs.runs || [];
+
+        // Summary cards
+        var totalOk = collectors.filter(function(c) { return c.last_success; }).length;
+        var totalKo = collectors.length - totalOk;
+        var lastRun = null;
+        collectors.forEach(function(c) {
+            if (c.last_run && (!lastRun || c.last_run > lastRun)) lastRun = c.last_run;
+        });
+        var totalEvents = 0;
+        collectors.forEach(function(c) { totalEvents += c.events_24h || 0; });
+        var pipeline = health.pipeline_success_rate || 0;
+        var dbStatus = health.database === 'connected';
+
+        document.getElementById('summaryCards').innerHTML = [
+            '<div class="card"><div class="val ' + (dbStatus ? 'ok' : 'err') + '">' + (dbStatus ? '✓' : '✗') + '</div><div class="lbl">Base de datos</div></div>',
+            '<div class="card"><div class="val ' + (totalKo === 0 ? 'ok' : 'warn') + '">' + totalOk + '/' + collectors.length + '</div><div class="lbl">Colectores funcionales</div></div>',
+            '<div class="card"><div class="val ok">' + pipeline + '%</div><div class="lbl">Tasa de éxito global</div></div>',
+            '<div class="card"><div class="val ok">' + totalEvents + '</div><div class="lbl">Eventos (últimas 24h)</div></div>',
+            '<div class="card"><div class="val">' + (lastRun ? new Date(lastRun).toLocaleString('es-ES') : '—') + '</div><div class="lbl">Última ejecución</div></div>',
+        ].join('');
+
+        // Collector table
+        document.getElementById('collectorBody').innerHTML = collectors.map(function(c) {
+            var okClass = c.last_success ? 'ok' : (c.last_success === false ? 'fail' : '');
+            var badgeHtml = '<span class="badge ' + okClass + '">' + (c.last_success ? 'Ok' : c.last_success === false ? 'Error' : '—') + '</span>';
+            var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
+            var interval = {nasa_firms:15,dgt:5,aemet:15,renfe:15,miteco:30,openaq:30,usgs:15,proteccion_civil:30,ree:15,intelhub:10,playas:60}[c.collector] || 60;
+            var timeHtml = c.last_run ? timeAgo(c.last_run) : 'nunca';
+            if (staleMins > interval * 2) timeHtml = '<span class="err">' + timeHtml + '</span>';
+            return '<tr><td style="font-weight:600;">' + c.collector + '</td><td>' + timeHtml + '</td><td>' + badgeHtml + '</td><td>' + (c.last_events || 0) + '</td><td>' + (c.last_latency ? c.last_latency + 's' : '—') + '</td><td>' + (c.runs_24h || 0) + '</td><td>' + (c.successes_24h || 0) + '/' + (c.runs_24h || 0) + '</td><td>' + (c.events_24h || 0) + '</td></tr>';
+        }).join('') || '<tr><td colspan="8" style="color:#607d8b;text-align:center;">Esperando primera ejecución del pipeline...</td></tr>';
+
+        // Last 50 runs
+        document.getElementById('runsBody').innerHTML = runsList.slice(-50).reverse().map(function(r, i) {
+            var okClass = r.success ? 'ok' : 'fail';
+            return '<tr><td style="color:#607d8b;">' + (runsList.length - i - (runsList.length - 50 > 0 ? runsList.length - 50 : 0) + 1) + '</td><td>' + r.collector + '</td><td style="font-size:0.85em;">' + new Date(r.timestamp).toLocaleString('es-ES') + '</td><td><span class="badge ' + okClass + '">' + (r.success ? 'OK' : 'FAIL') + '</span></td><td>' + r.events + '</td><td>' + r.latency_s + 's</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="color:#607d8b;text-align:center;">Sin ejecuciones registradas</td></tr>';
+    }
+
+    function timeAgo(isoStr) {
+        if (!isoStr) return '';
+        var diff = Date.now() - new Date(isoStr).getTime();
+        var mins = Math.floor(diff / 60000);
+        if (mins < 1) return '< 1 min';
+        if (mins < 60) return mins + ' min';
+        var hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + 'h ' + (mins % 60) + 'min';
+        return Math.floor(hrs / 24) + 'd';
+    }
+
+    function startRefresh() {
+        stopRefresh();
+        loadAll();
+        refreshTimer = setInterval(loadAll, REFRESH_MS);
+    }
+
+    function stopRefresh() {
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    }
+
+    function toggleRefresh() {
+        if (document.getElementById('autoRefresh').checked) startRefresh();
+        else stopRefresh();
+    }
+
+    loadAll();
+    startRefresh();
+    </script>
+</body>
+</html>

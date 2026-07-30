@@ -33,10 +33,23 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
+const NO_CACHE_PREFIXES = ['/api/nearby', '/api/status', '/admin'];
+
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+    const path = url.pathname;
 
-    if (url.pathname.startsWith('/api/')) {
+    if (NO_CACHE_PREFIXES.some(p => path.startsWith(p))) {
+        event.respondWith(fetch(event.request).catch(function() {
+            return new Response(JSON.stringify({ error: 'Offline' }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }));
+        return;
+    }
+
+    if (path.startsWith('/api/')) {
         event.respondWith(networkFirst(event.request));
         return;
     }

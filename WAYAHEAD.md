@@ -190,6 +190,20 @@ TOTAL:        ~5.470
 - [x] Añadidos tipos de evento faltantes a ICONS (port_incident, water_cut, telecom, etc.)
 - [x] WAYAHEAD.md: añadida sección de Metodología
 
+### Sprint 26 — Monitoreo, autochequeo y freshness (30 Jul 2026)
+- [x] Tabla `collector_runs` con persistencia en PostgreSQL (cada ejecución del pipeline se guarda)
+- [x] `PipelineMetrics.record_run()` escribe a DB además de in-memory
+- [x] `/health` enriquecido: DB check, pipeline stats, último run
+- [x] `/api/status` → estado por colector (último run, éxito, latencia, stats 24h)
+- [x] `/api/status/runs` → últimas 50 ejecuciones
+- [x] `/api/nearby` ahora incluye `server_ts` (timestamp del servidor)
+- [x] `frontend/admin.html` → dashboard con cards, tabla de colectores, últimas ejecuciones
+- [x] `#update-time` usa `server_ts` en vez de `Date()` local
+- [x] Freshness badge en cada tarjeta de evento (🟢<30min, 🟠<2h, 🔴≥2h)
+- [x] Sidebar: columna "Estado" con semáforo 🟢🟡🔴 por fuente, actualizado cada 60s
+- [x] Stale banner: alerta cuando una fuente no se actualiza en >2x su intervalo
+- [x] SW excluye `/api/nearby`, `/api/status`, `/admin` de cache PWA
+
 ## 📖 Metodología
 
 ### Arquitectura
@@ -213,6 +227,19 @@ Cada colector implementa `BaseCollector` con método `async collect()` que devue
 | alert | naranja | Peligro (ej: FRP≥100MW, terremoto M≥5) |
 | critical | rojo | Emergencia (severidad DGT "highest") |
 
+### Freshness y stale detection
+Cada evento lleva un badge de frescura basado en su `updated_at`:
+- 🟢 `< 30 min` — recién actualizado
+- 🟠 `30 min – 2 h` — desactualizándose
+- 🔴 `> 2 h` — obsoleto
+
+Por fuente, el sidebar muestra un semáforo que se actualiza cada 60s desde `/api/status`:
+- 🟢 última ejecución ok y en plazo
+- 🟡 última ejecución con error
+- 🔴 sin datos en >2x el intervalo de la fuente
+
+Si una fuente lleva >2 ciclos sin actualizar, aparece un banner de alerta en la sidebar.
+
 ### Fuentes de datos
 | Fuente | Protocolo | Autenticación | Cobertura | Actualización |
 |--------|-----------|---------------|-----------|---------------|
@@ -227,6 +254,25 @@ Cada colector implementa `BaseCollector` con método `async collect()` que devue
 | REE | REST API | Sin clave | Peninsular | 15 min |
 | IntelHub | RSS/HTML | Sin clave | 24 fuentes, 9 países | 10 min |
 | Playas Euskadi | GeoJSON | Sin clave | País Vasco | 60 min |
+
+### Monitoreo y autochequeo
+El sistema cuenta con un subsistema de monitoreo basado en la tabla `collector_runs`:
+
+- **Persistencia**: cada ejecución de colector se registra en PostgreSQL con collector, timestamp, éxito, latencia y número de eventos
+- **Pipeline in-memory**: `PipelineMetrics` mantiene un buffer en memoria para consultas rápidas (últimas N ejecuciones)
+- **Endpoints**:
+  - `/health` — estado de BD, pipeline stats, último run
+  - `/api/status` — último estado por colector + estadísticas 24h
+  - `/api/status/runs?n=50` — últimas ejecuciones
+  - `/api/metrics` — resumen agregado (compatible con herramientas externas)
+- **Admin dashboard**: `/admin` — página HTML standalone con cards de resumen, tabla de colectores y últimas ejecuciones, auto-refresh cada 10s
+- **Server timestamp**: `/api/nearby` devuelve `server_ts` para sincronización cliente-servidor
+
+### PWA
+- Service worker con estrategia network-first para `/api/*`, cache-first para assets estáticos
+- `/api/nearby`, `/api/status` y `/admin` excluidos de cache (siempre fresh)
+- Auto-refresh cada 5 minutos con indicador visual
+- Offline: muestra datos cacheados con banner "📡 Sin conexión"
 
 ### Geolocalización
 - **Precisa**: FIRMS (coordenadas satélite), DGT (coordenadas del incidente), AEMET (estaciones fijas)
