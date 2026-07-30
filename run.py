@@ -79,6 +79,11 @@ def register_collectors():
         COLLECTORS.append(PlayasCollector())
     except Exception as e:
         logger.warning("No se pudo cargar Playas: %s", e)
+    try:
+        from src.collectors.embalses import EmbalsesCollector
+        COLLECTORS.append(EmbalsesCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar Embalses: %s", e)
 
 
 def run_all():

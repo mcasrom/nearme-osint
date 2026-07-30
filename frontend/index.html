@@ -502,7 +502,7 @@
             <details>
                 <summary>📡 Fuentes de datos y metodologia</summary>
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
-                    <p>NearMe agrega <strong>11 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos. El estado 🟢🟡🔴 se actualiza cada 60s desde el servidor:</p>
+                    <p>NearMe agrega <strong>12 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos. El estado 🟢🟡🔴 se actualiza cada 60s desde el servidor:</p>
                     <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:8px 0;">
                         <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th><th style="text-align:center;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Estado</th></tr>
                         <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite (MODIS+VIIRS)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
@@ -516,6 +516,7 @@
                         <tr id="src-ree"><td style="padding:3px 6px;">REE</td><td style="padding:3px 6px;">⚡ Demanda electrica tiempo real</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-intelhub"><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Noticias e incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-playas"><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-embalses"><td style="padding:3px 6px;">MITECO Embalses</td><td style="padding:3px 6px;">🌊 Nivel embalses (SAIH + MITECO)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                     </table>
                     <div id="staleBanner" style="display:none;background:#2a0a0a;border:1px solid #5a1a1a;border-radius:6px;padding:6px 10px;font-size:0.85em;color:#ef5350;margin:6px 0;"></div>
                     <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento se crea cuando la fuente lo reporta y expira segun su TTL (incendios 24h, clima 3h, trafico 12h, terremotos 48h...). Si la fuente deja de reportarlo, se marca como "resuelto" automaticamente en el siguiente ciclo.</p>
@@ -597,6 +598,7 @@ const TYPE_COLORS = {
     news:         '#78909c',
     other:        '#607d8b',
     weather:      '#4fc3f7',
+    reservoir:    '#00bcd4',
 };
 
 const LEVEL_COLORS = {
@@ -635,7 +637,7 @@ const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#88
 
 const SOURCE_INTERVALS = {
     nasa_firms: 15, dgt: 5, aemet: 15, renfe: 15, miteco: 30,
-    openaq: 30, usgs: 15, proteccion_civil: 30, ree: 15, intelhub: 10, playas: 60,
+    openaq: 30, usgs: 15, proteccion_civil: 30, ree: 15, intelhub: 10, playas: 60, embalses: 30,
 };
 
 function timeAgo(isoStr) {
@@ -1235,9 +1237,9 @@ function renderStats(events) {
     const byType = {};
     const alerts = events.filter(e => e.level === 'critical' || e.level === 'alert');
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
-    const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> \uD83D\uDEA8</div>` : '';
+    const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> 🚨</div>` : '';
     stats.innerHTML = activeTypes.map(t => {
         const c = byType[t];
         const icon = ICONS[t] || '';
@@ -1249,7 +1251,7 @@ function renderLegend(events) {
     const legend = document.getElementById('legend');
     const byType = {};
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     legend.innerHTML = activeTypes.map(t => {
         const color = TYPE_COLORS[t] || '#607d8b';

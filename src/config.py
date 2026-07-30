@@ -236,6 +236,7 @@ DEFAULT_TTL_HOURS = {
     "blackout": 24,
     "water_cut": 24,
     "weather": 3,
+    "reservoir": 6,
 }
 
 DEFAULT_TTL_FALLBACK_HOURS = 72

@@ -334,6 +334,7 @@ El sistema cuenta con un subsistema de monitoreo basado en la tabla `collector_r
 ---
 
 ## 🐛 Bugs conocidos
+- [x] ~~Eventos IntelHub nunca expiraban por `expires_at = EXCLUDED.expires_at` en upsert de db.py — cada refresh (10 min) recalculaba `now + TTL`, perpetuando eventos viejos~~ **(fix: `expires_at = events.expires_at` + expires_at basado en `published` del artículo)**
 - [ ] ~20% paradas RENFE sin geolocalización (stop_id no encontrado en CSV estaciones)
 - [ ] Coordenadas incendios RSS aproximadas (por provincia), no geoposicionamiento real
 

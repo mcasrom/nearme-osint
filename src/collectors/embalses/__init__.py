@@ -1,0 +1,97 @@
+import httpx
+from datetime import datetime, timedelta, timezone
+from src.collectors.base import BaseCollector
+from src.logging import get_logger
+from src.models import Event
+
+API_URL = "https://estadoembalses.es/api/embalses?limit=500"
+TIMEOUT = 20
+TTL_HOURS = 6
+
+logger = get_logger("src.collectors.embalses")
+
+
+class EmbalsesCollector(BaseCollector):
+    name = "Embalses (MITECO/SAIH)"
+    source = "embalses"
+    interval_minutes = 30
+
+    async def collect(self):
+        events = []
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                resp = await client.get(API_URL)
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception as e:
+            logger.warning("Error fetching embalses API: %s", e)
+            return events
+
+        items = data.get("data", [])
+        now = datetime.now(timezone.utc)
+        for emb in items:
+            lat = emb.get("lat")
+            lng = emb.get("lng")
+            if lat is None or lng is None:
+                continue
+
+            pct = emb.get("porcentaje")
+            vol = emb.get("volumen_hm3")
+            cap = emb.get("capacidad_hm3")
+
+            if pct is None:
+                level = "info"
+            elif pct >= 90:
+                level = "info"
+            elif pct >= 70:
+                level = "info"
+            elif pct >= 40:
+                level = "warning"
+            elif pct >= 20:
+                level = "alert"
+            else:
+                level = "critical"
+
+            nombre = emb.get("nombre", "Embalse desconocido")
+            cuenca = emb.get("cuenca", "")
+            provincia = emb.get("provincia", "")
+            comunidad = emb.get("comunidad_autonoma", "")
+
+            title = f"{nombre}"
+            desc_parts = [f"Embalse en {provincia} ({comunidad})", f"Cuenca: {cuenca}"]
+            if pct is not None:
+                desc_parts.append(f"Nivel: {pct}%")
+            if vol is not None and cap is not None:
+                desc_parts.append(f"Volumen: {vol} hm³ / {cap} hm³")
+            description = " · ".join(desc_parts)
+
+            ultima = emb.get("ultima_lectura")
+            expires = None
+            if ultima:
+                try:
+                    ults = datetime.fromisoformat(ultima)
+                    expires = (ults + timedelta(hours=TTL_HOURS)).isoformat()
+                except Exception:
+                    pass
+            if not expires:
+                expires = (now + timedelta(hours=TTL_HOURS)).isoformat()
+
+            events.append(Event(
+                source="embalses",
+                source_id=f"emb_{emb.get('id', nombre)}",
+                event_type="reservoir",
+                subtype="dam",
+                lat=lat,
+                lon=lng,
+                radius_m=20000,
+                level=level,
+                title=title[:100],
+                description=description[:300],
+                country="España",
+                region=provincia or "",
+                municipality="",
+                expires_at=expires,
+            ))
+
+        logger.info("%d embalses recolectados", len(events))
+        return events
