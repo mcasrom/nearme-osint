@@ -148,13 +148,13 @@
 OpenAQ:       ~  980  calidad del aire (6 parámetros, v3 API)
 NASA FIRMS:   ~2.018  incendios satélite España (MODIS+VIIRS)
 DGT:          ~1.242  incidencias tráfico red estatal (DATEX II)
-RENFE:        ~  749  retrasos tren geolocalizados (GTFS-RT)
-MITECO:       ~  523  calidad del aire ICA (620 estaciones)
-AEMET:        ~  330  heatwave/wind/storm (10.600 estaciones)
-Playas:       ~   37  bandera, oleaje, temp agua, medusas (Euskadi+Bizkaia)
-IntelHub:     ~   30  incendios RSS (24 fuentes)
-REE:          ~   21  demanda eléctrica alta
-USGS:          ~    1  terremotos M2.5+ España (raros)
+RENFE:         ~  749  retrasos tren geolocalizados (GTFS-RT)
+MITECO:        ~  523  calidad del aire ICA (620 estaciones)
+AEMET:         ~  330  weather continuo + alertas (10.600 estaciones)
+Playas:        ~   37  bandera, oleaje, temp agua, medusas (Euskadi+Bizkaia)
+IntelHub:      ~   30  incendios RSS (24 fuentes)
+REE:           ~   21  demanda eléctrica alta
+USGS:           ~    1  terremotos M2.5+ España (raros)
 ──────────────────────────────
 TOTAL:        ~5.470
 ```
@@ -212,6 +212,13 @@ TOTAL:        ~5.470
 - [x] OpenAQ: ya emitía info siempre, solo faltaba API key — ahora activo
 - [x] `weather` añadido a EVENT_TYPES, ICONS, TYPE_COLORS (🌡️ azul info, naranja/rojo alerta)
 - [x] Metodología AEMET actualizada: no solo alertas, sino informe meteorológico continuo
+
+### Sprint 28 — Health indicator del sistema (30 Jul 2026)
+- [x] Barra de salud en sidebar (justo bajo el header) con indicador 🟢/🟡/🔴
+- [x] Muestra estado general: Saludable / Degradado / Crítico / Caído
+- [x] Contador de fuentes activas (ej: "Saludable (9/11 fuentes)")
+- [x] Porcentaje de fuentes operativas con color según umbral (≥80% verde, ≥50% naranja, <50% rojo)
+- [x] Se actualiza automáticamente cada 60s con el mismo ciclo de `refreshSourceStatus`
 
 ## 📖 Metodología
 

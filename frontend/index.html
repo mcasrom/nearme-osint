@@ -52,6 +52,12 @@
         #sidebar { width: 420px; overflow-y: auto; padding: 16px; background: #0d1520; border-left: 1px solid #1a2a4a; }
         h1 { color: #00d4ff; font-size: 1.3em; margin-bottom: 4px; }
         .sub { color: #607d8b; font-size: 0.8em; margin-bottom: 16px; }
+        .health-bar { display:flex; align-items:center; gap:8px; font-size:0.75em; padding:6px 10px; margin-bottom:10px; background:#111827; border-radius:8px; border:1px solid #1a2a4a; transition:.3s; }
+        .health-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; transition:.3s; }
+        .health-text { color:#78909c; }
+        .health-pct { margin-left:auto; font-weight:600; }
+        body.light .health-bar { background:#e8eaf0; border-color:#cfd8dc; }
+        body.light .health-text { color:#546e7a; }
         .event { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; background: #111827; cursor: pointer; transition: 0.2s; border-left: 3px solid #607d8b; }
         .event:hover { border-left-color: #00d4ff; background: #151f30; }
         .event .title { font-weight: 600; font-size: 0.9em; }
@@ -396,6 +402,12 @@
             <div class="dark-toggle" onclick="toggleDark()" id="darkToggle" title="Modo claro/oscuro">🌙</div>
         </div>
 
+        <div class="health-bar" id="healthBar">
+            <span class="health-dot" id="healthDot"></span>
+            <span class="health-text" id="healthText">Cargando estado...</span>
+            <span class="health-pct" id="healthPct"></span>
+        </div>
+
         <div class="search-box">
             <input type="text" id="search-input" placeholder="Buscar ciudad, direccion..." onkeydown="if(event.key==='Enter')searchLocation()" />
             <button onclick="searchLocation()" title="Buscar">&#128269;</button>
@@ -600,6 +612,7 @@ async function refreshSourceStatus() {
         const resp = await fetch('/api/status');
         if (!resp.ok) return;
         const data = await resp.json();
+        updateHealthBar(data);
         (data.collectors || []).forEach(function(c) {
             var tr = document.getElementById('src-' + c.collector);
             if (!tr) return;
@@ -616,6 +629,40 @@ async function refreshSourceStatus() {
     } catch (e) {
         // silent
     }
+}
+
+function updateHealthBar(data) {
+    var collectors = data.collectors || [];
+    var total = collectors.length;
+    if (!total) return;
+    var active = 0;
+    var stale = 0;
+    var errors = 0;
+    collectors.forEach(function(c) {
+        var interval = SOURCE_INTERVALS[c.collector] || 60;
+        var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
+        var isStale = staleMins > interval * 2;
+        if (!c.last_success) errors++;
+        else if (isStale) stale++;
+        else active++;
+    });
+    var pct = Math.round(active / total * 100);
+    var dot = document.getElementById('healthDot');
+    var text = document.getElementById('healthText');
+    var pctEl = document.getElementById('healthPct');
+    var bar = document.getElementById('healthBar');
+    if (!dot || !text || !pctEl) return;
+    var hue, statusText;
+    if (pct >= 80) { hue = '#4caf50'; statusText = 'Saludable'; }
+    else if (pct >= 50) { hue = '#ff9800'; statusText = 'Degradado'; }
+    else { hue = '#f44336'; statusText = 'Critico'; }
+    if (total === errors) { hue = '#f44336'; statusText = 'Caido'; pct = 0; }
+    dot.style.background = hue;
+    dot.style.boxShadow = '0 0 6px ' + hue;
+    text.textContent = statusText + ' (' + active + '/' + total + ' fuentes)';
+    pctEl.textContent = pct + '%';
+    pctEl.style.color = hue;
+    bar.style.borderColor = hue + '44';
 }
 
 var staleBannerTimer = null;

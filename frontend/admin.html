@@ -94,6 +94,7 @@
             '<div class="card"><div class="val ok">' + pipeline + '%</div><div class="lbl">Tasa de éxito global</div></div>',
             '<div class="card"><div class="val ok">' + totalEvents + '</div><div class="lbl">Eventos (últimas 24h)</div></div>',
             '<div class="card"><div class="val">' + (lastRun ? new Date(lastRun).toLocaleString('es-ES') : '—') + '</div><div class="lbl">Última ejecución</div></div>',
+            '<div class="card"><div class="val ' + (totalOk >= 8 ? 'ok' : totalOk >= 5 ? 'warn' : 'err') + '" style="font-size:1.2em;">' + (totalOk === collectors.length ? '🟢' : totalOk >= 5 ? '🟡' : '🔴') + ' ' + Math.round(totalOk/collectors.length*100) + '%</div><div class="lbl">Estado del sistema</div></div>',
         ].join('');
 
         // Collector table
