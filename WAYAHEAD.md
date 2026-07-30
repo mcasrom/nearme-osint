@@ -233,12 +233,14 @@ TOTAL:        ~5.470
 - [x] Fallback con enlaces directos: 𝕏, WhatsApp, Telegram, Bluesky, Mastodon
 - [x] Versión v0.9
 
-### Sprint 31 — Contador de visitas (30 Jul 2026)
+### Sprint 31 — Contador de visitas + protección admin (30 Jul 2026)
 - [x] Tabla `page_views` con solo `id SERIAL` + `viewed_at` — sin IP, sin user-agent, sin datos personales
 - [x] `POST /api/visit` llamado una vez por carga de página desde `init()`
 - [x] `GET /api/stats` → `{total_views, today_views, yesterday_views}`
 - [x] Card "Visitas totales" en `/admin`
 - [x] Limpieza automática de registros >60 días
+- [x] `/admin` protegido con password vía `ADMIN_PASSWORD` en `.env` (sessionStorage, caduca al cerrar navegador)
+- [x] Default en código = `CHANGE_ME_IN_PRODUCTION` — forzar cambio en producción
 
 ## 📖 Metodología
 

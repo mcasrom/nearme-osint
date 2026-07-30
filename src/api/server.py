@@ -30,7 +30,7 @@ FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 JWT_SECRET = os.environ.get("JWT_SECRET", "nearme_dev_secret_change_in_prod_2026")
 JWT_ALGO = "HS256"
 JWT_EXPIRY_HOURS = 72
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "nearme_admin_2026")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "CHANGE_ME_IN_PRODUCTION")
 
 # ----- Anti-fraud -----
 _rate_limiter = defaultdict(list)  # ip -> [timestamps]
