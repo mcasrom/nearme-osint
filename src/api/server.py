@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(Path(__file__).parent.parent.parent, ".env"))
+load_dotenv(os.path.join(Path(__file__).parent.parent.parent, ".env"), override=True)
 
 import httpx
 import jwt
