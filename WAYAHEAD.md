@@ -226,6 +226,13 @@ TOTAL:        ~5.470
 - [x] Política clara: no compartir datos, no analytics, no tracking, sin cookies, sin IPs, sin geolocalización de usuario
 - [x] Email de contacto para solicitar baja de cuenta
 
+### Sprint 30 — Compartir en redes sociales (30 Jul 2026)
+- [x] Botón 📤 en header (junto al toggle oscuro) con popup de plataformas
+- [x] Texto dinámico: "🔥 N eventos activos cerca de lat, lon — NearMe OSINT"
+- [x] Soporte Web Share API nativa en móvil (navigator.share)
+- [x] Fallback con enlaces directos: 𝕏, WhatsApp, Telegram, Bluesky, Mastodon
+- [x] Versión v0.9
+
 ## 📖 Metodología
 
 ### Arquitectura
