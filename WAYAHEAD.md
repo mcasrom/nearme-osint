@@ -180,6 +180,59 @@ TOTAL:        ~5.470
 - [x] Cluster personalizado: emoji del tipo dominante + contador + color según nivel máximo de severidad
 - [x] Cluster con badge de nivel crítico si contiene eventos critical/alert
 
+### Sprint 25 — Onboarding, documentación y UI alertas (30 Jul 2026)
+- [x] Onboarding ampliado a 5 pasos: explicación de iconos, bordes de severidad y sistema de alertas
+- [x] Sidebar: nueva sección "Cómo leer el mapa" con leyenda completa de iconos, colores y pulsos
+- [x] Sidebar: sección "Fuentes de datos y metodología" con tabla de 11 fuentes, TTL y ciclo de vida
+- [x] Botón Alertas con pulso inicial si el usuario no lo ha explorado
+- [x] Pedir permiso de notificación al crear la primera alerta
+- [x] Ejemplos de uso en el modal de alertas
+- [x] Añadidos tipos de evento faltantes a ICONS (port_incident, water_cut, telecom, etc.)
+- [x] WAYAHEAD.md: añadida sección de Metodología
+
+## 📖 Metodología
+
+### Arquitectura
+```
+[11 colectores async] → [Pipeline (asyncio.gather)] → [PostgreSQL+PostGIS] → [FastAPI] → [Frontend Leaflet]
+```
+Cada colector implementa `BaseCollector` con método `async collect()` que devuelve `list[Event]`. El pipeline ejecuta todos en paralelo cada ciclo (cron `*/15 * * * *`).
+
+### Ciclo de vida de un evento
+1. **Creación**: el colector obtiene datos de la fuente → `save_events_batch()` hace upsert por `(source, source_id)`
+2. **Actualización**: en cada ciclo, si el evento sigue en la fuente, se actualiza su `expires_at` y `updated_at`
+3. **Resolución automática**: si el evento deja de aparecer en la fuente, `resolve_events()` lo marca como `status=resolved`
+4. **Expiración por TTL**: si la fuente no marca fin pero el evento supera su TTL (incendios=24h, tráfico=12h, etc.), `clean_expired()` lo elimina
+5. **Expiración explícita**: si la fuente proporciona `end_time` (ej: DGT overallEndTime), se usa como `expires_at`
+
+### Sistema de niveles
+| Nivel | Color | Criterio |
+|-------|-------|----------|
+| info | azul | Evento informativo, sin riesgo |
+| warning | amarillo | Precaución (ej: ICA≥3, temperatura≥35°C) |
+| alert | naranja | Peligro (ej: FRP≥100MW, terremoto M≥5) |
+| critical | rojo | Emergencia (severidad DGT "highest") |
+
+### Fuentes de datos
+| Fuente | Protocolo | Autenticación | Cobertura | Actualización |
+|--------|-----------|---------------|-----------|---------------|
+| NASA FIRMS | CSV público | Sin clave | España (MODIS+VIIRS) | 15 min |
+| DGT DATEX II | XML v3.6 | Sin clave | Red estatal España | 5 min |
+| AEMET | REST API | API Key JWT | 10.600 estaciones España | 15 min |
+| RENFE | GTFS-RT (Protobuf) | Sin clave | Cercanías + AV/LD | 15 min |
+| MITECO ICA | CSV horario | Sin clave | 620 estaciones España | 30 min |
+| OpenAQ v3 | REST API | API Key | España (6 parámetros) | 30 min |
+| USGS | GeoJSON | Sin clave | Global M2.5+ / España M1.5+ | 15 min |
+| Protección Civil | CAP XML (AEMET) | API Key JWT | España | 30 min |
+| REE | REST API | Sin clave | Peninsular | 15 min |
+| IntelHub | RSS/HTML | Sin clave | 24 fuentes, 9 países | 10 min |
+| Playas Euskadi | GeoJSON | Sin clave | País Vasco | 60 min |
+
+### Geolocalización
+- **Precisa**: FIRMS (coordenadas satélite), DGT (coordenadas del incidente), AEMET (estaciones fijas)
+- **Aproximada**: IntelHub (extracción por regex de provincia/ciudad), RENFE (estación origen)
+- **Por defecto**: si no hay coordenadas, se usa el centro de la provincia o se descarta el evento
+
 ## 🔜 Próximos sprints
 
 ---

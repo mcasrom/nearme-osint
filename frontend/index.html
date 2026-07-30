@@ -265,6 +265,9 @@
         body.light .alert-form { background: #f5f7fa; }
         body.light .alert-form select, body.light .alert-form input { background: #fff; color: #263238; }
 
+        @keyframes alert-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.7); } 50% { box-shadow: 0 0 0 8px rgba(0,212,255,0); } }
+        .alert-btn-pulse { animation: alert-pulse 2s infinite; border-color: #00d4ff !important; color: #00d4ff !important; }
+        .alert-btn-pulse:hover { animation: none; }
         .auth-bar { margin-bottom: 12px; }
         .auth-bar .btn-login-bar {
             width: 100%; background: #111827; border: 1px solid #1a2a4a; border-radius: 8px;
@@ -441,16 +444,41 @@
 
         <div class="info-section">
             <details>
-                <summary>Fuentes de datos</summary>
-                <div class="content">
-                    <p><strong>AEMET</strong> — Alertas meteorologicas de 10.600+ estaciones en Espana</p>
-                    <p><strong>USGS</strong> — Terremotos globales M2.5+ en las ultimas 24h</p>
-                    <p><strong>NASA FIRMS</strong> — Incendios activos por satelite (MODIS+VIIRS), solo Espana</p>
-                    <p><strong>DGT</strong> — Incidencias de trafico DATEX II v3.6 (cortes, obras, accidentes)</p>
-                    <p><strong>RENFE</strong> — Retrasos tren cercanias y alta velocidad (GTFS-RT)</p>
-                    <p><strong>REE</strong> — Demanda electrica en tiempo real</p>
-                    <p><strong>MITECO</strong> — Calidad del aire ICA, 620+ estaciones horarias</p>
-                    <p><strong>Intelligence Hub</strong> — Incendios detectados en 24 fuentes de noticias</p>
+                <summary>🗺️ Como leer el mapa</summary>
+                <div class="content" style="font-size:0.82em;line-height:1.6;">
+                    <p>Cada punto en el mapa es un evento. Su <strong>icono</strong> indica el tipo: 🔥 incendio, 🚧 obra, 🌡️ calor extremo, 🌫️ calidad del aire, 🚨 delito, etc.</p>
+                    <p>El <strong>borde</strong> del circulo muestra la gravedad:<br>
+                    <span style="color:#4fc3f7;">● azul = info</span><br>
+                    <span style="color:#ffeb3b;">● amarillo = warning</span><br>
+                    <span style="color:#ff9800;">● naranja = alert</span><br>
+                    <span style="color:#f44336;">● rojo = critical</span></p>
+                    <p>Los iconos que <strong>palpitan</strong> son alertas activas (alert/critical). El <strong>tamano</strong> del icono indica intensidad: incendios grandes = 🔥 mas grande.</p>
+                    <p>Los <strong>clusters</strong> (circulos con numero) agrupan eventos cercanos. Muestran el icono del tipo dominante y el numero de eventos. El borde del cluster refleja la gravedad maxima del grupo.</p>
+                    <p>Al hacer clic en un evento del listado lateral, el mapa vuela a su ubicacion.</p>
+                </div>
+            </details>
+        </div>
+        <div class="info-section">
+            <details>
+                <summary>📡 Fuentes de datos y metodologia</summary>
+                <div class="content" style="font-size:0.82em;line-height:1.6;">
+                    <p>NearMe agrega <strong>11 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos:</p>
+                    <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:8px 0;">
+                        <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th></tr>
+                        <tr><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite MODIS+VIIRS</td><td style="padding:3px 6px;">15 min</td></tr>
+                        <tr><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes DATEX II</td><td style="padding:3px 6px;">5 min</td></tr>
+                        <tr><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Temp. extremas, viento, lluvia (10.600 est.)</td><td style="padding:3px 6px;">15 min</td></tr>
+                        <tr><td style="padding:3px 6px;">RENFE</td><td style="padding:3px 6px;">🚆 Retrasos tren GTFS-RT</td><td style="padding:3px 6px;">15 min</td></tr>
+                        <tr><td style="padding:3px 6px;">MITECO</td><td style="padding:3px 6px;">🌫️ Calidad aire ICA (620 est.)</td><td style="padding:3px 6px;">30 min</td></tr>
+                        <tr><td style="padding:3px 6px;">OpenAQ</td><td style="padding:3px 6px;">🌫️ Calidad aire 6 parametros</td><td style="padding:3px 6px;">30 min</td></tr>
+                        <tr><td style="padding:3px 6px;">USGS</td><td style="padding:3px 6px;">🏚️ Terremotos M2.5+ global</td><td style="padding:3px 6px;">15 min</td></tr>
+                        <tr><td style="padding:3px 6px;">Proteccion Civil</td><td style="padding:3px 6px;">⚠️ Avisos meteorologicos AEMET CAP</td><td style="padding:3px 6px;">30 min</td></tr>
+                        <tr><td style="padding:3px 6px;">REE</td><td style="padding:3px 6px;">⚡ Demanda electrica tiempo real</td><td style="padding:3px 6px;">15 min</td></tr>
+                        <tr><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td></tr>
+                        <tr><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td></tr>
+                    </table>
+                    <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento tiene un TTL (tiempo de vida). Cuando la fuente deja de reportarlo, se marca como "resuelto" automaticamente. Los eventos sin actualizacion expiran segun su tipo (incendios 24h, trafico 12h, etc.).</p>
+                    <p><strong>Niveles:</strong> info → warning → alert → critical. El nivel lo determina cada fuente segun sus umbrales (FRP en incendios, magnitud en terremotos, ICA en aire, etc.).</p>
                 </div>
             </details>
         </div>
@@ -539,7 +567,8 @@ const ICONS = {
     traffic: "\uD83D\uDE97", road_incident: "\uD83D\uDEA7", road_closure: "\u26D4",
     train_delay: "\uD83D\uDE84", flight_delay: "\u2708\uFE0F", blackout: "\u26A1",
     warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D", crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
-    beach: "\uD83C\uDFD6\uFE0F",
+    beach: "\uD83C\uDFD6\uFE0F", port_incident: "\u26F5", water_cut: "\uD83D\uDEB0", telecom: "\uD83D\uDCF6",
+    radiation: "\u2622\uFE0F", pollen: "\uD83C\uDF3C", reservoir: "\uD83C\uDF0A",
 };
 
 const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#880000'];
@@ -582,6 +611,9 @@ function init() {
         var savedFilters = JSON.parse(localStorage.getItem('nearme_filters'));
         if (savedFilters && Array.isArray(savedFilters)) savedFilters.forEach(function(f) { activeFilters.add(f); });
     } catch(e) {}
+    if (!localStorage.getItem('nearme_alerts_explored') && isLoggedIn()) {
+        document.getElementById('alertBtn').classList.add('alert-btn-pulse');
+    }
     map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', maxZoom: 18,
@@ -608,19 +640,23 @@ function showOnboarding() {
             <div class="sub">Mapa en tiempo real de eventos e incidencias geolocalizadas</div>
             <div class="onboarding-step">
                 <div class="num">1</div>
-                <div class="text"><strong>Busca una ubicacion</strong> — Escribe una ciudad en el buscador o haz clic en el mapa para centrar la vista</div>
+                <div class="text"><strong>🔍 Busca una ubicacion</strong> — Escribe una ciudad en el buscador o haz clic en el mapa para centrar la vista</div>
             </div>
             <div class="onboarding-step">
                 <div class="num">2</div>
-                <div class="text"><strong>Ajusta el radio</strong> — Elige 50, 200 o 500 km para ver eventos a tu alrededor</div>
+                <div class="text"><strong>📏 Ajusta el radio</strong> — Elige 50, 200 o 500 km para ver eventos a tu alrededor</div>
             </div>
             <div class="onboarding-step">
                 <div class="num">3</div>
-                <div class="text"><strong>Filtra por tipo</strong> — Usa el panel "Filtrar por tipo" para ver solo lo que te interesa (incendios, trafico, playas...)</div>
+                <div class="text"><strong>🎯 Filtra por tipo</strong> — Usa el panel "Filtrar por tipo" para ver solo lo que te interesa (🔥 incendios, 🚧 trafico, 🌡️ calor, 🌫️ aire...)</div>
             </div>
             <div class="onboarding-step">
                 <div class="num">4</div>
-                <div class="text"><strong>Explora los eventos</strong> — Haz clic en un evento de la lista para volar a el en el mapa. Los circulos parpadeantes son alertas activas</div>
+                <div class="text"><strong>🗺️ Lee los iconos</strong> — Cada icono muestra el tipo de evento. El borde indica gravedad: <span style="color:#4fc3f7;">azul=info</span>, <span style="color:#ffeb3b;">amarillo=warning</span>, <span style="color:#ff9800;">naranja=alert</span>, <span style="color:#f44336;">rojo=critical</span>. Los iconos que palpitan son alertas activas. El tamano indica intensidad.</div>
+            </div>
+            <div class="onboarding-step">
+                <div class="num">5</div>
+                <div class="text"><strong>🔔 Crea alertas</strong> — Registrate y configura alertas personalizadas: "Avísame si hay incendios a menos de 30 km". Recibiras notificaciones en tu navegador cuando ocurran.</div>
             </div>
             <button class="btn" onclick="dismissOnboarding()">Entendido</button>
         </div>
@@ -1380,6 +1416,8 @@ function getLabel(a) {
 }
 
 function showAlertModal() {
+    localStorage.setItem('nearme_alerts_explored', '1');
+    document.getElementById('alertBtn').classList.remove('alert-btn-pulse');
     const existing = document.getElementById('alertOverlay');
     if (existing) existing.remove();
     const overlay = document.createElement('div');
@@ -1401,6 +1439,9 @@ function showAlertModal() {
     overlay.innerHTML = `
         <div class="alerts-modal" onclick="event.stopPropagation()">
             <h2>🔔 Alertas personalizadas</h2>
+            <div style="font-size:0.78em;color:#78909c;margin-bottom:12px;line-height:1.5;">
+                Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona
+            </div>
             <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
             <div class="alert-form">
                 <div class="alert-form-row">
@@ -1452,6 +1493,9 @@ async function createAlert() {
     const radius = parseInt(document.getElementById('alertRadius').value) || 15;
     const level = document.getElementById('alertLevel').value;
     if (radius < 1 || radius > 500) { alert('Radio entre 1 y 500 km'); return; }
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
     try {
         const r = await fetch('/api/alerts', {
             method: 'POST', headers: authHeaders(),
