@@ -1,5 +1,6 @@
 import re
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
@@ -213,6 +214,15 @@ class IntelHubBridge(BaseCollector):
                 if any(w in title_lower for w in ["megaincendio", "megafeu", "mégafeu", "catastróf", "muerto", "muerte", "fallec"]):
                     level = "critical"
 
+                pub = m.get("published")
+                expires = None
+                if pub:
+                    try:
+                        pub_dt = datetime.fromisoformat(pub)
+                        expires = (pub_dt + timedelta(hours=24)).isoformat()
+                    except Exception:
+                        pass
+
                 events.append(Event(
                     source="intelhub",
                     source_id=f"ih_{m['url'][:50]}",
@@ -226,6 +236,7 @@ class IntelHubBridge(BaseCollector):
                     description=f"{m['source']} ({m['country']}). {m['title']}",
                     country=m["country"],
                     region=m["loc_name"] or "",
+                    expires_at=expires,
                 ))
 
             conn.close()

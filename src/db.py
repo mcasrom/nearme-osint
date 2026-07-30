@@ -203,8 +203,7 @@ def save_event(event: Event) -> int:
             geom = EXCLUDED.geom,
             created_at = events.created_at,
             updated_at = NOW(),
-            expires_at = EXCLUDED.expires_at
-        RETURNING id
+            expires_at = events.expires_at
     """, row)
     event_id = cur.fetchone()[0]
     conn.commit()
@@ -242,7 +241,7 @@ def save_events_batch(events: list[Event]) -> int:
                     geom = EXCLUDED.geom,
                     created_at = events.created_at,
                     updated_at = NOW(),
-                    expires_at = EXCLUDED.expires_at
+                    expires_at = events.expires_at
             """, row)
             saved += 1
         except Exception as e:
