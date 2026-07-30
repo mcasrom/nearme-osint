@@ -138,6 +138,14 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_locations_user ON saved_locations(user_id)")
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS page_views (
+            id SERIAL PRIMARY KEY,
+            viewed_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_page_views_date ON page_views(viewed_at)")
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS collector_runs (
             id SERIAL PRIMARY KEY,
             collector TEXT NOT NULL,
@@ -639,3 +647,35 @@ def delete_location(location_id: int, user_id: int) -> bool:
     cur.close()
     release_conn(conn)
     return deleted
+
+
+def record_page_view():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO page_views DEFAULT VALUES")
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    try:
+        conn2 = get_conn()
+        cur2 = conn2.cursor()
+        cur2.execute("DELETE FROM page_views WHERE viewed_at < NOW() - INTERVAL '60 days'")
+        conn2.commit()
+        cur2.close()
+        release_conn(conn2)
+    except:
+        pass
+
+
+def get_page_views() -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT COUNT(*) as total FROM page_views")
+    total = cur.fetchone()["total"]
+    cur.execute("SELECT COUNT(*) as today FROM page_views WHERE viewed_at >= CURRENT_DATE")
+    today = cur.fetchone()["today"]
+    cur.execute("SELECT COUNT(*) as yesterday FROM page_views WHERE viewed_at >= CURRENT_DATE - INTERVAL '1 day' AND viewed_at < CURRENT_DATE")
+    yesterday = cur.fetchone()["yesterday"]
+    cur.close()
+    release_conn(conn)
+    return {"total_views": total, "today_views": today, "yesterday_views": yesterday}

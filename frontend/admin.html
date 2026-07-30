@@ -58,21 +58,23 @@
 
     async function loadAll() {
         try {
-            const [statusResp, runsResp, healthResp] = await Promise.all([
+            const [statusResp, runsResp, healthResp, statsResp] = await Promise.all([
                 fetch('/api/status'),
                 fetch('/api/status/runs?n=50'),
                 fetch('/health'),
+                fetch('/api/stats'),
             ]);
             const status = await statusResp.json();
             const runs = await runsResp.json();
             const health = await healthResp.json();
-            render(status, runs, health);
+            const stats = await statsResp.json();
+            render(status, runs, health, stats);
         } catch (e) {
             document.getElementById('collectorBody').innerHTML = '<tr><td colspan="8" style="color:#f44336;text-align:center;">Error: ' + e.message + '</td></tr>';
         }
     }
 
-    function render(status, runs, health) {
+    function render(status, runs, health, stats) {
         var collectors = status.collectors || [];
         var runsList = runs.runs || [];
 
@@ -88,6 +90,10 @@
         var pipeline = health.pipeline_success_rate || 0;
         var dbStatus = health.database === 'connected';
 
+        var totalViews = stats.total_views || 0;
+        var todayViews = stats.today_views || 0;
+        var yesterdayViews = stats.yesterday_views || 0;
+
         document.getElementById('summaryCards').innerHTML = [
             '<div class="card"><div class="val ' + (dbStatus ? 'ok' : 'err') + '">' + (dbStatus ? '✓' : '✗') + '</div><div class="lbl">Base de datos</div></div>',
             '<div class="card"><div class="val ' + (totalKo === 0 ? 'ok' : 'warn') + '">' + totalOk + '/' + collectors.length + '</div><div class="lbl">Colectores funcionales</div></div>',
@@ -95,6 +101,7 @@
             '<div class="card"><div class="val ok">' + totalEvents + '</div><div class="lbl">Eventos (últimas 24h)</div></div>',
             '<div class="card"><div class="val">' + (lastRun ? new Date(lastRun).toLocaleString('es-ES') : '—') + '</div><div class="lbl">Última ejecución</div></div>',
             '<div class="card"><div class="val ' + (totalOk >= 8 ? 'ok' : totalOk >= 5 ? 'warn' : 'err') + '" style="font-size:1.2em;">' + (totalOk === collectors.length ? '🟢' : totalOk >= 5 ? '🟡' : '🔴') + ' ' + Math.round(totalOk/collectors.length*100) + '%</div><div class="lbl">Estado del sistema</div></div>',
+            '<div class="card"><div class="val ok">' + totalViews + '</div><div class="lbl">Visitas totales · ' + todayViews + ' hoy · ' + yesterdayViews + ' ayer</div></div>',
         ].join('');
 
         // Collector table

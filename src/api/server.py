@@ -521,5 +521,24 @@ def serve_frontend():
     return {"error": "Frontend not found"}
 
 
+@app.post("/api/visit")
+def record_visit():
+    from src.db import record_page_view
+    try:
+        record_page_view()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/stats")
+def page_stats():
+    from src.db import get_page_views
+    try:
+        return get_page_views()
+    except Exception as e:
+        return {"total_views": 0, "today_views": 0, "yesterday_views": 0, "error": str(e)}
+
+
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")

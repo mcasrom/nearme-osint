@@ -777,6 +777,7 @@ function levelBadge(level, eventType) {
 let radiusBtns = { 50: 'r50', 200: 'r200', 500: 'r500' };
 
 function init() {
+    fetch('/api/visit', { method: 'POST' });
     var savedRadius = parseInt(localStorage.getItem('nearme_radius'));
     if (savedRadius && [50, 200, 500].indexOf(savedRadius) >= 0) currentRadius = savedRadius;
     try {
