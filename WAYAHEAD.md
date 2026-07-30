@@ -244,6 +244,13 @@ TOTAL:        ~5.470
 - [x] Fix: nginx proxy `/admin` al backend (no servirlo como estático)
 - [x] Fix: `load_dotenv(override=True)` para que `.env` tenga prioridad sobre el entorno del proceso
 
+### Sprint 32 — Preparación Product Hunt (30 Jul 2026)
+- [x] OG meta tags actualizadas a inglés (title, description, twitter)
+- [x] OG image (`og-image.svg`) con subtítulo en inglés: "Wildfires · Traffic · Weather · Earthquakes · Air Quality · Trains"
+- [x] `manifest.json` descripción en inglés, categorías actualizadas
+- [x] Meta description de la página en inglés
+- [x] Logo SVG rediseñado a 240x240 (radar + data dots, escalable)
+
 ## 📖 Metodología
 
 ### Arquitectura
