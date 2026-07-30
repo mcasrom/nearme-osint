@@ -31,6 +31,7 @@ EVENT_TYPES = {
     "news": "Noticia local",
     "other": "Otro",
     "beach": "Playa",
+    "weather": "Meteo",
 }
 
 LEVELS = {"info": "info", "warning": "warning", "alert": "alert", "critical": "critical"}

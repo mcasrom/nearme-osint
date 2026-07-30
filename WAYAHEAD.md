@@ -204,6 +204,15 @@ TOTAL:        ~5.470
 - [x] Stale banner: alerta cuando una fuente no se actualiza en >2x su intervalo
 - [x] SW excluye `/api/nearby`, `/api/status`, `/admin` de cache PWA
 
+### Sprint 27 — APIs en modo información continua (30 Jul 2026)
+- [x] AEMET_API_KEY puesta en producción
+- [x] OPENAQ_API_KEY puesta en producción
+- [x] AEMET: ahora emite evento `weather` por estación con nivel info (muestra T, viento, lluvia siempre)
+- [x] AEMET: cuando se superan umbrales, sube a warning/alert y emite subtipo específico (heatwave, wind, storm)
+- [x] OpenAQ: ya emitía info siempre, solo faltaba API key — ahora activo
+- [x] `weather` añadido a EVENT_TYPES, ICONS, TYPE_COLORS (🌡️ azul info, naranja/rojo alerta)
+- [x] Metodología AEMET actualizada: no solo alertas, sino informe meteorológico continuo
+
 ## 📖 Metodología
 
 ### Arquitectura
@@ -245,7 +254,7 @@ Si una fuente lleva >2 ciclos sin actualizar, aparece un banner de alerta en la 
 |--------|-----------|---------------|-----------|---------------|
 | NASA FIRMS | CSV público | Sin clave | España (MODIS+VIIRS) | 15 min |
 | DGT DATEX II | XML v3.6 | Sin clave | Red estatal España | 5 min |
-| AEMET | REST API | API Key JWT | 10.600 estaciones España | 15 min |
+| AEMET | REST API | API Key JWT | España (10.600 estaciones, meteo continuo + alertas) | 15 min |
 | RENFE | GTFS-RT (Protobuf) | Sin clave | Cercanías + AV/LD | 15 min |
 | MITECO ICA | CSV horario | Sin clave | 620 estaciones España | 30 min |
 | OpenAQ v3 | REST API | API Key | España (6 parámetros) | 30 min |

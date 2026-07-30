@@ -467,7 +467,7 @@
                         <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th><th style="text-align:center;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Estado</th></tr>
                         <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite MODIS+VIIRS</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-dgt"><td style="padding:3px 6px;">DGT</td><td style="padding:3px 6px;">🚧 Cortes, obras, accidentes DATEX II</td><td style="padding:3px 6px;">5 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
-                        <tr id="src-aemet"><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Temp. extremas, viento, lluvia (10.600 est.)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-aemet"><td style="padding:3px 6px;">AEMET</td><td style="padding:3px 6px;">🌡️ Meteo continuo + alertas (10.600 est.)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-renfe"><td style="padding:3px 6px;">RENFE</td><td style="padding:3px 6px;">🚆 Retrasos tren GTFS-RT</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-miteco"><td style="padding:3px 6px;">MITECO</td><td style="padding:3px 6px;">🌫️ Calidad aire ICA (620 est.)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-openaq"><td style="padding:3px 6px;">OpenAQ</td><td style="padding:3px 6px;">🌫️ Calidad aire 6 parametros</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
@@ -539,6 +539,7 @@ const TYPE_COLORS = {
     crime:        '#e53935',
     news:         '#78909c',
     other:        '#607d8b',
+    weather:      '#4fc3f7',
 };
 
 const LEVEL_COLORS = {
@@ -570,6 +571,7 @@ const ICONS = {
     warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D", crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
     beach: "\uD83C\uDFD6\uFE0F", port_incident: "\u26F5", water_cut: "\uD83D\uDEB0", telecom: "\uD83D\uDCF6",
     radiation: "\u2622\uFE0F", pollen: "\uD83C\uDF3C", reservoir: "\uD83C\uDF0A",
+    weather: "\uD83C\uDF21\uFE0F",
 };
 
 const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#880000'];
@@ -1086,7 +1088,7 @@ function renderStats(events) {
     const byType = {};
     const alerts = events.filter(e => e.level === 'critical' || e.level === 'alert');
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> \uD83D\uDEA8</div>` : '';
     stats.innerHTML = activeTypes.map(t => {
@@ -1100,7 +1102,7 @@ function renderLegend(events) {
     const legend = document.getElementById('legend');
     const byType = {};
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     legend.innerHTML = activeTypes.map(t => {
         const color = TYPE_COLORS[t] || '#607d8b';

@@ -235,6 +235,7 @@ DEFAULT_TTL_HOURS = {
     "heatwave": 24,
     "blackout": 24,
     "water_cut": 24,
+    "weather": 3,
 }
 
 DEFAULT_TTL_FALLBACK_HOURS = 72

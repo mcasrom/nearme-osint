@@ -59,7 +59,8 @@ class AEMETCollector(BaseCollector):
             logger.info("AEMET: no se pudieron obtener observaciones")
             return events
         items = data if isinstance(data, list) else []
-        alerts = []
+        weather_count = 0
+        alert_count = 0
         for obs in items:
             try:
                 lat = obs.get("lat")
@@ -78,38 +79,77 @@ class AEMETCollector(BaseCollector):
                 wind_max = obs.get("vmax")
                 prec = obs.get("prec")
 
-                detected = []
+                has_data = any(v is not None for v in (temp, temp_max, temp_min, wind, wind_max, prec))
+                if not has_data:
+                    continue
+
+                desc_parts = []
+                if temp is not None:
+                    desc_parts.append(f"T: {temp}C")
+                if temp_max is not None:
+                    desc_parts.append(f"Tmax: {temp_max}C")
+                if temp_min is not None:
+                    desc_parts.append(f"Tmin: {temp_min}C")
+                if wind is not None:
+                    desc_parts.append(f"viento: {wind} km/h")
+                if wind_max is not None:
+                    desc_parts.append(f"racha: {wind_max} km/h")
+                if prec is not None:
+                    desc_parts.append(f"lluvia: {prec} mm")
+
+                station_level = "info"
+                alert_list = []
 
                 if temp_max is not None:
                     t = float(temp_max)
                     if t >= 40:
-                        detected.append(("heatwave", "alert", f"Temperatura extrema: {t}C"))
+                        station_level = "alert"
+                        alert_list.append(("heatwave", "alert", f"Temperatura extrema: {t}C"))
                     elif t >= 35:
-                        detected.append(("heatwave", "warning", f"Altas temperaturas: {t}C"))
-
+                        if station_level == "info": station_level = "warning"
+                        alert_list.append(("heatwave", "warning", f"Altas temperaturas: {t}C"))
                 if temp_min is not None:
                     t = float(temp_min)
                     if t <= -10:
-                        detected.append(("snow", "alert", f"Temperatura extrema baja: {t}C"))
+                        station_level = "alert"
+                        alert_list.append(("snow", "alert", f"Temperatura extrema baja: {t}C"))
                     elif t <= -5:
-                        detected.append(("snow", "warning", f"Bajas temperaturas: {t}C"))
-
+                        if station_level == "info": station_level = "warning"
+                        alert_list.append(("snow", "warning", f"Bajas temperaturas: {t}C"))
                 if wind_max is not None:
                     w = float(wind_max)
                     if w >= 80:
-                        detected.append(("wind", "alert", f"Racha maxima: {w} km/h"))
+                        station_level = "alert"
+                        alert_list.append(("wind", "alert", f"Racha maxima: {w} km/h"))
                     elif w >= 50:
-                        detected.append(("wind", "warning", f"Viento fuerte: {w} km/h"))
-
+                        if station_level == "info": station_level = "warning"
+                        alert_list.append(("wind", "warning", f"Viento fuerte: {w} km/h"))
                 if prec is not None:
                     p = float(prec)
                     if p >= 20:
-                        detected.append(("storm", "alert", f"Precipitacion intensa: {p} mm"))
+                        station_level = "alert"
+                        alert_list.append(("storm", "alert", f"Precipitacion intensa: {p} mm"))
                     elif p >= 8:
-                        detected.append(("storm", "warning", f"Precipitacion: {p} mm"))
+                        if station_level == "info": station_level = "warning"
+                        alert_list.append(("storm", "warning", f"Precipitacion: {p} mm"))
 
-                for event_type, level, desc in detected:
-                    alerts.append(Event(
+                events.append(Event(
+                    source="aemet",
+                    source_id=f"aemet_{station}_weather",
+                    event_type="weather",
+                    subtype="observacion",
+                    lat=lat, lon=lon,
+                    radius_m=25000,
+                    level=station_level,
+                    title=f"{name}: {desc_parts[0] if desc_parts else 'sin datos'}"[:80],
+                    description=" | ".join(desc_parts) + f" | Estacion: {station}",
+                    country="ES",
+                    region=name,
+                ))
+                weather_count += 1
+
+                for event_type, level, desc in alert_list:
+                    events.append(Event(
                         source="aemet",
                         source_id=f"aemet_{station}_{event_type}",
                         event_type=event_type,
@@ -122,10 +162,12 @@ class AEMETCollector(BaseCollector):
                         country="ES",
                         region=name,
                     ))
+                    alert_count += 1
+
             except (ValueError, TypeError):
                 pass
-        events.extend(alerts)
-        logger.info("%d estaciones, %d con alertas", len(items), len(alerts))
+
+        logger.info("%d estaciones, %d weather, %d alertas", len(items), weather_count, alert_count)
         return events
 
 
