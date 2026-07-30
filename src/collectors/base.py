@@ -23,7 +23,7 @@ class BaseCollector(ABC):
             logger.info("[OK] %d/%d eventos guardados", saved, len(events))
 
             # Mark events no longer returned by the API as resolved
-            if self.source and events:
+            if self.source:
                 from src.db import resolve_events
                 sources = self.source if isinstance(self.source, list) else [self.source]
                 for src in sources:

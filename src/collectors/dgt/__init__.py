@@ -236,11 +236,13 @@ class DGTTrafficCollector(BaseCollector):
         start_time = start_time_m.group(1) if start_time_m else ""
         end_time_m = re.search(r'<com:overallEndTime[^>]*>([^<]+)</com:overallEndTime>', record)
         end_time = end_time_m.group(1) if end_time_m else ""
+        expires_at = None
         if end_time:
             try:
                 end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
                 if end_dt < datetime.now(timezone.utc):
                     return None
+                expires_at = end_dt.isoformat()
             except ValueError:
                 pass
         source_id_m = re.search(r'id="([^"]+)"', record)
@@ -274,6 +276,7 @@ class DGTTrafficCollector(BaseCollector):
             country="ES",
             region=ccmm,
             municipality=municipality_clean,
+            expires_at=expires_at,
         )
 
     def _get_subtype(self, record):
