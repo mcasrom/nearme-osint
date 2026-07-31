@@ -292,6 +292,24 @@
             background: #ffb300; color: #0a0e17; border: none; border-radius: 6px;
             padding: 4px 10px; font-weight: 600; cursor: pointer; font-size: 0.85em;
         }
+        .guest-note {
+            background: #1a2a1a; border: 1px solid #2a5a2a; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 12px; font-size: 0.76em; color: #a5d6a7;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .guest-note button {
+            background: #66bb6a; color: #0a0e17; border: none; border-radius: 6px;
+            padding: 4px 10px; font-weight: 600; cursor: pointer; font-size: 0.85em; flex-shrink: 0;
+        }
+        body.light .guest-note { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #111827; color: #d0dbe8; border: 1px solid #1a2a4a; border-radius: 10px;
+            padding: 12px 18px; font-size: 0.8em; z-index: 2000; max-width: 90%;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        body.light .toast { background: #fff; color: #263238; border-color: #e0e0e0; }
         body.light .alerts-modal { background: #fff; }
         body.light .alert-card { background: #f5f7fa; border-color: #e0e0e0; }
         body.light .alert-form { background: #f5f7fa; }
@@ -813,7 +831,7 @@ function init() {
         var savedFilters = JSON.parse(localStorage.getItem('nearme_filters'));
         if (savedFilters && Array.isArray(savedFilters)) savedFilters.forEach(function(f) { activeFilters.add(f); });
     } catch(e) {}
-    if (!localStorage.getItem('nearme_alerts_explored') && isLoggedIn()) {
+    if (!localStorage.getItem('nearme_alerts_explored')) {
         document.getElementById('alertBtn').classList.add('alert-btn-pulse');
     }
     map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 6);
@@ -1470,10 +1488,33 @@ function showEventDetail(idx) {
 
 // ===== Saved Locations =====
 
+const GKEY_LOCATIONS = 'nearme_guest_locations';
+const GKEY_ALERTS = 'nearme_guest_alerts';
+
+function getGuestLocations() {
+    try { return JSON.parse(localStorage.getItem(GKEY_LOCATIONS)) || []; } catch (e) { return []; }
+}
+function setGuestLocations(arr) {
+    localStorage.setItem(GKEY_LOCATIONS, JSON.stringify(arr));
+}
+function getGuestAlerts() {
+    try { return JSON.parse(localStorage.getItem(GKEY_ALERTS)) || []; } catch (e) { return []; }
+}
+function setGuestAlerts(arr) {
+    localStorage.setItem(GKEY_ALERTS, JSON.stringify(arr));
+}
+
 async function saveCurrentLocation() {
-    if (!isLoggedIn()) return;
     const name = prompt('Nombre para esta ubicacion:', currentLat.toFixed(4) + ', ' + currentLon.toFixed(4));
     if (!name || !name.trim()) return;
+    if (!isLoggedIn()) {
+        const locs = getGuestLocations();
+        locs.push({ id: 'g' + Date.now(), name: name.trim(), lat: currentLat, lon: currentLon });
+        setGuestLocations(locs);
+        updateAuthUI();
+        showToast('📌 Guardada en este dispositivo. Crea una cuenta para sincronizarla');
+        return;
+    }
     try {
         const r = await fetch('/api/locations', {
             method: 'POST', headers: authHeaders(),
@@ -1487,36 +1528,49 @@ async function saveCurrentLocation() {
 async function loadSavedLocations() {
     const select = document.getElementById('locSelect');
     if (!select) return;
-    try {
-        const r = await fetch('/api/locations', { headers: authHeaders() });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const data = await r.json();
-        const locs = data.locations || [];
-        select.innerHTML = '<option value="">— Ubicaciones guardadas —</option>'
-            + locs.map(l => '<option value="' + l.id + '" data-lat="' + l.lat + '" data-lon="' + l.lon + '">' + l.name.replace(/</g,'&lt;') + '</option>').join('')
-            + '<option value="__manage" disabled>──────────</option>';
-        if (locs.length > 0) {
-            locs.forEach(l => {
-                const opt = document.createElement('option');
-                opt.value = '__del_' + l.id;
-                opt.textContent = '✕ Eliminar ' + l.name;
-                opt.style.color = '#ef5350';
-                select.appendChild(opt);
-            });
-        }
-    } catch (e) { /* silently fail, not critical */ }
+    let locs = [];
+    if (isLoggedIn()) {
+        try {
+            const r = await fetch('/api/locations', { headers: authHeaders() });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            locs = data.locations || [];
+        } catch (e) { return; }
+    } else {
+        locs = getGuestLocations();
+    }
+    const esc = s => s.replace(/</g, '&lt;');
+    select.innerHTML = '<option value="">— Ubicaciones guardadas —</option>'
+        + locs.map(l => '<option value="' + l.id + '" data-lat="' + l.lat + '" data-lon="' + l.lon + '">' + (isLoggedIn() ? '' : '📱 ') + esc(l.name) + '</option>').join('')
+        + (locs.length ? '<option value="__manage" disabled>──────────</option>' : '');
+    locs.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = '__del_' + l.id;
+        opt.textContent = '✕ Eliminar ' + l.name;
+        opt.style.color = '#ef5350';
+        select.appendChild(opt);
+    });
+}
+
+function deleteGuestLocation(id) {
+    setGuestLocations(getGuestLocations().filter(l => l.id !== id));
+    updateAuthUI();
+    showToast('🗑️ Ubicacion eliminada de este dispositivo');
 }
 
 function jumpToLocation(val) {
     if (!val || val === '') return;
     if (val.startsWith('__del_')) {
-        const id = parseInt(val.replace('__del_', ''));
-        if (confirm('Eliminar esta ubicacion?')) {
-            fetch('/api/locations/' + id, { method: 'DELETE', headers: authHeaders() }).then(r => {
-                if (r.ok) loadSavedLocations();
-            }).catch(() => {});
-        }
+        const id = val.replace('__del_', '');
+        if (!confirm('Eliminar esta ubicacion?')) return;
         document.getElementById('locSelect').value = '';
+        if (!isLoggedIn() || String(id).charAt(0) === 'g') {
+            deleteGuestLocation(id);
+            return;
+        }
+        fetch('/api/locations/' + id, { method: 'DELETE', headers: authHeaders() }).then(r => {
+            if (r.ok) loadSavedLocations();
+        }).catch(() => {});
         return;
     }
     const opt = document.querySelector('#locSelect option[value="' + val + '"]');
@@ -1539,6 +1593,21 @@ function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
 function clearToken() { localStorage.removeItem(TOKEN_KEY); currentUser = null; }
 
 function isLoggedIn() { return !!getToken(); }
+
+let toastTimer = null;
+function showToast(msg) {
+    let el = document.getElementById('toastMsg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'toastMsg';
+        el.className = 'toast';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
 
 function authHeaders() {
     const t = getToken();
@@ -1564,8 +1633,42 @@ async function doAuth(method, body) {
     if (!r.ok) throw new Error(data.detail || 'Error');
     setToken(data.token);
     currentUser = data.user;
+    await migrateGuestData();
     updateAuthUI();
     return data;
+}
+
+async function migrateGuestData() {
+    let synced = 0;
+    const gLocs = getGuestLocations();
+    if (gLocs.length > 0) {
+        for (const l of gLocs) {
+            try {
+                const r = await fetch('/api/locations', {
+                    method: 'POST', headers: authHeaders(),
+                    body: JSON.stringify({ name: l.name, lat: l.lat, lon: l.lon })
+                });
+                if (r.ok) synced++;
+            } catch (e) {}
+        }
+        localStorage.removeItem(GKEY_LOCATIONS);
+    }
+    const gAlerts = getGuestAlerts();
+    if (gAlerts.length > 0) {
+        for (const a of gAlerts) {
+            try {
+                const r = await fetch('/api/alerts', {
+                    method: 'POST', headers: authHeaders(),
+                    body: JSON.stringify({ event_type: a.event_type, radius_km: a.radius_km, min_level: a.min_level, enabled: a.enabled })
+                });
+                if (r.ok) synced++;
+            } catch (e) {}
+        }
+        localStorage.removeItem(GKEY_ALERTS);
+    }
+    if (synced > 0) showToast('✓ Datos sincronizados con tu cuenta');
+    const alertList = document.getElementById('alertList');
+    if (alertList) loadAlertList();
 }
 
 function logout() { clearToken(); updateAuthUI(); updateAlertBadge(0); }
@@ -1579,8 +1682,13 @@ function updateAuthUI() {
             currentUser.username + '</span><button class="btn-logout" onclick="logout()" title="Cerrar sesion">✕</button></div>';
         if (locBar) { locBar.style.display = 'block'; loadSavedLocations(); }
     } else {
-        el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>';
-        if (locBar) locBar.style.display = 'none';
+        const n = getGuestLocations().length;
+        el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro' +
+            (n > 0 ? ' <span style="color:#66bb6a;">· sincroniza ' + n + (n === 1 ? ' ubicacion' : ' ubicaciones') + '</span>' : '') + '</button>';
+        if (locBar) {
+            if (n > 0) { locBar.style.display = 'block'; loadSavedLocations(); }
+            else locBar.style.display = 'none';
+        }
     }
 }
 
@@ -1685,23 +1793,17 @@ function showAlertModal() {
     overlay.className = 'onboarding-overlay';
     overlay.id = 'alertOverlay';
     overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-    if (!isLoggedIn()) {
-        overlay.innerHTML = `
-            <div class="alerts-modal" onclick="event.stopPropagation()">
-                <h2>🔔 Alertas personalizadas</h2>
-                <div class="alerts-empty">
-                    Necesitas una cuenta para crear alertas personalizadas.<br><br>
-                    <button class="btn" onclick="document.getElementById('alertOverlay').remove();showAuthModal();" style="width:auto;display:inline-block;">Crear cuenta gratis</button>
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-        return;
-    }
+    const guestNote = isLoggedIn() ? '' : `
+        <div class="guest-note">
+            📱 Modo invitado: las alertas se guardan en este dispositivo.
+            <button onclick="document.getElementById('alertOverlay').remove();showAuthModal();">Crear cuenta gratis</button>
+        </div>`;
     overlay.innerHTML = `
         <div class="alerts-modal" onclick="event.stopPropagation()">
             <h2>🔔 Alertas personalizadas</h2>
+            ${guestNote}
             <div style="font-size:0.78em;color:#78909c;margin-bottom:12px;line-height:1.5;">
-                <strong>Como funciona:</strong> Tus alertas se guardan en el servidor. Cada vez que el mapa carga eventos, los comparamos en tu navegador con tus criterios. Si hay coincidencias, el boton 🔔 muestra el contador y te llega una notificacion del navegador (si lo permites).<br><br>
+                <strong>Como funciona:</strong> Tus alertas se guardan ${isLoggedIn() ? 'en el servidor' : 'en tu dispositivo'}. Cada vez que el mapa carga eventos, los comparamos en tu navegador con tus criterios. Si hay coincidencias, el boton 🔔 muestra el contador y te llega una notificacion del navegador (si lo permites).<br><br>
                 Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona
             </div>
             <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
@@ -1726,25 +1828,32 @@ function showAlertModal() {
     loadAlertList();
 }
 
+function renderAlertCards(alerts, list, permBar) {
+    if (alerts.length === 0) {
+        list.innerHTML = permBar + '<div class="alerts-empty">No tienes alertas configuradas. Crea una abajo</div>';
+        return;
+    }
+    list.innerHTML = permBar + alerts.map(a => {
+        const lbl = getLabel(a);
+        const det = a.event_type === 'all' ? 'Todos los tipos' : a.event_type.replace('_', ' ');
+        return '<div class="alert-card"><div class="info"><div class="label">' + lbl + '</div><div class="detail">' + det + '</div></div><button class="toggle ' + (a.enabled ? 'on' : 'off') + '" onclick="toggleAlert(' + a.id + ',' + a.enabled + ')" title="' + (a.enabled ? 'Desactivar' : 'Activar') + '"></button><button class="del" onclick="deleteAlert(' + a.id + ')" title="Eliminar">✕</button></div>';
+    }).join('');
+}
+
 async function loadAlertList() {
     const list = document.getElementById('alertList');
     if (!list) return;
     const perm = 'Notification' in window ? Notification.permission : 'denied';
     const permBar = perm === 'default' ? '<div class="notif-perm-bar show">🔔 Activa las notificaciones para recibir alertas en segundo plano<button onclick="requestNotifPerm();this.parentElement.classList.remove(\'show\');">Activar</button></div>' : '';
+    if (!isLoggedIn()) {
+        renderAlertCards(getGuestAlerts(), list, permBar);
+        return;
+    }
     try {
         const r = await fetch('/api/alerts', { headers: authHeaders() });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
-        const alerts = data.alerts || [];
-        if (alerts.length === 0) {
-            list.innerHTML = permBar + '<div class="alerts-empty">No tienes alertas configuradas. Crea una abajo</div>';
-        } else {
-            list.innerHTML = permBar + alerts.map(a => {
-                const lbl = getLabel(a);
-                const det = a.event_type === 'all' ? 'Todos los tipos' : a.event_type.replace('_', ' ');
-                return '<div class="alert-card"><div class="info"><div class="label">' + lbl + '</div><div class="detail">' + det + '</div></div><button class="toggle ' + (a.enabled ? 'on' : 'off') + '" onclick="toggleAlert(' + a.id + ',' + a.enabled + ')" title="' + (a.enabled ? 'Desactivar' : 'Activar') + '"></button><button class="del" onclick="deleteAlert(' + a.id + ')" title="Eliminar">✕</button></div>';
-            }).join('');
-        }
+        renderAlertCards(data.alerts || [], list, permBar);
     } catch (e) {
         list.innerHTML = '<div class="alerts-empty">Error al cargar alertas: ' + e.message + '</div>';
     }
@@ -1758,6 +1867,14 @@ async function createAlert() {
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
     }
+    if (!isLoggedIn()) {
+        const alerts = getGuestAlerts();
+        alerts.push({ id: Date.now(), event_type: type, radius_km: radius, min_level: level, enabled: true });
+        setGuestAlerts(alerts);
+        loadAlertList();
+        showToast('🔔 Alerta guardada en este dispositivo');
+        return;
+    }
     try {
         const r = await fetch('/api/alerts', {
             method: 'POST', headers: authHeaders(),
@@ -1769,6 +1886,11 @@ async function createAlert() {
 }
 
 async function toggleAlert(id, currentEnabled) {
+    if (!isLoggedIn()) {
+        setGuestAlerts(getGuestAlerts().map(a => a.id === id ? Object.assign({}, a, { enabled: !currentEnabled }) : a));
+        loadAlertList();
+        return;
+    }
     try {
         const r = await fetch('/api/alerts/' + id, {
             method: 'PUT', headers: authHeaders(),
@@ -1780,6 +1902,11 @@ async function toggleAlert(id, currentEnabled) {
 }
 
 async function deleteAlert(id) {
+    if (!isLoggedIn()) {
+        setGuestAlerts(getGuestAlerts().filter(a => a.id !== id));
+        loadAlertList();
+        return;
+    }
     try {
         const r = await fetch('/api/alerts/' + id, { method: 'DELETE', headers: authHeaders() });
         if (!r.ok) throw new Error('Error');
@@ -1788,13 +1915,18 @@ async function deleteAlert(id) {
 }
 
 async function checkAlerts(events) {
-    if (!isLoggedIn()) return;
+    var alerts;
+    if (isLoggedIn()) {
+        try {
+            const r = await fetch('/api/alerts', { headers: authHeaders() });
+            if (!r.ok) return;
+            alerts = (await r.json()).alerts || [];
+        } catch { updateAlertBadge(0); return; }
+    } else {
+        alerts = getGuestAlerts();
+    }
     var ALERTS_SEEN_KEY = 'nearme_alerts_seen';
     try {
-        const r = await fetch('/api/alerts', { headers: authHeaders() });
-        if (!r.ok) return;
-        const data = await r.json();
-        const alerts = data.alerts || [];
         if (alerts.length === 0) { updateAlertBadge(0); return; }
         var alreadyNotified = {};
         try { alreadyNotified = JSON.parse(localStorage.getItem(ALERTS_SEEN_KEY)) || {}; } catch(e) {}

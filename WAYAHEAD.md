@@ -430,3 +430,25 @@ nearme-osint/
 - [ ] Usar feed de Ko-fi para anunciar deploys nuevos
 - [ ] Widget en frontend muestre barra de progreso de la meta
 - [ ] Separar CTA por proyecto en el About de Ko-fi
+
+### Sprint 36 — README público (31 Jul 2026)
+- [x] README.md completo en español: demo CTA, 15 fuentes, ciclo de vida, severidad, stack, API, setup local, contribución, privacidad, roadmap, Ko-fi
+- [x] Commiteado y pusheado a origin/main (e0ad3e8). Deploy sigue por rsync.
+- [ ] NOTA: el servidor local no tiene acceso SSH a nearme-osint (solo intelligence-hub vía git@github.com-ikm) — los push se hacen desde el desktop vía clone HTTPS.
+
+### Sprint 37 — Ideas de crecimiento gratuitas (análisis externo, 31 Jul 2026)
+Fuente: outreach de Viberank (cold email con fin comercial → NO pagar sponsorship $4.99, ofrece "security audits" = red flag). Ideas verificadas y aplicables gratis:
+
+- [x] **Anonymous-first UX** (mapa+GPS sin login ya; alertas usables sin login, pulse en boton Alertas para todos): mostrar el mapa con geolocalización sin login; diferir auth solo a guardar ubicación o crear alerta (PRIORIDAD ALTA)
+- [x] **Guest mode** (ubicaciones y alertas en localStorage `nearme_guest_locations`/`nearme_guest_alerts`, auto-migracion a cloud en login/registro via `migrateGuestData`, toast feedback, note visual en modal y barra): ubicaciones guardadas en localStorage que auto-migran a cloud al registrarse (PRIORIDAD ALTA)
+- [ ] Onboarding 30s con coachmarks: radio, filtros, leyenda severidad, freshness badge
+- [ ] Permalinks por evento para compartir (viralidad orgánica)
+- [ ] Web Push value-first: "Recibe alertas críticas en tu zona" en vez del diálogo crudo del navegador
+- [ ] Roadmap geográfico en la UI: "Próximamente: Portugal, sur de Francia" (anticipación, gratis)
+- [ ] Sacar la tabla de fuentes del modal de ayuda a la landing (mejor trust signal del producto)
+- [ ] Transparencia de monetización visible (Ko-fi / "sostenido por la comunidad")
+- [ ] Añadir `charset=utf-8` al content-type en nginx (el HTML ya es UTF-8 correcto; solo elimina ambigüedad para crawlers)
+
+NOTAS de verificación:
+- El "bug crítico de encoding" (mojibake â/ðŸ”) del análisis es FALSO POSITIVO de su crawler: el HTML servido tiene UTF-8 correcto (62 emojis reales, 0 bytes corruptos, meta charset línea 5).
+- UX decision: registro/login debe pasar a segundo plano (guest-first), solo requerido al persistir ubicaciones/alertas.
