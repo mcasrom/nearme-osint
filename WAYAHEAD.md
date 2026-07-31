@@ -459,3 +459,8 @@ NOTAS de verificación:
 - `deploy.sh` del repo es para despliegue desde el desktop (push + rsync); con el flujo servidor-directo ya no es necesario salvo para provisionar una maquina nueva.
 - Cron del servidor: `*/15` run.py (colectores), `*/10` gen-analytics.sh. `analytics/` es runtime y esta en `.gitignore`.
 - Otros repos con deploy keys write en este servidor: `intelligence-hub` (alias `github.com-ih`, key `~/.ssh/ih-deploy-key`). La vieja `github-data-removal` esta muerta (Permission denied); `ikm-deploy-key` sigue como read-only de `mcasrom/ikm`.
+
+### Sprint 37b — Healthcheck NearMe (31 Jul 2026)
+- [x] **Healthcheck propio**: `/health` ya existia y es completo (db + pipeline + events 24h + last_collector_run). Nuevo `scripts/healthcheck.sh` que valida status=ok, database=connected y freshness <45 min; alerta por Telegram (condicional a `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` en `.env`); cron `*/5` con log en `logs/healthcheck.log` (ignorado por git).
+- [ ] Opcional: monitor externo **UptimeRobot** (free, checks 5 min) apuntando a `https://nearme.viajeinteligencia.com/health` — requiere crear cuenta, no lo hice.
+- NOTA: el mail de Uptiqr (uptiqr.com) era cold outreach; su dato "11-feed" es incorrecto (somos 15 fuentes). Rechazado el vendor, adoptada la idea gratis.
