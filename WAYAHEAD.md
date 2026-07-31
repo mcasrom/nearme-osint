@@ -452,3 +452,10 @@ Fuente: outreach de Viberank (cold email con fin comercial → NO pagar sponsors
 NOTAS de verificación:
 - El "bug crítico de encoding" (mojibake â/ðŸ”) del análisis es FALSO POSITIVO de su crawler: el HTML servido tiene UTF-8 correcto (62 emojis reales, 0 bytes corruptos, meta charset línea 5).
 - UX decision: registro/login debe pasar a segundo plano (guest-first), solo requerido al persistir ubicaciones/alertas.
+
+## OPERACIONES — Infraestructura (31 Jul 2026)
+- **Fuente de verdad unica**: GitHub `mcasrom/nearme-osint`. El servidor `deploy@178.105.80.193` edita el working tree (= produccion, nginx sirve desde `frontend/`), y ahora puede **pushear directo** con la deploy key write `~/.ssh/nearme-deploy-key` (host alias `github.com-nearme`).
+- Flujo: editar en el servidor → `git add -A && git commit && git push origin main`. El historial git del servidor fue reconciliado con origin (commit `c3139c8`); sin clones de desktop ni patches.
+- `deploy.sh` del repo es para despliegue desde el desktop (push + rsync); con el flujo servidor-directo ya no es necesario salvo para provisionar una maquina nueva.
+- Cron del servidor: `*/15` run.py (colectores), `*/10` gen-analytics.sh. `analytics/` es runtime y esta en `.gitignore`.
+- Otros repos con deploy keys write en este servidor: `intelligence-hub` (alias `github.com-ih`, key `~/.ssh/ih-deploy-key`). La vieja `github-data-removal` esta muerta (Permission denied); `ikm-deploy-key` sigue como read-only de `mcasrom/ikm`.
