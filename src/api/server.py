@@ -474,8 +474,8 @@ def pipeline_status():
 
 @app.get("/api/status/runs")
 def collector_runs(n: int = 50):
-    from src.metrics import PipelineMetrics
-    return {"runs": PipelineMetrics.get().last_n(n)}
+    from src.db import get_collector_runs
+    return {"runs": get_collector_runs(n)}
 
 
 @app.get("/api/metrics")

@@ -400,6 +400,21 @@ def get_collector_status() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_collector_runs(n: int = 50) -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT collector, success, latency_s, events, timestamp
+        FROM collector_runs
+        ORDER BY timestamp DESC, id DESC
+        LIMIT %s
+    """, (n,))
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    return [dict(r) for r in rows]
+
+
 def get_last_pipeline_run() -> dict | None:
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
