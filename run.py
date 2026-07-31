@@ -84,6 +84,21 @@ def register_collectors():
         COLLECTORS.append(EmbalsesCollector())
     except Exception as e:
         logger.warning("No se pudo cargar Embalses: %s", e)
+    try:
+        from src.collectors.ign import IGNSeismicCollector
+        COLLECTORS.append(IGNSeismicCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar IGN sismología: %s", e)
+    try:
+        from src.collectors.uv import UVCollector
+        COLLECTORS.append(UVCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar UV: %s", e)
+    try:
+        from src.collectors.energy import EnergyCollector
+        COLLECTORS.append(EnergyCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar Energía: %s", e)
 
 
 def run_all():

@@ -32,6 +32,7 @@ EVENT_TYPES = {
     "other": "Otro",
     "beach": "Playa",
     "weather": "Meteo",
+    "energy": "Energía eléctrica",
 }
 
 LEVELS = {"info": "info", "warning": "warning", "alert": "alert", "critical": "critical"}

@@ -143,7 +143,7 @@
 
 ---
 
-## 📊 Pipeline actual (~5.470 eventos/15min)
+## 📊 Pipeline actual (~6.000+ eventos/15min)
 ```
 OpenAQ:       ~  980  calidad del aire (6 parámetros, v3 API)
 NASA FIRMS:   ~2.018  incendios satélite España (MODIS+VIIRS)
@@ -151,12 +151,15 @@ DGT:          ~1.242  incidencias tráfico red estatal (DATEX II)
 RENFE:         ~  749  retrasos tren geolocalizados (GTFS-RT)
 MITECO:        ~  523  calidad del aire ICA (620 estaciones)
 AEMET:         ~  330  weather continuo + alertas (10.600 estaciones)
+IGN:           ~  227  sismología España (red 24/7, GeoJSON IGN)
+UV:             ~   52  índice UV máx (52 capitales + Ceuta/Melilla)
 Playas:        ~   37  bandera, oleaje, temp agua, medusas (Euskadi+Bizkaia)
 IntelHub:      ~   30  incendios RSS (24 fuentes)
 REE:           ~   21  demanda eléctrica alta
+Energía:         ~   2  demanda Real + precio PVPC hora actual (ESIOS)
 USGS:           ~    1  terremotos M2.5+ España (raros)
 ──────────────────────────────
-TOTAL:        ~5.470
+TOTAL:        ~6.000+
 ```
 
 ---
@@ -254,11 +257,32 @@ TOTAL:        ~5.470
 **Borrador primer comentario maker para PH:**
 > Hey PH! I'm a solo dev in Spain — built NearMe because I was tired of checking 5 different apps to know if there's a wildfire, a train delay, or a weather alert near me. It pulls from NASA FIRMS, USGS, AEMET, DGT, RENFE and more, normalizes everything into one event schema (severity levels, TTL expiry, freshness badges), and renders it as a PWA you can install offline. Built with async Python collectors → PostGIS → FastAPI → Leaflet, with a TTL-based event lifecycle that auto-expires stale data. Currently Spain-only because that's where the open data APIs I integrated live — but the pipeline is source-agnostic, so adding another country is mostly "write a new collector." Open source, feedback and contributions welcome.
 
+### Sprint 33 — Lanzamiento Product Hunt (31 Jul 2026)
+- [x] Publicado en Product Hunt (hunting ~09:01 Madrid / 00:01 PDT)
+- [x] Análisis de logs nginx post-lanzamiento: 23 visitas reales de 14 IPs, 5 con `?ref=producthunt`, bots Googlebot/Applebot
+- [x] Análisis del propio tráfico con **GoAccess** sobre logs nginx filtrados (NearMe + `/api/` + `/admin`)
+- [x] Reporte en `/analytics/` (basic auth) regenerado cada 10 min vía cron (`scripts/gen-analytics.sh`)
+- [x] `analytics/` excluido del rsync de deploy
+
+### Sprint 34 — Bugfix `/api/status/runs` (31 Jul 2026)
+- [x] Endpoint leía `PipelineMetrics` en memoria, pero el pipeline corre en proceso cron separado → siempre vacío
+- [x] Fix: `get_collector_runs(n)` en `src/db.py` lee `collector_runs` de PostgreSQL (1.329 runs)
+- [x] `/api/status/runs` sirve ahora desde DB (verificado con curl)
+- [x] Datos reales: USGS 19.5s, OpenAQ 14.0s, DGT 2.1s, AEMET 1.3s... por ejecución
+
+### Sprint 35 — Nuevas fuentes demandadas por usuarios (31 Jul 2026)
+- [x] Estudio de viabilidad: UV ✅, Terremotos IGN ✅, Energía ✅; descartados SAIH caudales, polen Palinocam, estado del mar (sin API JSON unificada)
+- [x] **IGN Sismología** (`src/collectors/ign`): GeoJSON `terremotos.js` (var dias3/10/30), red nacional 24/7, ~227 terremotos España (15 min)
+- [x] **Índice UV** (`src/collectors/uv`): Open-Meteo `uv_index_max` para 52 capitales + Ceuta/Melilla, escala OMS (60 min)
+- [x] **Energía** (`src/collectors/energy`): demanda REE tiempo real (serie "Real") + precio PVPC vía ESIOS `archives/70` (15 min)
+- [x] Config en `src/config.py`, registro en `run.py`, `event_type=energy` en `EVENT_TYPES`
+- [x] Frontend: TYPE_COLORS/ICONS/typeOrder/SOURCE_INTERVALS + tabla de fuentes 12→15 + narrativa actualizada
+
 ## 📖 Metodología
 
 ### Arquitectura
 ```
-[11 colectores async] → [Pipeline (asyncio.gather)] → [PostgreSQL+PostGIS] → [FastAPI] → [Frontend Leaflet]
+[14 colectores async] → [Pipeline (asyncio.gather)] → [PostgreSQL+PostGIS] → [FastAPI] → [Frontend Leaflet]
 ```
 Cada colector implementa `BaseCollector` con método `async collect()` que devuelve `list[Event]`. El pipeline ejecuta todos en paralelo cada ciclo (cron `*/15 * * * *`).
 
@@ -304,6 +328,9 @@ Si una fuente lleva >2 ciclos sin actualizar, aparece un banner de alerta en la 
 | REE | REST API | Sin clave | Peninsular | 15 min |
 | IntelHub | RSS/HTML | Sin clave | 24 fuentes, 9 países | 10 min |
 | Playas Euskadi | GeoJSON | Sin clave | País Vasco | 60 min |
+| IGN Sismología | GeoJSON (`terremotos.js`) | Sin clave | España (red 24/7) | 15 min |
+| Open-Meteo UV | REST API | Sin clave | 52 capitales + Ceuta/Melilla | 60 min |
+| ESIOS (REE) | REST API | Sin clave | Península (precio PVPC) | 15 min |
 
 ### Monitoreo y autochequeo
 El sistema cuenta con un subsistema de monitoreo basado en la tabla `collector_runs`:
@@ -365,7 +392,7 @@ El sistema cuenta con un subsistema de monitoreo basado en la tabla `collector_r
 ## 📁 Estructura
 ```
 nearme-osint/
-├── run.py                     # Pipeline orchestrator (11 colectores)
+├── run.py                     # Pipeline orchestrator (14 colectores)
 ├── src/
 │   ├── api/server.py          # FastAPI (frontend + API)
 │   ├── db.py                  # PostgreSQL/PostGIS con connection pooling
@@ -373,14 +400,19 @@ nearme-osint/
 │   ├── models.py              # Event dataclass + EVENT_TYPES
 │   └── collectors/
 │       ├── aemet/             # Meteorología (observaciones)
-│   ├── dgt/               # DGT tráfico DATEX II + USGS terremotos + NASA FIRMS
+│       ├── dgt/               # DGT tráfico DATEX II + USGS terremotos + NASA FIRMS
 │       ├── renfe/             # Retrasos tren (GTFS-RT + CSV)
 │       ├── ree/               # Demanda eléctrica
 │       ├── miteco/            # Calidad del aire (ICA)
 │       ├── openaq/            # Calidad del aire (fallback)
 │       ├── copernicus/        # Incendios (no funciona)
 │       ├── proteccion_civil/  # Avisos meteorológicos
-│       └── intelhub_bridge.py # Incendios RSS
+│       ├── intelhub_bridge.py # Incendios RSS
+│       ├── playas/            # Estado playas Euskadi
+│       ├── embalses/          # Nivel embalses (MITECO SAIH)
+│       ├── ign/               # Sismología IGN (red 24/7)
+│       ├── uv/                # Índice UV (Open-Meteo)
+│       └── energy/            # Demanda REE + precio PVPC (ESIOS)
 ├── frontend/                  # Leaflet + MarkerCluster + vanilla JS
 ├── deploy.sh                  # rsync + PM2
 ├── setup-server.sh            # Provisioning servidor

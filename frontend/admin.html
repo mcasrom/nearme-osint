@@ -162,7 +162,7 @@
             var okClass = c.last_success ? 'ok' : (c.last_success === false ? 'fail' : '');
             var badgeHtml = '<span class="badge ' + okClass + '">' + (c.last_success ? 'Ok' : c.last_success === false ? 'Error' : '—') + '</span>';
             var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
-            var interval = {nasa_firms:15,dgt:5,aemet:15,renfe:15,miteco:30,openaq:30,usgs:15,proteccion_civil:30,ree:15,intelhub:10,playas:60}[c.collector] || 60;
+            var interval = {nasa_firms:15,dgt:5,aemet:15,renfe:15,miteco:30,openaq:30,usgs:15,proteccion_civil:30,ree:15,intelhub:10,playas:60,embalses:30,ign:15,open_meteo:60,energy:15}[c.collector] || 60;
             var timeHtml = c.last_run ? timeAgo(c.last_run) : 'nunca';
             if (staleMins > interval * 2) timeHtml = '<span class="err">' + timeHtml + '</span>';
             return '<tr><td style="font-weight:600;">' + c.collector + '</td><td>' + timeHtml + '</td><td>' + badgeHtml + '</td><td>' + (c.last_events || 0) + '</td><td>' + (c.last_latency ? c.last_latency + 's' : '—') + '</td><td>' + (c.runs_24h || 0) + '</td><td>' + (c.successes_24h || 0) + '/' + (c.runs_24h || 0) + '</td><td>' + (c.events_24h || 0) + '</td></tr>';

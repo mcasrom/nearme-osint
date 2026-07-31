@@ -502,7 +502,7 @@
             <details>
                 <summary>📡 Fuentes de datos y metodologia</summary>
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
-                    <p>NearMe agrega <strong>12 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos. El estado 🟢🟡🔴 se actualiza cada 60s desde el servidor:</p>
+                    <p>NearMe agrega <strong>15 fuentes</strong> de datos publicos. Cada colector se ejecuta cada 5-60 minutos. El estado 🟢🟡🔴 se actualiza cada 60s desde el servidor:</p>
                     <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:8px 0;">
                         <tr style="color:#78909c;"><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Fuente</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Que aporta</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Cada</th><th style="text-align:center;padding:4px 6px;border-bottom:1px solid #1a2a4a;">Estado</th></tr>
                         <tr id="src-nasa_firms"><td style="padding:3px 6px;">NASA FIRMS</td><td style="padding:3px 6px;">🔥 Incendios satelite (MODIS+VIIRS)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
@@ -517,10 +517,13 @@
                         <tr id="src-intelhub"><td style="padding:3px 6px;">IntelHub</td><td style="padding:3px 6px;">📰 Noticias e incendios RSS (24 fuentes)</td><td style="padding:3px 6px;">10 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-playas"><td style="padding:3px 6px;">Playas Euskadi</td><td style="padding:3px 6px;">🏖️ Estado playas, bandera, oleaje</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-embalses"><td style="padding:3px 6px;">MITECO Embalses</td><td style="padding:3px 6px;">🌊 Nivel embalses (SAIH + MITECO)</td><td style="padding:3px 6px;">30 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-ign"><td style="padding:3px 6px;">IGN</td><td style="padding:3px 6px;">🏚️ Sismologia espanola (red 24/7)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-open_meteo"><td style="padding:3px 6px;">Open-Meteo</td><td style="padding:3px 6px;">☀️ Indice UV max (52 capitales)</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-energy"><td style="padding:3px 6px;">REE + ESIOS</td><td style="padding:3px 6px;">⚡ Demanda y precio electricidad (PVPC)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                     </table>
                     <div id="staleBanner" style="display:none;background:#2a0a0a;border:1px solid #5a1a1a;border-radius:6px;padding:6px 10px;font-size:0.85em;color:#ef5350;margin:6px 0;"></div>
-                    <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento se crea cuando la fuente lo reporta y expira segun su TTL (incendios 24h, clima 3h, trafico 12h, terremotos 48h...). Si la fuente deja de reportarlo, se marca como "resuelto" automaticamente en el siguiente ciclo.</p>
-                    <p><strong>Niveles:</strong> info (azul, datos normales) → warning (amarillo, precaucion) → alert (naranja, peligro) → critical (rojo, emergencia). El nivel lo asigna cada fuente segun umbrales: FRP en incendios, magnitud en terremotos, ICA en aire, temperatura en clima.</p>
+                    <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento se crea cuando la fuente lo reporta y expira segun su TTL (incendios 24h, clima 3h, trafico 12h, terremotos 48h, UV 24h, energia 3h...). Si la fuente deja de reportarlo, se marca como "resuelto" automaticamente en el siguiente ciclo.</p>
+                    <p><strong>Niveles:</strong> info (azul, datos normales) → warning (amarillo, precaucion) → alert (naranja, peligro) → critical (rojo, emergencia). El nivel lo asigna cada fuente segun umbrales: FRP en incendios, magnitud en terremotos, ICA en aire, indice UV en radiacion, €/MWh en energia, temperatura en clima.</p>
                     <p><strong>Frescura:</strong> Cada evento lleva un badge 🟢<30min 🟠<2h 🔴≥2h. El timestamp del servidor aparece en el pie del panel.</p>
                 </div>
             </details>
@@ -529,7 +532,7 @@
             <details>
                 <summary>Sobre NearMe OSINT</summary>
                 <div class="content">
-                    <p>Agregador de datos publicos geolocalizados en tiempo real. 11 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.</p>
+                    <p>Agregador de datos publicos geolocalizados en tiempo real. 15 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.</p>
                     <p><strong>Arquitectura:</strong> Colectores async (Python/httpx) → PostgreSQL+PostGIS → FastAPI → Leaflet (PWA). Pipeline cron cada 15 min con monitoreo persistente en <code>collector_runs</code>.</p>
                     <p><strong>Autor:</strong> El Mapa y El Codigo</p>
                     <p><strong>Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
@@ -599,6 +602,9 @@ const TYPE_COLORS = {
     other:        '#607d8b',
     weather:      '#4fc3f7',
     reservoir:    '#00bcd4',
+    radiation:    '#ab47bc',
+    pollen:       '#8bc34a',
+    energy:       '#fdd835',
 };
 
 const LEVEL_COLORS = {
@@ -630,6 +636,7 @@ const ICONS = {
     warning: "\u26A0\uFE0F", missing: "\uD83D\uDD0D", crime: "\uD83D\uDEA8", news: "\uD83D\uDCF0", other: "\uD83D\uDCCC",
     beach: "\uD83C\uDFD6\uFE0F", port_incident: "\u26F5", water_cut: "\uD83D\uDEB0", telecom: "\uD83D\uDCF6",
     radiation: "\u2622\uFE0F", pollen: "\uD83C\uDF3C", reservoir: "\uD83C\uDF0A",
+    energy: "\u26A1", 
     weather: "\uD83C\uDF21\uFE0F",
 };
 
@@ -638,6 +645,24 @@ const HEAT_COLORS = ['#ffff00', '#ffaa00', '#ff5500', '#ff0000', '#cc0000', '#88
 const SOURCE_INTERVALS = {
     nasa_firms: 15, dgt: 5, aemet: 15, renfe: 15, miteco: 30,
     openaq: 30, usgs: 15, proteccion_civil: 30, ree: 15, intelhub: 10, playas: 60, embalses: 30,
+    ign: 15, open_meteo: 60, energy: 15,
+};
+
+const COLLECTOR_TO_ID = {
+    'AEMET': 'aemet',
+    'USGS + FIRMS': 'usgs',
+    'DGT-Tráfico': 'dgt',
+    'RENFE': 'renfe',
+    'MITECO-CalidadAire': 'miteco',
+    'OpenAQ': 'openaq',
+    'ProtecciónCivil': 'proteccion_civil',
+    'REE': 'ree',
+    'Intelligence Hub (incendios)': 'intelhub',
+    'Playas': 'playas',
+    'Embalses (MITECO/SAIH)': 'embalses',
+    'IGN (sismología)': 'ign',
+    'UV (Open-Meteo)': 'open_meteo',
+    'Energía (REE + ESIOS)': 'energy',
 };
 
 function timeAgo(isoStr) {
@@ -658,11 +683,12 @@ async function refreshSourceStatus() {
         const data = await resp.json();
         updateHealthBar(data);
         (data.collectors || []).forEach(function(c) {
-            var tr = document.getElementById('src-' + c.collector);
+            var id = COLLECTOR_TO_ID[c.collector] || c.collector;
+            var tr = document.getElementById('src-' + id);
             if (!tr) return;
             var td = tr.querySelector('.src-status');
             if (!td) return;
-            var interval = SOURCE_INTERVALS[c.collector] || 60;
+            var interval = SOURCE_INTERVALS[id] || 60;
             var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
             var isStale = staleMins > interval * 2;
             var dotColor = isStale ? '#f44336' : (c.last_success ? '#4caf50' : '#ff9800');
@@ -683,7 +709,8 @@ function updateHealthBar(data) {
     var stale = 0;
     var errors = 0;
     collectors.forEach(function(c) {
-        var interval = SOURCE_INTERVALS[c.collector] || 60;
+        var id = COLLECTOR_TO_ID[c.collector] || c.collector;
+        var interval = SOURCE_INTERVALS[id] || 60;
         var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
         var isStale = staleMins > interval * 2;
         if (!c.last_success) errors++;
@@ -1237,7 +1264,7 @@ function renderStats(events) {
     const byType = {};
     const alerts = events.filter(e => e.level === 'critical' || e.level === 'alert');
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','reservoir','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> 🚨</div>` : '';
     stats.innerHTML = activeTypes.map(t => {
@@ -1251,7 +1278,7 @@ function renderLegend(events) {
     const legend = document.getElementById('legend');
     const byType = {};
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','warning','road_incident','reservoir','other'];
+    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     legend.innerHTML = activeTypes.map(t => {
         const color = TYPE_COLORS[t] || '#607d8b';

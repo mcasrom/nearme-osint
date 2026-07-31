@@ -213,6 +213,42 @@ PLAYAS_REQUEST_TIMEOUT = 20
 PLAYAS_BEACH_RADIUS_M = 500
 
 
+# ── IGN Sismología ───────────────────────────────────────────
+IGN_EARTHQUAKE_URL = "https://www.ign.es/web/resources/sismologia/tproximos/terremotos.js"
+IGN_INTERVAL_MINUTES = 15
+IGN_REQUEST_TIMEOUT = 20
+IGN_TTL_HOURS = 48
+IGN_BBOX = {"min_lat": 27.0, "max_lat": 44.5, "min_lon": -19.0, "max_lon": 4.5}
+IGN_MAG_ALERT = 5.0
+IGN_MAG_WARNING = 3.0
+IGN_EARTHQUAKE_RADIUS_M = 15000
+IGN_MAX_AGE_DAYS = 7
+
+
+# ── Open-Meteo (Índice UV) ───────────────────────────────────
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_INTERVAL_MINUTES = 60
+OPEN_METEO_REQUEST_TIMEOUT = 20
+OPEN_METEO_TTL_HOURS = 24
+OPEN_METEO_UV_CRITICAL = 11.0
+OPEN_METEO_UV_ALERT = 8.0
+OPEN_METEO_UV_WARNING = 6.0
+OPEN_METEO_UV_RADIUS_M = 50000
+
+
+# ── Energía (REE demanda + precios PVPC) ─────────────────────
+ENERGY_PRICE_URL = "https://api.esios.ree.es/archives/70/download_json"
+ENERGY_INTERVAL_MINUTES = 15
+ENERGY_REQUEST_TIMEOUT = 20
+ENERGY_TTL_HOURS = 3
+ENERGY_PRICE_ALERT_EUR_MWH = 150
+ENERGY_PRICE_WARNING_EUR_MWH = 100
+ENERGY_RADIUS_M = 100000
+ENERGY_DEFAULT_LAT = 40.4168
+ENERGY_DEFAULT_LON = -3.7038
+ENERGY_USER_AGENT = "NearMeOSINT/1.0"
+
+
 # ── Event Status & TTL ───────────────────────────────────────
 EVENT_STATUS_ACTIVE = "active"
 EVENT_STATUS_RESOLVED = "resolved"
@@ -237,6 +273,9 @@ DEFAULT_TTL_HOURS = {
     "water_cut": 24,
     "weather": 3,
     "reservoir": 6,
+    "radiation": 24,
+    "pollen": 24,
+    "energy": 3,
 }
 
 DEFAULT_TTL_FALLBACK_HOURS = 72
