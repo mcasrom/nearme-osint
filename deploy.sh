@@ -65,6 +65,7 @@ rsync -avz --delete \
     --exclude '*.pyc' \
     --exclude 'data/' \
     --exclude 'logs/' \
+    --exclude 'analytics/' \
     --exclude '.env' \
     ./ $SERVER:$REMOTE_DIR/
 
