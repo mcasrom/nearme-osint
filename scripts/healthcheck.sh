@@ -7,7 +7,8 @@ set -e
 HEALTH_URL="https://nearme.viajeinteligencia.com/health"
 CURL_TIMEOUT=10
 MAX_AGE_SECONDS=2700  # 45 min (colectores corren cada 15 min)
-CDIR="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CDIR="$(cd "$SCRIPT_DIR" && git rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR/..")"
 [ -f "$CDIR/.env" ] && source "$CDIR/.env"
 STATE_FILE="$CDIR/logs/healthcheck.state"
 mkdir -p "$CDIR/logs"
@@ -16,11 +17,13 @@ telegram_send() {
     if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
         return 0
     fi
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    if ! curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         -d "chat_id=${TELEGRAM_CHAT_ID}" \
         -d "text=$1" \
         -d "disable_web_page_preview=true" \
-        --max-time 10 > /dev/null 2>&1
+        --max-time 10 > /dev/null 2>&1; then
+        echo "[$(date -u +%FT%TZ)] [WARN] telegram_send fallo (el script continua)" >&2
+    fi
 }
 
 prev_state=$(cat "$STATE_FILE" 2>/dev/null || echo "up")
