@@ -74,7 +74,7 @@ sudo ln -sf /etc/nginx/sites-available/nearme /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
 # SSL
-sudo certbot --nginx -d nearme.viajeinteligencia.com --non-interactive --agree-tos --email news@viajeinteligencia.com 2>/dev/null || echo "SSL already configured"
+sudo certbot --nginx -d nearme.viajeinteligencia.com --non-interactive --agree-tos --email nearme@viajeinteligencia.com 2>/dev/null || echo "SSL already configured"
 
 # UFW
 sudo ufw allow 80/tcp 2>/dev/null || true

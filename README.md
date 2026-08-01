@@ -213,7 +213,7 @@ Hecho por un desarrollador independiente en España. Si te resulta útil:
 - ☕ [Invita un café en Ko-fi](https://ko-fi.com/elmapayelcodigo)
 - 📤 Comparte el mapa con quien pueda necesitarlo
 
-**Contacto**: [news@viajeinteligencia.com](mailto:news@viajeinteligencia.com)
+**Contacto**: [nearme@viajeinteligencia.com](mailto:nearme@viajeinteligencia.com)
 
 ## 📄 Licencia
 
