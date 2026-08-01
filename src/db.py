@@ -203,7 +203,7 @@ def save_event(event: Event) -> int:
             geom = EXCLUDED.geom,
             created_at = events.created_at,
             updated_at = NOW(),
-            expires_at = events.expires_at
+            expires_at = EXCLUDED.expires_at
     """, row)
     event_id = cur.fetchone()[0]
     conn.commit()
@@ -241,7 +241,7 @@ def save_events_batch(events: list[Event]) -> int:
                     geom = EXCLUDED.geom,
                     created_at = events.created_at,
                     updated_at = NOW(),
-                    expires_at = events.expires_at
+                    expires_at = EXCLUDED.expires_at
             """, row)
             saved += 1
         except Exception as e:
@@ -267,7 +267,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
         min_lvl = levels.get(min_level, 1)
         conditions.append("CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END >= %s")
         cond_params.append(min_lvl)
-    conditions.append("(expires_at IS NULL OR expires_at > NOW())")
+    conditions.append("(expires_at > NOW() OR (expires_at IS NULL AND updated_at > NOW() - INTERVAL '2 hours'))")
     conditions.append("status != %s")
     cond_params.append(EVENT_STATUS_RESOLVED)
     where = " AND ".join(conditions)

@@ -453,6 +453,14 @@ NOTAS de verificación:
 - El "bug crítico de encoding" (mojibake â/ðŸ”) del análisis es FALSO POSITIVO de su crawler: el HTML servido tiene UTF-8 correcto (62 emojis reales, 0 bytes corruptos, meta charset línea 5).
 - UX decision: registro/login debe pasar a segundo plano (guest-first), solo requerido al persistir ubicaciones/alertas.
 
+### Sprint 37d — Fix datos obsoletos / feed DGT (1 Ago 2026)
+- **Problema reportado**: incidencias DGT del 28JUL (vehicleObstruction RM-C19, A-30 Ulea, etc.) visibles dias despues. Innumerables eventos obsoletos.
+- **Causa raiz 1 (datos eternos)**: 4.761 eventos activos con `expires_at NULL` (dgt 2905, miteco 1450, aemet 406), todos sin actualizar >24h. La consulta `(expires_at IS NULL OR expires_at > NOW())` los mostraba para siempre. El upsert usaba `expires_at = events.expires_at` (mantenia el NULL original) e ignoraba el TTL calculado.
+  - **Fix**: `src/db.py` upsert -> `expires_at = EXCLUDED.expires_at` (2 sitios: `save_event`, `save_events_batch`); consulta endurecida -> `(expires_at > NOW() OR (expires_at IS NULL AND updated_at > NOW() - INTERVAL '2 hours'))`. Nuevo `scripts/backfill_expiry.py` que asigna `expires_at = updated_at + TTL(event_type)` a los NULLs y limpia expirados. Ejecutado: 4.761 asignados, 4.941 borrados.
+- **Causa raiz 2 (DGT sin datos actuales)**: el feed `datex2_v36.xml` devuelve HTTP 301 hacia `datex2_v37.xml` y el colector NO seguia redirects (httpx sin `follow_redirects`) -> 0 incidencias desde hacia dias, los eventos viejos quedaban huérfanos.
+  - **Fix**: `src/config.py` y `src/collectors/dgt/__init__.py` -> URL v37 + `follow_redirects=True`. El parser v36 es compatible con v37 (mismos prefijos sit/com/loc/lse). Verificado: 726 incidencias parseadas (203 vehicleObstruction), 662 activas en DB con created_at de HOY.
+- **Verificado**: `/api/nearby` Murcia -> 42 dgt actuales (0 viejos), evento RM-C19 eliminado, 0 NULLs activos globales. Ley aplicada: ningun evento sin expiracion puede vivir mas que su TTL desde su ultima confirmacion.
+
 ## OPERACIONES — Infraestructura (31 Jul 2026)
 - **Fuente de verdad unica**: GitHub `mcasrom/nearme-osint`. El servidor `deploy@178.105.80.193` edita el working tree (= produccion, nginx sirve desde `frontend/`), y ahora puede **pushear directo** con la deploy key write `~/.ssh/nearme-deploy-key` (host alias `github.com-nearme`).
 - Flujo: editar en el servidor → `git add -A && git commit && git push origin main`. El historial git del servidor fue reconciliado con origin (commit `c3139c8`); sin clones de desktop ni patches.

@@ -94,7 +94,7 @@ FIRMS_FIRE_RADIUS_M = 1500
 
 
 # ── DGT Traffic ──────────────────────────────────────────────
-DGT_DATEX_URL = "https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v36.xml"
+DGT_DATEX_URL = "https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml"
 DGT_INTERVAL_MINUTES = 5
 DGT_REQUEST_TIMEOUT = 30
 DGT_ROAD_RADIUS_M = 2000

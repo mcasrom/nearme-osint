@@ -17,7 +17,7 @@ FIRMS_SOURCES = [
 
 SPAIN_BBOX = {"min_lat": 27.5, "max_lat": 44.0, "min_lon": -18.5, "max_lon": 4.5}
 
-DATEX_URL = "https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v36.xml"
+DATEX_URL = "https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml"
 
 DGT_TYPE_MAP = {
     "sit:RoadOrCarriagewayOrLaneManagement": "road_closure",
@@ -197,7 +197,7 @@ class DGTTrafficCollector(BaseCollector):
     async def collect(self):
         events = []
         try:
-            async with httpx.AsyncClient(timeout=30, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
                 resp = await client.get(DATEX_URL)
             if resp.status_code != 200:
                 logger.warning("DGT DATEX II: HTTP %s", resp.status_code)
