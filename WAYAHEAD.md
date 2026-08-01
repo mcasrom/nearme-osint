@@ -483,6 +483,42 @@ NOTAS de verificación:
 - **Ops**: `pywebpush` añadido a `requirements.txt`; `init_db()` ejecutado en Postgres (tablas push creadas); cron instalado: `*/5 * * * * cd /home/deploy/nearme-osint && venv/bin/python scripts/send_push_alerts.py >> logs/push.log 2>&1`; CHANGELOG v0.11. Residuo `nearme.db` (sqlite 0 B) sacado del repo.
 - Commit: `0e744ea`.
 
+## Research 37j — Features demandadas y tendencias en RRSS para mapas OSINT de incidencias (web 2026)
+Ronda de investigacion sobre lo que piden los usuarios y hacia donde va la categoria "mapas de incidencias/OSINT en tiempo real". Senales de Reddit (r/OSINT), Product Hunt, prensa (Xataka, Cinco Dias, Infobae) y competidores open-source con traccion en 2026.
+
+### Competidores / senales del mercado (2026)
+- **OSIRIS** (osirislive.app, open-source): capas multi-dominio (aviation, maritime, CCTV, seismic, fire, weather, space, cyber, conflict) con toggle independiente; renderizado GPU/WebGL (60fps con miles de entidades); carga lazy por viewport (-75% peticiones); recon toolkit (DNS, WHOIS, SSL, CVE); 25+ streams de noticias en el mapa; atajos de teclado; self-hostable y sin API keys en lo basico.
+- **ShadowBroker** (open-source, Next.js+FastAPI): 15+ fuentes en un mapa oscuro unificado (ADS-B, AIS, satelites, USGS, ACLED, CCTV, spoofing GPS, geopolitica). Cobertura en prensa espanola 2026 (Ecosistema Startup, Descubre.ai, AdminSistemas). "Desplegar sin codigo" como argumento.
+- **Map Alerts** (iOS/Android, mapalerts.org): canales publicos de **Telegram geolocalizados en un mapa** ("Telegram on a map"). Nicho: analistas OSINT, defensa civil, trafico y clima. TENDENCIA CLAVE: Telegram/WhatsApp como canal de distribucion de avisos, no solo push del navegador.
+- **Real-Time Alert** (app de seguridad): reportes comunitarios geolocalizados (activos 3h, notifican a <300 ft); **AI-verified** para reducir falsos positivos; confidence score 0-100 (a estrenar otono 2026); safe zones (hasta 6); "Mark Me Safe" (avisa a 10 contactos en 1 tap); safety analytics por barrio (0-100); export PDF/CSV; ruta "Navigate Safely". Lema: "Built for real threats, not false alarms".
+- **Radarix / SituationRoom / MonitorTheSituation**: crisis maps en vivo (aeronaves, barcos, NOTAMs, ciber, cortes de internet, video en directo).
+- **Felt** (GIS cloud): Felt AI + MCP server, export GeoJSON/GeoPackage/GeoTIFF, embed de mapas, Field App movil.
+- **Caso espanol ciudadano**: la prensa generalista engancha mucho con "mapa DGT en vivo" (Xataka 17-jul, Cinco Dias 13-jul, Infobae con borrascas) y AEMET. Uso que pide el publico: "mira tu ruta antes de salir" y avisos por carretera concreta.
+
+### Demandas explicitas de usuarios (r/OSINT 2025-26 + informes 2026)
+1. **Verificacion y ruido**: distinguir contenido real vs AI-generado; reducir falsos positivos; confidence score (valida nuestro `event_confidence` de 37f).
+2. **Correlacion entre plataformas** y supervivencia de datos historicos (anti-scraping, borrados, retencion) -> archivado/historial/playback.
+3. **Sobrecarga de informacion** -> filtros, IA asistida, resumenes.
+4. **Canales sociales**: Telegram/WhatsApp bots como canal de avisos; comunidades (Reddit) como motor de adopcion.
+5. **Capas multi-dominio** activables y rendimiento con miles de markers (GPU/lazy).
+6. **Open-source + self-hostable** como diferenciador de confianza.
+
+### Backlog propuesto para NearMe (priorizado)
+Corto plazo / alta demanda (quick wins con la infra actual):
+- [ ] **Alertas por Telegram al usuario**: `@nearme_status_bot` + bot `/nearme start` vincula el chat del usuario; cuando una alerta coincide, el bot le escribe (reutilizar `telegram_send` de healthcheck). Complementa el Web Push con el canal mas demandado.
+- [ ] **Reportes ciudadanos** (crowdsourcing): reportar incidencia geolocalizada (foto opcional), ventana activa ~3h, capa separada con su propia fuente; diferenciador "AI-verified" si se anade confianza.
+- [ ] **Rutas afectadas / alerta en ruta**: linea entre ubicaciones guardadas + radio; avisar si un evento corta la ruta (PostGIS lo soporta). Matchea el uso espanol "mira tu ruta antes de salir" (DGT).
+- [ ] **Export CSV / PDF / GeoJSON** de la lista de eventos de una zona.
+- [ ] **Widget embed + URLs compartibles** (iframe) — demanda de Felt/PH y util para prensa.
+Medio plazo:
+- [ ] **Timeline/playback** (backlog 37e): "historial hasta 1 ano" y "track patterns" son demandas explicitas.
+- [ ] **Score de riesgo por zona** (37e) — Real-Time Alert lo monetiza como safety analytics.
+- [ ] **Quiet hours / dedup configurable** y radio/ventana temporal por alerta.
+- [ ] **Capas extra opcionales**: CCTV publico, sismico en vivo (ya tenemos IGN), streams de video.
+Largo plazo / estrategico:
+- [ ] Resumen IA por zona/incidencia (verificacion asistida), archivo historico, colaboracion/comentarios.
+- **Nota de posicionamiento**: la categoria valora "open-source + self-hostable + verified/no-false-alarms + Telegram". NearMe ya tiene 15 fuentes + confidence + Web Push; el gap mas visible vs competencia es Telegram y reportes ciudadanos.
+
 ## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
 - **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.
 - **Confidence score (0-100)**: `event_confidence()` en db.py = fiabilidad base de la fuente (SOURCE_CONFIDENCE en config.py: dgt/renfe/aemet/ign 92-95, satelites 85-90, intelhub 60) x factor de frescura de updated_at. Expuesto en /api/nearby como campo `confidence` por evento; badge "✓ NN%" en las cards del sidebar y en los popups de los marcadores.
