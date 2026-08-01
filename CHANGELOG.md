@@ -3,6 +3,11 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.12.2 — 1 Ago 2026 (ops: Telegram IPv4 + monitor)
+
+- **Fix timeouts Telegram**: python/requests resolvia api.telegram.org a IPv6 y la ruta IPv6 es inestable -> el bot y el envio de alertas agotaban los 30 s ("Read timed out", 4 episodios ~15:00 UTC). Forzado IPv4 via `urllib3.util.connection.allowed_gai_family = AF_INET` en `telegram_bot.py` y `send_push_alerts.py`. Verificado: getMe 0.10 s (antes 24.25 s por defecto).
+- **Monitor**: `scripts/check_telegram_api.py` (3 peticiones, TTFB a logs/telegram_api.log) + cron cada 5 min.
+
 ## v0.12.1 — 1 Ago 2026 (fix 37l)
 
 - **Fix retrasos RENFE stale**: el feed RENFE de larga distancia sigue sirviendo trip_updates de la fecha de servicio anterior; NearMe los pintaba como activos con dato de ayer (p.ej. `Trip: 0514022026-07-31`). El colector ahora descarta retrasos cuya fecha de servicio no sea hoy (Europe/Madrid). Limpieza de 39 eventos stale de alta velocidad.

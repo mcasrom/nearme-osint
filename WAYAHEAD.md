@@ -528,6 +528,12 @@ Largo plazo / estrategico:
 - **Verificacion E2E (Playwright headless)**: registro->modal->generar codigo->consumo via `process_update` (chat real del admin)->recarga->"Enlazado a mcasrom"->desvincular->vuelve el boton. Envio real de alerta a Telegram verificado (`tg_grupos=1`, mensaje recibido en el chat 47652516). Datos de test limpiados (usuarios tgtest*/uitest*).
 - **Ops**: proceso PM2 `telegram-bot` arrancado y guardado (`pm2 save`); CHANGELOG v0.12.
 
+## Ops 37m — Telegram IPv4 + monitor de latencia (1 Ago 2026)
+- **Problema**: 4 timeouts del bot contra api.telegram.org (14:58-15:07 UTC). Diagnostico: DNS resuelve IPv6 (`2001:67c:4e8:f004::9`), ruta IPv6 inestable, `requests` la intenta primero -> 24.25 s (agota timeout 30). curl (v4+v6) iba bien; forzar IPv4 -> 0.23 s.
+- **Fix**: `urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET` al inicio de `telegram_bot.py` y `send_push_alerts.py`. Bot reiniciado (getMe 0.10 s).
+- **Monitor**: `scripts/check_telegram_api.py` (3 peticiones, log a `logs/telegram_api.log`) + cron `*/5`. Salud inicial: OK avg_ttfb=0.21s.
+- Commit: `TBD`.
+
 ## Fix 37l — RENFE alta velocidad: filtrar retrasos por fecha de servicio (1 Ago 2026)
 - **Problema**: avisos "vivos" pero con dato de ayer (usuario: "¿está actualizado? parece del hace días"). El feed `trip_updates_LD.pb` de RENFE sirve trip_updates de la fecha de servicio anterior (observado 14:40 UTC: 173 de 250 con fecha 07-31; 37 con retraso >5 min, p.ej. `Trip: 0514022026-07-31` +30 min en CUENCA-FERNANDO ZÓBEL). El colector ingería todo retraso >=10 min sin mirar la fecha -> re-creaba/reactualizaba retrasos de trenes de ayer cada ciclo 15 min (updated_at reciente -> confianza 94% enganosa).
 - **Fix** (`src/collectors/renfe/__init__.py`): en el feed LD se extrae la fecha de servicio del trip_id (sufijo `YYYY-MM-DD`) y se descartan los que no correspondan a hoy (Europe/Madrid). Cercanias no lleva fecha en el trip_id (intacto). Verificado contra feed live: 18 retrasos LD y 0 con fecha != hoy.

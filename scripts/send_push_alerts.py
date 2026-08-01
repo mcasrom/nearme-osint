@@ -14,6 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+import socket
+import urllib3.util.connection
+urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET
+
+
 load_dotenv(os.path.join(Path(__file__).parent.parent, ".env"), override=True)
 
 import requests

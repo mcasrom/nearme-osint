@@ -11,8 +11,11 @@ hace sendMessage, por lo que no hay conflicto con getUpdates (offset propio).
 """
 import html
 import os
+import socket
 import sys
 import time
+import urllib3.util.connection
+urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET
 from datetime import datetime, timezone
 from pathlib import Path
 
