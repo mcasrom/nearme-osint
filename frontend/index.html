@@ -185,6 +185,14 @@
             font-size: 1.1em; z-index: 10;
         }
         .dark-toggle:hover { border-color: #00d4ff; }
+        .lang-toggle {
+            position: absolute; top: 16px; right: 58px; cursor: pointer;
+            background: #111827; border: 1px solid #1a2a4a; border-radius: 8px;
+            padding: 4px 9px; font-size: 0.72em; font-weight: 700; color: #00d4ff;
+            line-height: 1.2; z-index: 10; user-select: none;
+        }
+        .lang-toggle:hover { border-color: #00d4ff; }
+        body.light .lang-toggle { background: #f5f7fa; }
         .share-btn {
             position: absolute; top: 16px; right: 58px; cursor: pointer;
             background: #111827; border: 1px solid #1a2a4a; border-radius: 50%;
@@ -460,28 +468,29 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
     <div id="sidebar">
         <div style="position:relative;">
             <h1>NearMe OSINT</h1>
-            <div class="sub">Que pasa a tu alrededor</div>
+            <div class="sub" data-i18n="tagline">Que pasa a tu alrededor</div>
             <div class="share-btn" onclick="toggleShareMenu(event)" id="shareBtn" title="Compartir">📤</div>
             <div class="dark-toggle" onclick="toggleDark()" id="darkToggle" title="Modo claro/oscuro">🌙</div>
+            <div class="lang-toggle" onclick="toggleLang()" id="langToggle" title="Idioma / Language">ES</div>
         </div>
         <div class="share-popup" id="sharePopup"></div>
 
         <div class="health-bar" id="healthBar">
             <span class="health-dot" id="healthDot"></span>
-            <span class="health-text" id="healthText">Cargando estado...</span>
+            <span class="health-text" id="healthText" data-i18n="health_loading">Cargando estado...</span>
             <span class="health-pct" id="healthPct"></span>
         </div>
 
         <div class="search-box">
-            <input type="text" id="search-input" placeholder="Buscar ciudad, direccion..." onkeydown="if(event.key==='Enter')searchLocation()" />
+            <input type="text" id="search-input" placeholder="Buscar ciudad, direccion..." data-i18n="search_ph" data-i18n-ph="1" onkeydown="if(event.key==='Enter')searchLocation()" />
             <button onclick="searchLocation()" title="Buscar">&#128269;</button>
         </div>
-        <div class="location-hint">Escribe una ubicacion o haz clic en el mapa para fijar tu punto</div>
+        <div class="location-hint" data-i18n="loc_hint">Escribe una ubicacion o haz clic en el mapa para fijar tu punto</div>
 
         <div class="coords-display" id="coords-display">40.42, -3.70</div>
 
         <div class="auth-bar" id="authBar">
-            <button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro</button>
+            <button class="btn-login-bar" onclick="showAuthModal()" data-i18n="login">🔐 Iniciar sesion / Registro</button>
         </div>
 
         <div id="savedLocationsBar" style="display:none;margin-bottom:8px;">
@@ -489,19 +498,19 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
                 <select id="locSelect" style="flex:1;background:#111827;border:1px solid #1a2a4a;border-radius:6px;color:#d0dbe8;padding:6px 8px;font-size:0.78em;cursor:pointer;outline:none;" onchange="jumpToLocation(this.value)">
                     <option value="">— Ubicaciones guardadas —</option>
                 </select>
-                <button class="btn-sm btn-outline" onclick="saveCurrentLocation()" style="font-size:0.7em;padding:4px 10px;flex-shrink:0;" title="Guardar ubicacion actual">📌 Guardar</button>
+                <button class="btn-sm btn-outline" onclick="saveCurrentLocation()" style="font-size:0.7em;padding:4px 10px;flex-shrink:0;" title="Guardar ubicacion actual" data-i18n="save">📌 Guardar</button>
             </div>
         </div>
 
         <div style="display:flex;gap:6px;margin-bottom:12px;">
-            <button class="btn btn-sm" onclick="locate()" style="flex:1;background:#111827;color:#607d8b;border:1px solid #1a2a4a;" title="Usar mi ubicacion">GPS</button>
+            <button class="btn btn-sm" onclick="locate()" style="flex:1;background:#111827;color:#607d8b;border:1px solid #1a2a4a;" title="Usar mi ubicacion" data-i18n-title="gps">GPS</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(50)" id="r50" style="flex:1;">50 km</button>
             <button class="btn btn-sm" onclick="setRadius(200)" id="r200" style="flex:1;">200 km</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(500)" id="r500" style="flex:1;">500 km</button>
         </div>
 
         <div style="display:flex;gap:6px;margin-bottom:12px;">
-            <button class="btn btn-sm btn-heat" onclick="toggleHeatmap()" id="heatBtn" style="flex:1;">Mapa de calor</button>
+            <button class="btn btn-sm btn-heat" onclick="toggleHeatmap()" id="heatBtn" style="flex:1;" data-i18n="heat">Mapa de calor</button>
             <button class="btn btn-sm btn-outline" onclick="showOnboarding()" style="flex:1;" id="helpBtn">Ayuda</button>
             <button class="btn btn-sm btn-outline" onclick="showAlertModal()" style="flex:1;position:relative;" id="alertBtn">Alertas</button>
         </div>
@@ -523,7 +532,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <div id="dayBody" style="margin-top:6px;"></div>
         </div>
         <div class="legend" id="legend"></div>
-        <div id="events"><div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div></div>
+        <div id="events"><div class="loading"><span class="loading-spinner"></span><span data-i18n="loading_events">Cargando eventos...</span></div></div>
 
         <div class="info-section">
             <details>
@@ -573,15 +582,15 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
         </div>
         <div class="info-section">
             <details>
-                <summary>Sobre NearMe OSINT</summary>
+                <summary data-i18n="about_title">Sobre NearMe OSINT</summary>
                 <div class="content">
-                    <p>Agregador de datos publicos geolocalizados en tiempo real. 15 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.</p>
-                    <p><strong>Arquitectura:</strong> Colectores async (Python/httpx) → PostgreSQL+PostGIS → FastAPI → Leaflet (PWA). Pipeline cron cada 15 min con monitoreo persistente en <code>collector_runs</code>.</p>
-                    <p><strong>Autor:</strong> mcasrom (<a href="https://github.com/mcasrom" style="color:#4fc3f7;" target="_blank" rel="noopener">github.com/mcasrom</a>)</p>
-                    <p><strong>Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
-                    <p><strong>Codigo:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
-                    <p><strong>Privacidad:</strong> Sin analytics, sin tracking, sin publicidad. No compartimos datos. <a href="#" onclick="event.preventDefault();showPrivacy()" style="color:#4fc3f7;">Detalles</a></p>
-                    <p><strong>Apoyar:</strong> <a href="https://ko-fi.com/m_castillo" style="color:#ff6d00;" target="_blank">☕ ko-fi.com/m_castillo</a></p>
+                    <p data-i18n="about_desc">Agregador de datos publicos geolocalizados en tiempo real. 15 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.</p>
+                    <p data-i18n="about_arch"><strong>Arquitectura:</strong> Colectores async (Python/httpx) → PostgreSQL+PostGIS → FastAPI → Leaflet (PWA). Pipeline cron cada 15 min con monitoreo persistente en <code>collector_runs</code>.</p>
+                    <p><strong data-i18n="about_author">Autor:</strong> mcasrom (<a href="https://github.com/mcasrom" style="color:#4fc3f7;" target="_blank" rel="noopener">github.com/mcasrom</a>)</p>
+                    <p><strong data-i18n="about_contact">Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
+                    <p><strong data-i18n="about_code">Codigo:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
+                    <p><strong data-i18n="about_privacy">Privacidad:</strong> Sin analytics, sin tracking, sin publicidad. No compartimos datos. <a href="#" onclick="event.preventDefault();showPrivacy()" style="color:#4fc3f7;">Detalles</a></p>
+                    <p><strong data-i18n="about_support">Apoyar:</strong> <a href="https://ko-fi.com/m_castillo" style="color:#ff6d00;" target="_blank">☕ ko-fi.com/m_castillo</a></p>
                     <p style="margin-top:8px;"><strong>📱 PWA — Instalar como app</strong></p>
                     <p>Añade NearMe a tu pantalla de inicio. Funciona offline con datos cacheados, sin navegador visible, con auto-refresh cada 5 minutos y alertas push.</p>
                     <p>Chrome/Android: icono de instalar en la barra de direcciones. iOS: Compartir → Añadir a pantalla de inicio.</p>
@@ -1149,11 +1158,11 @@ function toggleHeatmap() {
         map.removeLayer(heatmapLayer);
         heatmapLayer = null;
         btn.className = 'btn btn-sm btn-heat';
-        btn.textContent = 'Mapa de calor';
+        btn.textContent = I18N[currentLang()].heat;
     } else {
         loadEventsWithHeatmap();
         btn.className = 'btn btn-sm btn-heat active';
-        btn.textContent = 'Desactivar calor';
+        btn.textContent = I18N[currentLang()].heat_on;
     }
 }
 
@@ -1177,7 +1186,7 @@ function loadEventsWithHeatmap() {
         if (heatData.length === 0) {
             const btn = document.getElementById('heatBtn');
             btn.className = 'btn btn-sm btn-heat';
-            btn.textContent = 'Mapa de calor';
+            btn.textContent = I18N[currentLang()].heat;
             alert('No hay eventos en esta zona para el mapa de calor');
             return;
         }
@@ -1188,20 +1197,20 @@ function loadEventsWithHeatmap() {
         }).addTo(map);
         const btn = document.getElementById('heatBtn');
         btn.className = 'btn btn-sm btn-heat active';
-        btn.textContent = 'Desactivar calor';
+        btn.textContent = I18N[currentLang()].heat_on;
     };
     if (allEvents && allEvents.length) { build(allEvents); return; }
     const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=1000`;
     fetch(url).then(r => r.json()).then(data => build(data.events || [])).catch(() => {
         const btn = document.getElementById('heatBtn');
         btn.className = 'btn btn-sm btn-heat';
-        btn.textContent = 'Mapa de calor';
+        btn.textContent = I18N[currentLang()].heat;
         alert('No se pudieron cargar eventos para el mapa de calor');
     });
 }
 
 async function loadEvents() {
-    document.getElementById('events').innerHTML = '<div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div>';
+    document.getElementById('events').innerHTML = '<div class="loading"><span class="loading-spinner"></span>' + I18N[currentLang()].loading_events + '</div>';
     document.getElementById('stats').innerHTML = '';
     document.getElementById('legend').innerHTML = '';
     document.getElementById('filtersBody').innerHTML = '';
@@ -1210,7 +1219,7 @@ async function loadEvents() {
     document.getElementById('filtersBody').classList.remove('open');
     if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
     document.getElementById('heatBtn').className = 'btn btn-sm btn-heat';
-    document.getElementById('heatBtn').textContent = 'Mapa de calor';
+    document.getElementById('heatBtn').textContent = I18N[currentLang()].heat;
     try {
         const radiusInt = parseInt(currentRadius);
         const eventLimit = radiusInt >= 500 ? 2000 : radiusInt >= 200 ? 1000 : 500;
@@ -1584,7 +1593,7 @@ async function loadSavedLocations() {
         locs = getGuestLocations();
     }
     const esc = s => s.replace(/</g, '&lt;');
-    select.innerHTML = '<option value="">— Ubicaciones guardadas —</option>'
+    select.innerHTML = '<option value="">' + I18N[currentLang()].locs_ph + '</option>'
         + locs.map(l => '<option value="' + l.id + '" data-lat="' + l.lat + '" data-lon="' + l.lon + '">' + (isLoggedIn() ? '' : '📱 ') + esc(l.name) + '</option>').join('')
         + (locs.length ? '<option value="__manage" disabled>──────────</option>' : '');
     locs.forEach(l => {
@@ -1727,7 +1736,7 @@ function updateAuthUI() {
         if (locBar) { locBar.style.display = 'block'; loadSavedLocations(); }
     } else {
         const n = getGuestLocations().length;
-        el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">🔐 Iniciar sesion / Registro' +
+        el.innerHTML = '<button class="btn-login-bar" onclick="showAuthModal()">' + I18N[currentLang()].login +
             (n > 0 ? ' <span style="color:#66bb6a;">· sincroniza ' + n + (n === 1 ? ' ubicacion' : ' ubicaciones') + '</span>' : '') + '</button>';
         if (locBar) {
             if (n > 0) { locBar.style.display = 'block'; loadSavedLocations(); }
@@ -2065,6 +2074,76 @@ function renderRankings(data) {
     dayBody.innerHTML = '<div style="font-size:0.76em;color:#78909c;">Hoy <b style="color:#4fc3f7;">' + hoy + '</b> · Ayer <b>' + ayer + '</b>' + arrow + '</div>';
 }
 
+// ===== i18n ES/EN (quick win) =====
+const I18N = {
+  es: {
+    tagline: 'Que pasa a tu alrededor',
+    search_ph: 'Buscar ciudad, direccion...',
+    loc_hint: 'Escribe una ubicacion o haz clic en el mapa para fijar tu punto',
+    login: '🔐 Iniciar sesion / Registro',
+    gps: 'Usar mi ubicacion',
+    save: 'Guardar',
+    locs_ph: '— Ubicaciones guardadas —',
+    heat: 'Mapa de calor',
+    heat_on: 'Desactivar calor',
+    health_loading: 'Cargando estado...',
+    loading_events: 'Cargando eventos...',
+    about_title: 'Sobre NearMe OSINT',
+    about_desc: 'Agregador de datos publicos geolocalizados en tiempo real. 15 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.',
+    about_arch: 'Arquitectura:',
+    about_author: 'Autor:',
+    about_contact: 'Contacto:',
+    about_code: 'Codigo:',
+    about_privacy: 'Privacidad:',
+    about_support: 'Apoyar:',
+  },
+  en: {
+    tagline: "What's happening around you",
+    search_ph: 'Search city, address...',
+    loc_hint: 'Type a location or click the map to set your point',
+    login: '🔐 Login / Register',
+    gps: 'Use my location',
+    save: 'Save',
+    locs_ph: '— Saved locations —',
+    heat: 'Heatmap',
+    heat_on: 'Disable heatmap',
+    health_loading: 'Loading status...',
+    loading_events: 'Loading events...',
+    about_title: 'About NearMe OSINT',
+    about_desc: 'Real-time aggregator of geolocated public data. 15 official and open sources (REST APIs, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unified into a single event stream with coordinates, severity levels and continuous measurements.',
+    about_arch: 'Architecture:',
+    about_author: 'Author:',
+    about_contact: 'Contact:',
+    about_code: 'Code:',
+    about_privacy: 'Privacy:',
+    about_support: 'Support:',
+  }
+};
+
+function currentLang() { return localStorage.getItem('nearme_lang') === 'en' ? 'en' : 'es'; }
+
+function applyLang(lang) {
+  const t = I18N[lang];
+  document.documentElement.lang = lang;
+  const btn = document.getElementById('langToggle');
+  if (btn) btn.textContent = lang === 'es' ? 'ES' : 'EN';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (!t || !(key in t)) return;
+    if (el.hasAttribute('data-i18n-ph')) el.setAttribute('placeholder', t[key]);
+    else el.textContent = t[key];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (t && key in t) el.setAttribute('title', t[key]);
+  });
+  localStorage.setItem('nearme_lang', lang);
+  if (typeof updateAuthUI === 'function') updateAuthUI();
+}
+
+function toggleLang() { applyLang(currentLang() === 'es' ? 'en' : 'es'); }
+
+applyLang(currentLang());
 init();
 
 // ===== Rating widget =====
