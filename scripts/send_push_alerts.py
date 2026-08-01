@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""send_push_alerts.py — Envia Web Push cuando un evento coincide con las alertas
-de un usuario (ancladas a sus ubicaciones guardadas). Dedup via push_sent.
+"""send_push_alerts.py — Envia alertas (Web Push + Telegram) cuando un evento
+coincide con las alertas de un usuario (ancladas a sus ubicaciones guardadas).
+Dedup por canal via push_sent (channel='push'|'telegram').
 Cron: */5 * * * * cd /home/deploy/nearme-osint && venv/bin/python scripts/send_push_alerts.py >> logs/push.log 2>&1
 """
+import html
 import json
 import os
 import sys
@@ -14,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(Path(__file__).parent.parent, ".env"), override=True)
 
+import requests
+
 from pywebpush import webpush, WebPushException
 
 from src.db import (
@@ -21,8 +25,9 @@ from src.db import (
     get_user_alerts,
     get_user_locations,
     get_push_subscriptions,
+    get_telegram_chat,
     get_events_nearby,
-    push_sent_exists,
+    get_sent_keys,
     mark_push_sent,
     delete_push_subscription,
     prune_push_sent,
@@ -30,6 +35,8 @@ from src.db import (
 
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:nearme@viajeinteligencia.com")
+TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TG_API = "https://api.telegram.org/bot{token}/sendMessage"
 
 EMOJIS = {
     "fire": "🔥", "traffic": "🚧", "weather": "🌡️", "air": "🌫️", "earthquake": "🌍",
@@ -54,21 +61,50 @@ def send_push(sub, payload):
     )
 
 
-def main():
-    if not VAPID_PRIVATE_KEY:
-        print(f"[{now_iso()}] [SKIP] VAPID_PRIVATE_KEY no configurada")
-        return
+def send_telegram(chat_id: int, text: str) -> bool:
+    if not TG_TOKEN:
+        return False
+    try:
+        r = requests.post(TG_API.format(token=TG_TOKEN), json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }, timeout=15)
+        if r.status_code == 403 or r.status_code == 400:
+            return False  # chat no disponible / bloqueado
+        r.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as exc:
+        print(f"[{now_iso()}] [ERR] telegram chat={chat_id}: {exc}")
+        return False
 
+
+def build_items_text(items, loc_name):
+    items.sort(key=lambda x: LEVEL_ORDER.get(x[2]["level"], 0), reverse=True)
+    n = len(items)
+    lines = [f"{EMOJIS.get(e['event_type'], '📍')} {html.escape(e['title'][:60])}" for _, _, e in items[:3]]
+    body = "\n".join(lines)
+    if n > 3:
+        body += f"\n(+{n - 3} mas)"
+    return n, body
+
+
+def main():
     user_ids = get_push_users()
-    total_sent = 0
+    total_push = 0
+    total_tg = 0
     for user_id in user_ids:
         alerts = [a for a in get_user_alerts(user_id) if a["enabled"]]
         locations = get_user_locations(user_id)
+        if not alerts or not locations:
+            continue
         subs = get_push_subscriptions(user_id)
-        if not alerts or not locations or not subs:
+        chat_id = get_telegram_chat(user_id)
+        if not subs and not chat_id:
             continue
 
-        pending = []  # (location_name, n, titles)
+        matches = []  # (loc, alert, event)
         for loc in locations:
             for alert in alerts:
                 try:
@@ -82,58 +118,74 @@ def main():
                 except Exception:
                     continue
                 for e in events:
-                    key = (user_id, alert["id"], e["id"], e["level"])
-                    if not push_sent_exists(*key):
-                        pending.append((key, loc, e))
+                    matches.append((loc, alert, e))
 
-        if not pending:
+        if not matches:
             continue
 
-        # agrupar por (alert, location) para un unico push por zona
         grouped = {}
-        for key, loc, e in pending:
-            gkey = (key[1], loc["id"])
-            grouped.setdefault(gkey, []).append((key, e))
+        for loc, alert, e in matches:
+            grouped.setdefault((alert["id"], loc["id"]), []).append((loc, alert, e))
 
-        sent_any = False
+        sent_push = get_sent_keys(user_id, "push") if subs else set()
+        sent_tg = get_sent_keys(user_id, "telegram") if chat_id else set()
+        push_here = 0
+        tg_here = 0
+
         for (alert_id, loc_id), items in grouped.items():
-            loc = next(l for l in locations if l["id"] == loc_id)
-            items.sort(key=lambda x: LEVEL_ORDER.get(x[1]["level"], 0), reverse=True)
-            n = len(items)
-            first = [f"{EMOJIS.get(e['event_type'], '📍')} {e['title'][:60]}" for _, e in items[:3]]
-            body = ", ".join(first)
-            if n > 3:
-                body += f" (+{n - 3} mas)"
-            payload = {
-                "title": f"🔔 {n} evento{'s' if n != 1 else ''} cerca de {loc['name']}",
-                "body": body,
-                "url": "/",
-            }
-            for sub in subs:
-                try:
-                    send_push(sub, payload)
-                    sent_any = True
-                except WebPushException as exc:
-                    code = getattr(exc.response, "status_code", None) if exc.response else None
-                    if code in (404, 410):
-                        print(f"[{now_iso()}] [DROP] suscripcion caducada user={user_id}")
-                        delete_push_subscription(user_id, sub["endpoint"])
-                    elif code == 429:
-                        print(f"[{now_iso()}] [RATE] user={user_id} (429), se detiene")
-                        break
-                    else:
-                        print(f"[{now_iso()}] [ERR] push user={user_id} code={code}: {exc}")
-                except Exception as exc:
-                    print(f"[{now_iso()}] [ERR] push user={user_id}: {exc}")
+            loc = items[0][0]
+            n, body = build_items_text(items, loc["name"])
 
-        if sent_any:
-            for key, _, _ in pending:
-                mark_push_sent(*key)
-            total_sent += 1
-            print(f"[{now_iso()}] [SEND] user={user_id} grupos={len(grouped)}")
+            if subs:
+                push_items = [it for it in items if (alert_id, it[2]["id"], it[2]["level"]) not in sent_push]
+                if push_items:
+                    pn, pbody = build_items_text(push_items, loc["name"])
+                    payload = {
+                        "title": f"🔔 {pn} evento{'s' if pn != 1 else ''} cerca de {loc['name']}",
+                        "body": pbody.replace("\n", ", "),
+                        "url": "/",
+                    }
+                    ok = False
+                    for sub in subs:
+                        try:
+                            send_push(sub, payload)
+                            ok = True
+                        except WebPushException as exc:
+                            code = getattr(exc.response, "status_code", None) if exc.response else None
+                            if code in (404, 410):
+                                print(f"[{now_iso()}] [DROP] push caducada user={user_id}")
+                                delete_push_subscription(user_id, sub["endpoint"])
+                            elif code == 429:
+                                print(f"[{now_iso()}] [RATE] user={user_id} (429)")
+                                break
+                            else:
+                                print(f"[{now_iso()}] [ERR] push user={user_id} code={code}: {exc}")
+                        except Exception as exc:
+                            print(f"[{now_iso()}] [ERR] push user={user_id}: {exc}")
+                    if ok:
+                        for it in push_items:
+                            mark_push_sent(user_id, alert_id, it[2]["id"], it[2]["level"], "push")
+                        push_here += 1
+
+            if chat_id:
+                tg_items = [it for it in items if (alert_id, it[2]["id"], it[2]["level"]) not in sent_tg]
+                if tg_items:
+                    tn, tbody = build_items_text(tg_items, loc["name"])
+                    text = f"<b>🔔 {tn} evento{'s' if tn != 1 else ''} cerca de {loc['name']}</b>\n{tbody}"
+                    if send_telegram(chat_id, text):
+                        for it in tg_items:
+                            mark_push_sent(user_id, alert_id, it[2]["id"], it[2]["level"], "telegram")
+                        tg_here += 1
+                    else:
+                        print(f"[{now_iso()}] [SKIP] telegram user={user_id} chat={chat_id}")
+
+        if push_here or tg_here:
+            total_push += push_here
+            total_tg += tg_here
+            print(f"[{now_iso()}] [SEND] user={user_id} push_grupos={push_here} tg_grupos={tg_here}")
 
     pruned = prune_push_sent(48)
-    print(f"[{now_iso()}] [OK] users={len(user_ids)} push_groups={total_sent} pruned={pruned}")
+    print(f"[{now_iso()}] [OK] users={len(user_ids)} push_grupos={total_push} tg_grupos={total_tg} pruned={pruned}")
 
 
 if __name__ == "__main__":

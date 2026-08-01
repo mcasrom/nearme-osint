@@ -1909,6 +1909,51 @@ async function setupPushSubscription() {
     } catch (e) {}
 }
 
+function refreshTelegramBlock() {
+    const el = document.getElementById('tgBlock');
+    if (!el || !isLoggedIn()) return;
+    const L = I18N[currentLang()];
+    fetch('/api/telegram/status', { headers: authHeaders() })
+        .then(r => r.json())
+        .then(d => {
+            if (d.linked) {
+                el.innerHTML = '<div class="guest-note" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+                    '<span>' + L.tg_linked.replace('{user}', d.tg_username || '') + '</span>' +
+                    '<button onclick="unlinkTelegram()" style="background:#e57373;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.78em;">' + L.tg_unlink + '</button></div>';
+            } else {
+                el.innerHTML = '<div class="guest-note" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+                    '<span>📨 ' + L.tg_intro + '</span>' +
+                    '<button onclick="linkTelegram()" style="background:#0088cc;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.78em;white-space:nowrap;">' + L.tg_btn + '</button></div>' +
+                    '<div id="tgLinkInfo"></div>';
+            }
+        })
+        .catch(() => {});
+}
+
+function linkTelegram() {
+    const L = I18N[currentLang()];
+    const info = document.getElementById('tgLinkInfo');
+    if (!info) return;
+    info.innerHTML = '<div style="margin-top:8px;font-size:0.78em;color:#b0bec5;">…</div>';
+    fetch('/api/telegram/link', { method: 'POST', headers: authHeaders() })
+        .then(r => r.json())
+        .then(d => {
+            if (d.code) {
+                info.innerHTML = '<div style="margin-top:8px;font-size:0.78em;color:#80cbc4;line-height:1.5;">' +
+                    L.tg_howto.replace('{bot}', '@' + d.bot).replace('{code}', '<b>' + d.code + '</b>') +
+                    '<br>' + L.tg_exp + '</div>';
+            } else {
+                info.innerHTML = '<div style="margin-top:8px;font-size:0.78em;color:#e57373;">' + L.tg_err + '</div>';
+            }
+        })
+        .catch(() => { info.innerHTML = '<div style="margin-top:8px;font-size:0.78em;color:#e57373;">' + L.tg_err + '</div>'; });
+}
+
+function unlinkTelegram() {
+    fetch('/api/telegram/unlink', { method: 'POST', headers: authHeaders() })
+        .then(() => refreshTelegramBlock());
+}
+
 function getLabel(a) {
     const t = a.event_type === 'all' ? 'Cualquier tipo' : (ICONS[a.event_type] || '') + ' ' + a.event_type.replace('_', ' ');
     return t + ' · ' + a.radius_km + ' km · desde ' + a.min_level;
@@ -1936,6 +1981,7 @@ function showAlertModal() {
                 <strong>Como funciona:</strong> Tus alertas se guardan ${isLoggedIn() ? 'en el servidor' : 'en tu dispositivo'}. Cada vez que el mapa carga eventos, los comparamos en tu navegador con tus criterios. Si hay coincidencias, el boton 🔔 muestra el contador y te llega una notificacion del navegador (si lo permites).<br><br>
                 Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona<br><br><strong>Web Push:</strong> Si inicias sesion y guardas al menos una ubicacion, recibiras los avisos incluso con la app cerrada (se comprueba cada 5 min).
             </div>
+            ${isLoggedIn() ? '<div id="tgBlock" style="margin-bottom:12px;"><div class="loading"><span class="loading-spinner"></span></div></div>' : ''}
             <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
             <div class="alert-form">
                 <div class="alert-form-row">
@@ -1956,6 +2002,7 @@ function showAlertModal() {
         </div>`;
     document.body.appendChild(overlay);
     loadAlertList();
+    if (isLoggedIn()) refreshTelegramBlock();
 }
 
 function renderAlertCards(alerts, list, permBar) {
@@ -2192,6 +2239,13 @@ const I18N = {
     ob_step3_b: 'Usa el panel de filtros para ver solo lo que te importa. Toca el mapa para ver puntos de interes cercanos: hospitales, farmacias, gasolineras, bomberos...',
     ob_step4_t: 'Instala y activa alertas',
     ob_step4_b: 'Anade NearMe a tu pantalla de inicio (funciona offline, con auto-refresh). Registrate y crea alertas personalizadas: te avisamos en el navegador cuando algo ocurra cerca.',
+    tg_intro: 'Recibe los avisos tambien en tu Telegram (ademas del push del navegador).',
+    tg_btn: 'Alertas por Telegram',
+    tg_howto: 'Abre {bot} en Telegram y envia: <b>/nearme {code}</b>',
+    tg_exp: 'El codigo dura 10 minutos y es de un solo uso.',
+    tg_linked: 'Enlazado a {user}',
+    tg_unlink: 'Desvincular',
+    tg_err: 'No se pudo generar el codigo. Intentalo otra vez.',
   },
   en: {
     tagline: "What's happening around you",
@@ -2230,6 +2284,13 @@ const I18N = {
     ob_step3_b: 'Use the filter panel to focus on what matters. Tap the map to find nearby points of interest: hospitals, pharmacies, gas stations, fire stations...',
     ob_step4_t: 'Install & get alerts',
     ob_step4_b: 'Add NearMe to your home screen (works offline, with auto-refresh). Register and create custom alerts: we notify you in the browser when something happens nearby.',
+    tg_intro: 'Also get alerts on Telegram (in addition to browser push).',
+    tg_btn: 'Telegram alerts',
+    tg_howto: 'Open {bot} in Telegram and send: <b>/nearme {code}</b>',
+    tg_exp: 'The code lasts 10 minutes and is single-use.',
+    tg_linked: 'Linked to {user}',
+    tg_unlink: 'Unlink',
+    tg_err: 'Could not generate a code. Try again.',
   }
 };
 

@@ -177,11 +177,57 @@ def init_db():
             alert_id INTEGER NOT NULL,
             event_id INTEGER NOT NULL,
             level TEXT NOT NULL,
-            sent_at TIMESTAMPTZ DEFAULT NOW(),
-            UNIQUE (user_id, alert_id, event_id, level)
+            channel TEXT NOT NULL DEFAULT 'push',
+            sent_at TIMESTAMPTZ DEFAULT NOW()
         )
     """)
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='push_sent' AND column_name='channel'
+            ) THEN
+                ALTER TABLE push_sent ADD COLUMN channel TEXT NOT NULL DEFAULT 'push';
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'push_sent_user_id_alert_id_event_id_level_key'
+            ) THEN
+                ALTER TABLE push_sent DROP CONSTRAINT push_sent_user_id_alert_id_event_id_level_key;
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'push_sent_dedup_key'
+            ) THEN
+                ALTER TABLE push_sent ADD CONSTRAINT push_sent_dedup_key
+                    UNIQUE (user_id, alert_id, event_id, level, channel);
+            END IF;
+        END
+        $$;
+    """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_psent_sent ON push_sent(sent_at)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_links (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            code TEXT UNIQUE NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            used BOOLEAN DEFAULT false,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tglinks_user ON telegram_links(user_id)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            chat_id BIGINT UNIQUE NOT NULL,
+            tg_username TEXT DEFAULT '',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (user_id)
+        )
+    """)
     conn.commit()
     cur.close()
     release_conn(conn)
@@ -865,12 +911,12 @@ def get_push_users() -> list[int]:
     return rows
 
 
-def push_sent_exists(user_id: int, alert_id: int, event_id: int, level: str) -> bool:
+def push_sent_exists(user_id: int, alert_id: int, event_id: int, level: str, channel: str = "push") -> bool:
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "SELECT 1 FROM push_sent WHERE user_id = %s AND alert_id = %s AND event_id = %s AND level = %s",
-        (user_id, alert_id, event_id, level)
+        "SELECT 1 FROM push_sent WHERE user_id = %s AND alert_id = %s AND event_id = %s AND level = %s AND channel = %s",
+        (user_id, alert_id, event_id, level, channel)
     )
     found = cur.fetchone() is not None
     cur.close()
@@ -878,12 +924,26 @@ def push_sent_exists(user_id: int, alert_id: int, event_id: int, level: str) -> 
     return found
 
 
-def mark_push_sent(user_id: int, alert_id: int, event_id: int, level: str) -> None:
+def get_sent_keys(user_id: int, channel: str = "push") -> set:
+    """Claves (alert_id, event_id, level) ya notificadas por un canal."""
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO push_sent (user_id, alert_id, event_id, level) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-        (user_id, alert_id, event_id, level)
+        "SELECT alert_id, event_id, level FROM push_sent WHERE user_id = %s AND channel = %s",
+        (user_id, channel)
+    )
+    rows = {(r[0], r[1], r[2]) for r in cur.fetchall()}
+    cur.close()
+    release_conn(conn)
+    return rows
+
+
+def mark_push_sent(user_id: int, alert_id: int, event_id: int, level: str, channel: str = "push") -> None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO push_sent (user_id, alert_id, event_id, level, channel) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (user_id, alert_id, event_id, level, channel)
     )
     conn.commit()
     cur.close()
@@ -895,6 +955,118 @@ def prune_push_sent(hours: int = 48) -> int:
     cur = conn.cursor()
     cur.execute("DELETE FROM push_sent WHERE sent_at < NOW() - INTERVAL '%s hours'", (hours,))
     deleted = cur.rowcount
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return deleted
+
+
+# ---------- Telegram alerts ----------
+
+def create_telegram_link(user_id: int) -> str:
+    """Genera un codigo de enlace de un solo uso (10 min) para vincular Telegram."""
+    import secrets
+    import string
+    alphabet = string.ascii_uppercase + string.digits
+    code = "".join(secrets.choice(alphabet) for _ in range(8))
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM telegram_links WHERE user_id = %s AND used = false", (user_id,))
+    cur.execute(
+        "INSERT INTO telegram_links (user_id, code, expires_at) VALUES (%s, %s, NOW() + INTERVAL '10 minutes')",
+        (user_id, code)
+    )
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return code
+
+
+def consume_telegram_link(code: str) -> int | None:
+    """Marca el codigo como usado y devuelve el user_id asociado (o None)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT user_id FROM telegram_links WHERE code = %s AND used = false AND expires_at > NOW()",
+        (code.strip().upper(),)
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        release_conn(conn)
+        return None
+    user_id = row[0]
+    cur.execute("UPDATE telegram_links SET used = true WHERE code = %s", (code.strip().upper(),))
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return user_id
+
+
+def save_telegram_subscription(user_id: int, chat_id: int, tg_username: str = "") -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("DELETE FROM telegram_subscriptions WHERE chat_id = %s", (chat_id,))
+    cur.execute("DELETE FROM telegram_subscriptions WHERE user_id = %s", (user_id,))
+    cur.execute("""
+        INSERT INTO telegram_subscriptions (user_id, chat_id, tg_username)
+        VALUES (%s, %s, %s)
+        RETURNING id, user_id, chat_id, tg_username, created_at
+    """, (user_id, chat_id, tg_username))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    d = dict(row)
+    if d.get("created_at"):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+def get_telegram_subscription(user_id: int) -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT id, user_id, chat_id, tg_username, created_at FROM telegram_subscriptions WHERE user_id = %s",
+        (user_id,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    if not row:
+        return None
+    d = dict(row)
+    if d.get("created_at"):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+def get_telegram_chat(user_id: int) -> int | None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT chat_id FROM telegram_subscriptions WHERE user_id = %s", (user_id,))
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    return row[0] if row else None
+
+
+def delete_telegram_subscription(user_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM telegram_subscriptions WHERE user_id = %s", (user_id,))
+    deleted = cur.rowcount > 0
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return deleted
+
+
+def delete_telegram_subscription_by_chat(chat_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM telegram_subscriptions WHERE chat_id = %s", (chat_id,))
+    deleted = cur.rowcount > 0
     conn.commit()
     cur.close()
     release_conn(conn)

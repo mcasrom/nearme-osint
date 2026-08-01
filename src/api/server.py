@@ -458,6 +458,38 @@ def push_unsubscribe(body: PushUnsubscribeBody, user: dict = Depends(get_current
     return {"ok": delete_push_subscription(user["id"], body.endpoint)}
 
 
+# ----- Telegram alerts endpoints -----
+
+TELEGRAM_BOT_USERNAME = "nearme_status_bot"
+
+
+@app.get("/api/telegram/bot")
+def telegram_bot_info():
+    return {"username": TELEGRAM_BOT_USERNAME, "handle": "@" + TELEGRAM_BOT_USERNAME, "url": "https://t.me/" + TELEGRAM_BOT_USERNAME}
+
+
+@app.get("/api/telegram/status")
+def telegram_status(user: dict = Depends(get_current_user)):
+    from src.db import get_telegram_subscription
+    sub = get_telegram_subscription(user["id"])
+    if not sub:
+        return {"linked": False, "tg_username": None}
+    return {"linked": True, "tg_username": sub["tg_username"] or None}
+
+
+@app.post("/api/telegram/link")
+def telegram_link(user: dict = Depends(get_current_user)):
+    from src.db import create_telegram_link
+    code = create_telegram_link(user["id"])
+    return {"code": code, "bot": TELEGRAM_BOT_USERNAME, "expires_min": 10}
+
+
+@app.post("/api/telegram/unlink")
+def telegram_unlink(user: dict = Depends(get_current_user)):
+    from src.db import delete_telegram_subscription
+    return {"ok": delete_telegram_subscription(user["id"])}
+
+
 class LocationBody(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     lat: float

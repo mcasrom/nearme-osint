@@ -505,7 +505,7 @@ Ronda de investigacion sobre lo que piden los usuarios y hacia donde va la categ
 
 ### Backlog propuesto para NearMe (priorizado)
 Corto plazo / alta demanda (quick wins con la infra actual):
-- [ ] **Alertas por Telegram al usuario**: `@nearme_status_bot` + bot `/nearme start` vincula el chat del usuario; cuando una alerta coincide, el bot le escribe (reutilizar `telegram_send` de healthcheck). Complementa el Web Push con el canal mas demandado.
+- [x] **Alertas por Telegram al usuario** (sprint 37k): `@nearme_status_bot` + `/nearme CODIGO` vincula el chat del usuario; cuando una alerta coincide, el bot le escribe (reutiliza el healthcheck). Complementa el Web Push con el canal mas demandado.
 - [ ] **Reportes ciudadanos** (crowdsourcing): reportar incidencia geolocalizada (foto opcional), ventana activa ~3h, capa separada con su propia fuente; diferenciador "AI-verified" si se anade confianza.
 - [ ] **Rutas afectadas / alerta en ruta**: linea entre ubicaciones guardadas + radio; avisar si un evento corta la ruta (PostGIS lo soporta). Matchea el uso espanol "mira tu ruta antes de salir" (DGT).
 - [ ] **Export CSV / PDF / GeoJSON** de la lista de eventos de una zona.
@@ -518,6 +518,15 @@ Medio plazo:
 Largo plazo / estrategico:
 - [ ] Resumen IA por zona/incidencia (verificacion asistida), archivo historico, colaboracion/comentarios.
 - **Nota de posicionamiento**: la categoria valora "open-source + self-hostable + verified/no-false-alarms + Telegram". NearMe ya tiene 15 fuentes + confidence + Web Push; el gap mas visible vs competencia es Telegram y reportes ciudadanos.
+
+## Sprint 37k — Alertas por Telegram al usuario (1 Ago 2026)
+- **Contexto**: la research 37j senalaba Telegram/WhatsApp como el canal de distribucion de avisos mas demandado (Map Alerts: "Telegram on a map"). Reutilizamos `@nearme_status_bot` (que ya usaba el healthcheck) para avisar al usuario.
+- **Backend**: `src/db.py` — migracion de `push_sent` anadiendo `channel` ('push'|'telegram') con dedup UNIQUE (user_id, alert_id, event_id, level, channel); tablas `telegram_links` (codigo 8 chars A-Z0-9, valido 10 min, un solo uso, borra links previos del usuario) y `telegram_subscriptions` (chat_id UNIQUE + UNIQUE user_id); funciones create/consume/save/get/delete (save hace delete+insert: Postgres no permite doble ON CONFLICT). `init_db()` idempotente, ejecutado. `src/api/server.py`: `GET /api/telegram/bot`, `GET /api/telegram/status`, `POST /api/telegram/link`, `POST /api/telegram/unlink` (JWT).
+- **Bot** (`scripts/telegram_bot.py`, PM2 `telegram-bot`): long-polling con getUpdates (offset persistido en `logs/telegram_bot.offset`, 409->reset a -1), comandos `/start`, `/help`, `/nearme <CODIGO>`, `/unlink`; `process_update` aislado para tests; robusto a errores de red (RequestException -> sleep, no muere). No colisiona con el healthcheck (solo usa sendMessage, nunca getUpdates).
+- **Envio** (`scripts/send_push_alerts.py`, cron `*/5`): ahora envia Web Push + Telegram en una pasada; dedup por canal via `get_sent_keys(user_id, channel)` y `mark_push_sent(channel)`; mensajes HTML con emojis agrupados por (alerta, ubicacion); stats `push_grupos`/`tg_grupos`; maneja 403/400 de Telegram sin crashear.
+- **Frontend**: bloque "Alertas por Telegram" en el modal de alertas (solo logueado): estado enlazado/desenlazado, boton generar codigo (instrucciones `/nearme CODIGO` + handle del bot), boton desvincular; i18n ES/EN.
+- **Verificacion E2E (Playwright headless)**: registro->modal->generar codigo->consumo via `process_update` (chat real del admin)->recarga->"Enlazado a mcasrom"->desvincular->vuelve el boton. Envio real de alerta a Telegram verificado (`tg_grupos=1`, mensaje recibido en el chat 47652516). Datos de test limpiados (usuarios tgtest*/uitest*).
+- **Ops**: proceso PM2 `telegram-bot` arrancado y guardado (`pm2 save`); CHANGELOG v0.12.
 
 ## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
 - **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.

@@ -3,6 +3,11 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.12 — 1 Ago 2026 (sprint 37k)
+
+- **Alertas por Telegram**: ademas del Web Push del navegador, los avisos llegan tambien a tu Telegram. En el modal de alertas generas un codigo (10 min, un solo uso) y vinculas tu chat escribiendo `/nearme CODIGO` a `@nearme_status_bot`; desvincular en un clic. El bot corre como proceso PM2 (`telegram-bot`, long-polling robusto a errores de red); el cron de envio (`send_push_alerts.py`) ahora manda a ambos canales con dedup independiente por alerta+evento+nivel (`push_sent.channel`).
+- **Interfaz**: bloque de estado en el modal de alertas (enlazado/desenlazado) con i18n ES/EN.
+
 ## v0.11 — 1 Ago 2026 (sprint 37i)
 
 - **Web Push real**: notificaciones push del navegador con la app cerrada. Suscripcion con claves VAPID, tablas `push_subscriptions`/`push_sent` (dedup por alerta+evento+nivel), endpoint `/api/push/*` protegido con JWT y cron cada 5 min (`scripts/send_push_alerts.py`) que envia cuando un evento coincide con tus alertas ancladas a ubicaciones guardadas.
