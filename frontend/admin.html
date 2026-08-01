@@ -25,6 +25,7 @@
         .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.75em; font-weight:600; }
         .badge.ok { background:#1a3a1a; color:#4caf50; }
         .badge.fail { background:#3a1a1a; color:#f44336; }
+        .badge.warn { background:#3a301a; color:#ffb300; }
         a { color:#4fc3f7; text-decoration:none; }
         a:hover { text-decoration:underline; }
         .nav { margin-bottom:16px; font-size:0.85em; }
@@ -159,10 +160,13 @@
 
         // Collector table
         document.getElementById('collectorBody').innerHTML = collectors.map(function(c) {
-            var okClass = c.last_success ? 'ok' : (c.last_success === false ? 'fail' : '');
-            var badgeHtml = '<span class="badge ' + okClass + '">' + (c.last_success ? 'Ok' : c.last_success === false ? 'Error' : '—') + '</span>';
             var staleMins = c.last_run ? Math.floor((Date.now() - new Date(c.last_run).getTime()) / 60000) : 999;
-            var interval = {nasa_firms:15,dgt:5,aemet:15,renfe:15,miteco:30,openaq:30,usgs:15,proteccion_civil:30,ree:15,intelhub:10,playas:60,embalses:30,ign:15,open_meteo:60,energy:15}[c.collector] || 60;
+            var interval = {'AEMET':15,'Copernicus + GWIS':15,'DGT-Tráfico':5,'Embalses (MITECO/SAIH)':30,'Energía (REE + ESIOS)':15,'IGN (sismología)':15,'Intelligence Hub (incendios)':10,'MITECO-CalidadAire':30,'OpenAQ':30,'Playas':60,'ProtecciónCivil':30,'REE':15,'RENFE':15,'USGS + FIRMS':15,'UV (Open-Meteo)':60}[c.collector] || 60;
+            var isStale = c.last_success && staleMins > interval * 2;
+            var badgeHtml = c.last_success === false ? '<span class="badge fail">Error</span>'
+                : isStale ? '<span class="badge warn">Stale</span>'
+                : c.last_success ? '<span class="badge ok">Ok</span>'
+                : '<span class="badge">—</span>';
             var timeHtml = c.last_run ? timeAgo(c.last_run) : 'nunca';
             if (staleMins > interval * 2) timeHtml = '<span class="err">' + timeHtml + '</span>';
             return '<tr><td style="font-weight:600;">' + c.collector + '</td><td>' + timeHtml + '</td><td>' + badgeHtml + '</td><td>' + (c.last_events || 0) + '</td><td>' + (c.last_latency ? c.last_latency + 's' : '—') + '</td><td>' + (c.runs_24h || 0) + '</td><td>' + (c.successes_24h || 0) + '/' + (c.runs_24h || 0) + '</td><td>' + (c.events_24h || 0) + '</td></tr>';
