@@ -457,6 +457,14 @@ NOTAS de verificación:
 - Busqueda web (mapas de incidentes en tiempo real, dashboards geo, 2026): features mas demandadas = heatmap de hotspots, score de riesgo por zona, timeline/playback historico, confidence/fiabilidad de eventos, Safe Zones + push, ranking/tendencias por region, rutas afectadas (DGT/RENFE), embed/API publica, export CSV/PDF.
 - Decision del usuario: implementar **1) Heatmap**, **4) Confidence/fiabilidad** y **7) Ranking/tendencias** (mayor retorno por esfuerzo con la infra existente). Los demas (score de riesgo por zona, timeline playback, safe zones + web push, rutas afectadas, embed, export) quedan en backlog.
 
+## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
+- **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.
+- **Confidence score (0-100)**: `event_confidence()` en db.py = fiabilidad base de la fuente (SOURCE_CONFIDENCE en config.py: dgt/renfe/aemet/ign 92-95, satelites 85-90, intelhub 60) x factor de frescura de updated_at. Expuesto en /api/nearby como campo `confidence` por evento; badge "✓ NN%" en las cards del sidebar y en los popups de los marcadores.
+- **Ranking/Tendencias**: nuevo endpoint `GET /api/rankings?lat&lon&radius&limit` -> `top` (top municipios por nº de incidencias activas en el radio, con nivel max) + `trends` (serie 24h de eventos creados + hoy vs ayer en Europe/Madrid). Panel en el sidebar con barras de top zonas y tendencias; se refresca con loadRankings() tras cada loadEvents().
+- Verificado con Playwright headless: 0 errores de consola, 414 eventos con confidence, heatmap renderizado (canvas), panel de rankings visible (Madrid 19, Getafe 4, ...).
+- Commits: `0c1dfd9` (push a origin/main desde 3066082).
+
+
 ### Sprint 37d — Fix datos obsoletos / feed DGT (1 Ago 2026)
 - **Problema reportado**: incidencias DGT del 28JUL (vehicleObstruction RM-C19, A-30 Ulea, etc.) visibles dias despues. Innumerables eventos obsoletos.
 - **Causa raiz 1 (datos eternos)**: 4.761 eventos activos con `expires_at NULL` (dgt 2905, miteco 1450, aemet 406), todos sin actualizar >24h. La consulta `(expires_at IS NULL OR expires_at > NOW())` los mostraba para siempre. El upsert usaba `expires_at = events.expires_at` (mantenia el NULL original) e ignoraba el TTL calculado.
