@@ -7,6 +7,7 @@ De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
 - **Visualizaciones de alto valor**: heatmap multi-fuente (peso por severidad y frescura), confidence score por evento (fiabilidad de fuente × frescura, badge "✓ NN%") y ranking de municipios + tendencias 24h en el panel.
 - **i18n ES/EN**: toggle de idioma en el panel lateral (Español / English), persistente entre visitas.
+- **Onboarding visual**: carrusel de 4 pasos con capturas de pantalla (explora el mapa, lee los iconos, filtra y localiza, instala y activa alertas), con i18n ES/EN.
 - **Nuevas fuentes**: IGN sismología, indice UV (Open-Meteo) y energia (demanda REE + precio PVPC ESIOS). Total: 15 fuentes.
 - **Revisión Product Hunt**: meta og/twitter en ingles con stack tecnico (Python/FastAPI, PostgreSQL+PostGIS, Leaflet); copy sin "proximamente"/"pronto" y aclarado que las alertas usan notificacion del navegador (no Web Push); nota SLA con i18n.
 - **Contacto**: email de contacto pasa a `nearme@viajeinteligencia.com`.

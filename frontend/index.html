@@ -156,6 +156,17 @@
         .onboarding-step .text { color: #b0bec5; font-size: 0.85em; line-height: 1.5; }
         .onboarding-step .text strong { color: #e0e8f0; }
         .onboarding-modal .btn { margin-top: 16px; }
+        .ob-carousel { position: relative; }
+        .ob-slide { display: none; }
+        .ob-slide.active { display: block; }
+        .ob-slide img { width: 100%; border-radius: 10px; border: 1px solid #1a2a4a; margin-bottom: 12px; }
+        .ob-text { color: #b0bec5; font-size: 0.85em; line-height: 1.55; }
+        .ob-text strong { color: #e0e8f0; }
+        .ob-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 8px; }
+        .ob-nav .btn { margin-top: 0; }
+        .ob-dots { display: flex; gap: 6px; }
+        .ob-dot { width: 9px; height: 9px; border-radius: 50%; background: #2a3a5a; border: none; cursor: pointer; padding: 0; }
+        .ob-dot.active { background: #00d4ff; }
         .filters-wrap { margin-bottom: 12px; }
         .filters-toggle {
             background: #111827; border: 1px solid #1a2a4a; border-radius: 8px;
@@ -244,6 +255,9 @@
         body.light .onboarding-step .num { background: #f5f7fa; }
         body.light .onboarding-step .text { color: #546e7a; }
         body.light .onboarding-step .text strong { color: #263238; }
+        body.light .ob-text { color: #546e7a; }
+        body.light .ob-text strong { color: #263238; }
+        body.light .ob-dot { background: #cfd8dc; }
         body.light .dark-toggle { background: #f5f7fa; }
         .alert-btn-wrap { display: flex; gap: 6px; margin-bottom: 12px; position: relative; }
         .alert-badge {
@@ -942,37 +956,59 @@ function showPrivacy() {
 }
 
 function showOnboarding() {
+    const L = I18N[currentLang()];
+    const steps = [
+        { img: 'ph/01-map-general.png', t: L.ob_step1_t, b: L.ob_step1_b },
+        { img: 'ph/06-event-clusters.png', t: L.ob_step2_t, b: L.ob_step2_b },
+        { img: 'ph/03-poi-filters.png', t: L.ob_step3_t, b: L.ob_step3_b },
+        { img: 'ph/04-mobile-pwa.png', t: L.ob_step4_t, b: L.ob_step4_b },
+    ];
+    let cur = 0;
     const overlay = document.createElement('div');
     overlay.className = 'onboarding-overlay';
     overlay.id = 'onboardingOverlay';
     overlay.innerHTML = `
         <div class="onboarding-modal">
-            <h2>Bienvenido a NearMe OSINT</h2>
-            <div class="sub">Mapa en tiempo real de eventos e incidencias geolocalizadas</div>
-            <div class="onboarding-step">
-                <div class="num">1</div>
-                <div class="text"><strong>🔍 Busca una ubicacion</strong> — Escribe una ciudad en el buscador o haz clic en el mapa para centrar la vista</div>
+            <h2>${L.ob_title}</h2>
+            <div class="sub">${L.ob_sub}</div>
+            <div class="ob-carousel">
+                ${steps.map((st, i) => `
+                <div class="ob-slide${i === 0 ? ' active' : ''}">
+                    <img src="${st.img}" alt="${st.t}" loading="lazy">
+                    <div class="ob-text"><strong>${i + 1}. ${st.t}</strong> — ${st.b}</div>
+                </div>`).join('')}
             </div>
-            <div class="onboarding-step">
-                <div class="num">2</div>
-                <div class="text"><strong>📏 Ajusta el radio</strong> — Elige 50, 200 o 500 km para ver eventos a tu alrededor</div>
+            <div class="ob-nav">
+                <button class="btn btn-sm btn-outline" id="obPrev" style="visibility:hidden;">← ${L.ob_prev}</button>
+                <div class="ob-dots">
+                    ${steps.map((_, i) => `<button class="ob-dot${i === 0 ? ' active' : ''}" data-dot="${i}"></button>`).join('')}
+                </div>
+                <button class="btn btn-sm btn-outline" id="obNext">${L.ob_next} →</button>
             </div>
-            <div class="onboarding-step">
-                <div class="num">3</div>
-                <div class="text"><strong>🎯 Filtra por tipo</strong> — Usa el panel "Filtrar por tipo" para ver solo lo que te interesa (🔥 incendios, 🚧 trafico, 🌡️ calor, 🌫️ aire...)</div>
+            <div style="display:flex;justify-content:center;gap:14px;align-items:center;margin-top:12px;">
+                <button class="btn" id="obDone" style="display:none;">${L.ob_start}</button>
+                <span style="font-size:0.82em;color:#78909c;cursor:pointer;" onclick="dismissOnboarding()">${L.ob_skip}</span>
             </div>
-            <div class="onboarding-step">
-                <div class="num">4</div>
-                <div class="text"><strong>🗺️ Lee los iconos</strong> — Cada icono muestra el tipo de evento. El borde indica gravedad: <span style="color:#4fc3f7;">azul=info</span>, <span style="color:#ffeb3b;">amarillo=warning</span>, <span style="color:#ff9800;">naranja=alert</span>, <span style="color:#f44336;">rojo=critical</span>. Los iconos que palpitan son alertas activas. El tamano indica intensidad.</div>
-            </div>
-            <div class="onboarding-step">
-                <div class="num">5</div>
-                <div class="text"><strong>🔔 Crea alertas</strong> — Registrate y configura alertas personalizadas: "Avísame si hay incendios a menos de 30 km". Recibiras notificaciones en tu navegador cuando ocurran.</div>
-            </div>
-            <button class="btn" onclick="dismissOnboarding()">Entendido</button>
         </div>
     `;
     document.body.appendChild(overlay);
+    const slides = overlay.querySelectorAll('.ob-slide');
+    const dots = overlay.querySelectorAll('.ob-dot');
+    const prev = overlay.querySelector('#obPrev');
+    const next = overlay.querySelector('#obNext');
+    const done = overlay.querySelector('#obDone');
+    function render() {
+        slides.forEach((el, i) => el.classList.toggle('active', i === cur));
+        dots.forEach((el, i) => el.classList.toggle('active', i === cur));
+        prev.style.visibility = cur === 0 ? 'hidden' : 'visible';
+        next.style.display = cur === steps.length - 1 ? 'none' : '';
+        done.style.display = cur === steps.length - 1 ? '' : 'none';
+    }
+    prev.onclick = () => { if (cur > 0) { cur--; render(); } };
+    next.onclick = () => { if (cur < steps.length - 1) { cur++; render(); } };
+    done.onclick = dismissOnboarding;
+    dots.forEach(d => d.onclick = () => { cur = +d.dataset.dot; render(); });
+    render();
 }
 
 function dismissOnboarding() {
@@ -2101,6 +2137,20 @@ const I18N = {
     about_use: 'Uso:',
     about_use_body: 'Código abierto en GitHub. Sin SLA garantizado: proyecto personal/educativo, puede haber interrupciones.',
     about_support: 'Apoyar:',
+    ob_title: 'Bienvenido a NearMe OSINT',
+    ob_sub: 'Mapa en tiempo real de eventos e incidencias geolocalizadas',
+    ob_prev: 'Anterior',
+    ob_next: 'Siguiente',
+    ob_start: 'Empezar',
+    ob_skip: 'Saltar',
+    ob_step1_t: 'Explora el mapa',
+    ob_step1_b: 'Busca una ciudad o haz clic en el mapa para centrar la vista. Ajusta el radio (50/200/500 km) para ver los eventos a tu alrededor.',
+    ob_step2_t: 'Lee los eventos',
+    ob_step2_b: 'Cada icono es un tipo de evento (incendio, trafico, calor, aire...). El borde indica gravedad: azul=info, amarillo=warning, naranja=alert, rojo=critical. El tamano indica intensidad; los que palpitan son alertas activas.',
+    ob_step3_t: 'Filtra y localiza',
+    ob_step3_b: 'Usa el panel de filtros para ver solo lo que te importa. Toca el mapa para ver puntos de interes cercanos: hospitales, farmacias, gasolineras, bomberos...',
+    ob_step4_t: 'Instala y activa alertas',
+    ob_step4_b: 'Anade NearMe a tu pantalla de inicio (funciona offline, con auto-refresh). Registrate y crea alertas personalizadas: te avisamos en el navegador cuando algo ocurra cerca.',
   },
   en: {
     tagline: "What's happening around you",
@@ -2125,6 +2175,20 @@ const I18N = {
     about_use: 'Usage:',
     about_use_body: 'Open-source on GitHub. No guaranteed SLA: personal/educational project, may have interruptions.',
     about_support: 'Support:',
+    ob_title: 'Welcome to NearMe OSINT',
+    ob_sub: 'Real-time map of geolocated events and incidents',
+    ob_prev: 'Prev',
+    ob_next: 'Next',
+    ob_start: 'Start',
+    ob_skip: 'Skip',
+    ob_step1_t: 'Explore the map',
+    ob_step1_b: 'Search a city or click the map to center the view. Adjust the radius (50/200/500 km) to see events around you.',
+    ob_step2_t: 'Read the events',
+    ob_step2_b: 'Each icon is an event type (wildfire, traffic, heat, air...). The border shows severity: blue=info, yellow=warning, orange=alert, red=critical. Size shows intensity; pulsing icons are active alerts.',
+    ob_step3_t: 'Filter & locate',
+    ob_step3_b: 'Use the filter panel to focus on what matters. Tap the map to find nearby points of interest: hospitals, pharmacies, gas stations, fire stations...',
+    ob_step4_t: 'Install & get alerts',
+    ob_step4_b: 'Add NearMe to your home screen (works offline, with auto-refresh). Register and create custom alerts: we notify you in the browser when something happens nearby.',
   }
 };
 
