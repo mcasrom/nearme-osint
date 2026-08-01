@@ -1,5 +1,9 @@
 import csv
 import io
+import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import httpx
 import requests
 from google.transit import gtfs_realtime_pb2
@@ -20,6 +24,10 @@ class RENFEDelaysCollector(BaseCollector):
 
     def __init__(self):
         self._stations = None
+
+    def _service_date(self, trip_id):
+        m = re.search(r"(\d{4}-\d{2}-\d{2})$", trip_id or "")
+        return m.group(1) if m else None
 
     def _load_stations(self):
         if self._stations is not None:
@@ -71,6 +79,12 @@ class RENFEDelaysCollector(BaseCollector):
                 tu = entity.trip_update
                 trip_id = tu.trip.trip_id
                 route_id = tu.trip.route_id
+
+                if feed_type == "alta_velocidad":
+                    sd = self._service_date(trip_id)
+                    today = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
+                    if sd != today:
+                        continue
 
                 for stu in tu.stop_time_update:
                     if not stu.HasField('arrival') or stu.arrival.delay <= 300:

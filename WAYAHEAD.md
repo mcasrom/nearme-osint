@@ -528,6 +528,12 @@ Largo plazo / estrategico:
 - **Verificacion E2E (Playwright headless)**: registro->modal->generar codigo->consumo via `process_update` (chat real del admin)->recarga->"Enlazado a mcasrom"->desvincular->vuelve el boton. Envio real de alerta a Telegram verificado (`tg_grupos=1`, mensaje recibido en el chat 47652516). Datos de test limpiados (usuarios tgtest*/uitest*).
 - **Ops**: proceso PM2 `telegram-bot` arrancado y guardado (`pm2 save`); CHANGELOG v0.12.
 
+## Fix 37l — RENFE alta velocidad: filtrar retrasos por fecha de servicio (1 Ago 2026)
+- **Problema**: avisos "vivos" pero con dato de ayer (usuario: "¿está actualizado? parece del hace días"). El feed `trip_updates_LD.pb` de RENFE sirve trip_updates de la fecha de servicio anterior (observado 14:40 UTC: 173 de 250 con fecha 07-31; 37 con retraso >5 min, p.ej. `Trip: 0514022026-07-31` +30 min en CUENCA-FERNANDO ZÓBEL). El colector ingería todo retraso >=10 min sin mirar la fecha -> re-creaba/reactualizaba retrasos de trenes de ayer cada ciclo 15 min (updated_at reciente -> confianza 94% enganosa).
+- **Fix** (`src/collectors/renfe/__init__.py`): en el feed LD se extrae la fecha de servicio del trip_id (sufijo `YYYY-MM-DD`) y se descartan los que no correspondan a hoy (Europe/Madrid). Cercanias no lleva fecha en el trip_id (intacto). Verificado contra feed live: 18 retrasos LD y 0 con fecha != hoy.
+- **Limpieza BD**: 39 eventos renfe alta_velocidad con fecha != hoy marcados `expired` (quedan 21 activos de hoy).
+- Commit: `TBD`.
+
 ## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
 - **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.
 - **Confidence score (0-100)**: `event_confidence()` en db.py = fiabilidad base de la fuente (SOURCE_CONFIDENCE en config.py: dgt/renfe/aemet/ign 92-95, satelites 85-90, intelhub 60) x factor de frescura de updated_at. Expuesto en /api/nearby como campo `confidence` por evento; badge "✓ NN%" en las cards del sidebar y en los popups de los marcadores.

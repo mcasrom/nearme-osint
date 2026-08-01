@@ -3,6 +3,10 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.12.1 — 1 Ago 2026 (fix 37l)
+
+- **Fix retrasos RENFE stale**: el feed RENFE de larga distancia sigue sirviendo trip_updates de la fecha de servicio anterior; NearMe los pintaba como activos con dato de ayer (p.ej. `Trip: 0514022026-07-31`). El colector ahora descarta retrasos cuya fecha de servicio no sea hoy (Europe/Madrid). Limpieza de 39 eventos stale de alta velocidad.
+
 ## v0.12 — 1 Ago 2026 (sprint 37k)
 
 - **Alertas por Telegram**: ademas del Web Push del navegador, los avisos llegan tambien a tu Telegram. En el modal de alertas generas un codigo (10 min, un solo uso) y vinculas tu chat escribiendo `/nearme CODIGO` a `@nearme_status_bot`; desvincular en un clic. El bot corre como proceso PM2 (`telegram-bot`, long-polling robusto a errores de red); el cron de envio (`send_push_alerts.py`) ahora manda a ambos canales con dedup independiente por alerta+evento+nivel (`push_sent.channel`).
