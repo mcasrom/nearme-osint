@@ -464,6 +464,17 @@ NOTAS de verificación:
 - **Badge Estado con stale detection** (admin.html): badge Ok/Stale/Error; interval por nombre mostrado (antes el map usaba claves minúsculas que nunca casaban -> siempre 60); Stale = last_success && edad > 2x interval. Verificado con Playwright inyectando DGT con 30 min (interval 5) -> muestra Stale.
 - Commits: `afec486`, `1d3b4c7`.
 
+## Sprint 37h — Cierre review Product Hunt + CHANGELOG + onboarding visual + Telegram (1 Ago 2026)
+- **Review PH (6 comentarios "mejorable")**: 3 aplicados ya en 37g (ko-fi unificado, autor mcasrom, i18n) y ahora los 3 restantes:
+  1) **Meta og/twitter/description**: anade "open-source" + stack (Python/FastAPI, PostgreSQL+PostGIS, Leaflet) como hook tecnico (commit `4138a0a`).
+  2) **Copy sin promesas falsas**: quitados "proximamente" (alertas email) y "pronto" (notificaciones real-time); suavizado "alertas push" de la PWA — NO hay Web Push real (verificado: sin pushManager/VAPID), solo notificaciones de navegador.
+  3) **Nota SLA** con i18n ES/EN: "Codigo abierto en GitHub. Sin SLA garantizado: proyecto personal/educativo, puede haber interrupciones."
+- **Email de contacto** (`a5de9c9`): creado `nearme@viajeinteligencia.com` y sustituido `news@` en index.html (Contacto + Control), README y setup-server.sh. En intelligence-hub (`ca94987`): template de briefings + deploy script. Históricos output/*.html sin tocar.
+- **CHANGELOG publico** (`2a163c1`): `CHANGELOG.md` en raiz (historia v0.2->v0.10) con symlink `frontend/CHANGELOG.md` servido en `/CHANGELOG.md`; link "Cambios/Changelog" (i18n) en Sobre tras Codigo; version frontend -> v0.10 (1 Ago 2026); sw -> nearme-v5.
+- **Onboarding visual 4 pasos** (`5db0788`): showOnboarding pasa de texto a carrusel con capturas de `frontend/ph/` (01-map-general, 06-event-clusters, 03-poi-filters, 04-mobile-pwa), navegacion prev/next + dots, "Empezar" en ultimo paso y "Saltar"; textos con i18n ES/EN (claves ob_*) renderizados desde I18N[currentLang()]; se conserva localStorage nearme_onboarding; sw -> nearme-v6. Verificado con Playwright.
+- **Telegram healthcheck** (`c285b7b`, `90c026e`): bot `@nearme_status_bot` (TOKEN + chat_id 47652516 en .env gitignored). healthcheck.sh alerta por Telegram SOLO en cambio de estado up->down (dedup) + aviso [RECOVERED]; estado en logs/healthcheck.state. Fixes en test: telegram_send dentro de 'if !' (un fallo de curl abortaba el script bajo set -e y rompia el dedup) y CDIR robusto via `git rev-parse --show-toplevel` (independiente de la ruta de invocacion). Verificado end-to-end con Telegram real.
+- Commits: `4138a0a`, `a5de9c9`, `2a163c1`, `5db0788`, `c285b7b`, `90c026e`.
+
 ## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
 - **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.
 - **Confidence score (0-100)**: `event_confidence()` en db.py = fiabilidad base de la fuente (SOURCE_CONFIDENCE en config.py: dgt/renfe/aemet/ign 92-95, satelites 85-90, intelhub 60) x factor de frescura de updated_at. Expuesto en /api/nearby como campo `confidence` por evento; badge "✓ NN%" en las cards del sidebar y en los popups de los marcadores.
