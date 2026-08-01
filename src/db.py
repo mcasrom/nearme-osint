@@ -157,6 +157,31 @@ def init_db():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cr_collector ON collector_runs(collector)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cr_ts ON collector_runs(timestamp)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            endpoint TEXT UNIQUE NOT NULL,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_ps_user ON push_subscriptions(user_id)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS push_sent (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            alert_id INTEGER NOT NULL,
+            event_id INTEGER NOT NULL,
+            level TEXT NOT NULL,
+            sent_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (user_id, alert_id, event_id, level)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_psent_sent ON push_sent(sent_at)")
     conn.commit()
     cur.close()
     release_conn(conn)
@@ -773,3 +798,104 @@ def get_page_views() -> dict:
     cur.close()
     release_conn(conn)
     return {"total_views": total, "today_views": today, "yesterday_views": yesterday}
+
+
+# ---------- Web Push ----------
+
+def save_push_subscription(user_id: int, endpoint: str, p256dh: str, auth: str) -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (endpoint) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            p256dh = EXCLUDED.p256dh,
+            auth = EXCLUDED.auth
+        RETURNING id, user_id, endpoint, created_at
+    """, (user_id, endpoint, p256dh, auth))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    d = dict(row)
+    if d.get("created_at"):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+def delete_push_subscription(user_id: int, endpoint: str) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM push_subscriptions WHERE user_id = %s AND endpoint = %s", (user_id, endpoint))
+    deleted = cur.rowcount > 0
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return deleted
+
+
+def get_push_subscriptions(user_id: int) -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT id, user_id, endpoint, p256dh, auth, created_at FROM push_subscriptions WHERE user_id = %s",
+        (user_id,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return result
+
+
+def get_push_users() -> list[int]:
+    """Usuarios con alertas activas (candidatos a push)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT user_id FROM alerts WHERE enabled = true")
+    rows = [r[0] for r in cur.fetchall()]
+    cur.close()
+    release_conn(conn)
+    return rows
+
+
+def push_sent_exists(user_id: int, alert_id: int, event_id: int, level: str) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT 1 FROM push_sent WHERE user_id = %s AND alert_id = %s AND event_id = %s AND level = %s",
+        (user_id, alert_id, event_id, level)
+    )
+    found = cur.fetchone() is not None
+    cur.close()
+    release_conn(conn)
+    return found
+
+
+def mark_push_sent(user_id: int, alert_id: int, event_id: int, level: str) -> None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO push_sent (user_id, alert_id, event_id, level) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (user_id, alert_id, event_id, level)
+    )
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+
+
+def prune_push_sent(hours: int = 48) -> int:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM push_sent WHERE sent_at < NOW() - INTERVAL '%s hours'", (hours,))
+    deleted = cur.rowcount
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return deleted

@@ -135,6 +135,16 @@ class AlertUpdate(BaseModel):
     enabled: Optional[bool] = None
 
 
+class PushSubscribeBody(BaseModel):
+    endpoint: str = Field(min_length=10)
+    p256dh: str = Field(min_length=10)
+    auth: str = Field(min_length=5)
+
+
+class PushUnsubscribeBody(BaseModel):
+    endpoint: str = Field(min_length=10)
+
+
 @app.on_event("startup")
 def startup():
     from src.db import init_db
@@ -423,6 +433,29 @@ def delete_alert(alert_id: int, user: dict = Depends(get_current_user)):
     if not delete_alert(alert_id, user["id"]):
         raise HTTPException(status_code=404, detail="Alerta no encontrada")
     return {"ok": True}
+
+
+# ----- Web Push endpoints -----
+
+@app.get("/api/push/vapid-key")
+def vapid_public_key():
+    pub = os.environ.get("VAPID_PUBLIC_KEY", "")
+    if not pub:
+        raise HTTPException(status_code=500, detail="VAPID no configurado")
+    return {"public_key": pub}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(body: PushSubscribeBody, user: dict = Depends(get_current_user)):
+    from src.db import save_push_subscription
+    sub = save_push_subscription(user["id"], body.endpoint, body.p256dh, body.auth)
+    return {"ok": True, "id": sub["id"]}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(body: PushUnsubscribeBody, user: dict = Depends(get_current_user)):
+    from src.db import delete_push_subscription
+    return {"ok": delete_push_subscription(user["id"], body.endpoint)}
 
 
 class LocationBody(BaseModel):

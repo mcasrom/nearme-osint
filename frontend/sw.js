@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nearme-v6';
+const CACHE_NAME = 'nearme-v7';
 const STATIC_ASSETS = [
     '/',
     '/manifest.json',
@@ -89,3 +89,40 @@ async function networkFirst(request) {
         });
     }
 }
+
+
+// ---------- Web Push ----------
+self.addEventListener('push', (event) => {
+    let data = { title: 'NearMe OSINT', body: '', url: '/' };
+    try {
+        const d = event.data ? event.data.json() : {};
+        if (d.title) data.title = d.title;
+        if (d.body) data.body = d.body;
+        if (d.url) data.url = d.url;
+    } catch (e) {}
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icon-256.png',
+            badge: '/icon-256.png',
+            data: { url: data.url },
+        })
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = (event.notification.data && event.notification.data.url) || '/';
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if ('focus' in client) {
+                    client.navigate(url).catch(() => {});
+                    return client.focus();
+                }
+            }
+            return clients.openWindow(url);
+        })
+    );
+});
+

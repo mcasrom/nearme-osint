@@ -3,6 +3,11 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.11 — 1 Ago 2026 (sprint 37i)
+
+- **Web Push real**: notificaciones push del navegador con la app cerrada. Suscripcion con claves VAPID, tablas `push_subscriptions`/`push_sent` (dedup por alerta+evento+nivel), endpoint `/api/push/*` protegido con JWT y cron cada 5 min (`scripts/send_push_alerts.py`) que envia cuando un evento coincide con tus alertas ancladas a ubicaciones guardadas.
+- **Interfaz**: el modal de alertas explica que recibiras avisos aunque cierres la app (se comprueba cada 5 min); aviso toast al activar push.
+
 ## v0.10 — 1 Ago 2026 (sprints 37f-37h)
 
 - **Visualizaciones de alto valor**: heatmap multi-fuente (peso por severidad y frescura), confidence score por evento (fiabilidad de fuente × frescura, badge "✓ NN%") y ranking de municipios + tendencias 24h en el panel.

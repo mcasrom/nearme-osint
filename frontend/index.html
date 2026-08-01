@@ -1710,7 +1710,7 @@ async function checkAuth() {
     if (!t) { currentUser = null; updateAuthUI(); return; }
     try {
         const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
-        if (r.ok) { currentUser = await r.json(); }
+        if (r.ok) { currentUser = await r.json(); setupPushSubscription(); }
         else { clearToken(); }
     } catch { clearToken(); }
     updateAuthUI();
@@ -1726,6 +1726,7 @@ async function doAuth(method, body) {
     currentUser = data.user;
     await migrateGuestData();
     updateAuthUI();
+    setupPushSubscription();
     return data;
 }
 
@@ -1870,6 +1871,44 @@ function showBrowserNotification(title, body) {
     try { new Notification(title, { body, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🔔</text></svg>' }); } catch {}
 }
 
+// ===== Web Push =====
+function urlBase64ToUint8Array(b64) {
+    const pad = '='.repeat((4 - b64.length % 4) % 4);
+    const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+}
+
+async function setupPushSubscription() {
+    try {
+        if (!isLoggedIn()) return;
+        if (!('PushManager' in window) || !('serviceWorker' in navigator)) return;
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        const keyResp = await fetch('/api/push/vapid-key');
+        if (!keyResp.ok) return;
+        const { public_key } = await keyResp.json();
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) return;
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(public_key)
+        });
+        const b64 = (buf) => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+        const r = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                endpoint: sub.endpoint,
+                p256dh: b64(sub.getKey('p256dh')),
+                auth: b64(sub.getKey('auth'))
+            })
+        });
+        if (r.ok) showToast('🔔 Push activado: avisos aunque cierres la app');
+    } catch (e) {}
+}
+
 function getLabel(a) {
     const t = a.event_type === 'all' ? 'Cualquier tipo' : (ICONS[a.event_type] || '') + ' ' + a.event_type.replace('_', ' ');
     return t + ' · ' + a.radius_km + ' km · desde ' + a.min_level;
@@ -1895,7 +1934,7 @@ function showAlertModal() {
             ${guestNote}
             <div style="font-size:0.78em;color:#78909c;margin-bottom:12px;line-height:1.5;">
                 <strong>Como funciona:</strong> Tus alertas se guardan ${isLoggedIn() ? 'en el servidor' : 'en tu dispositivo'}. Cada vez que el mapa carga eventos, los comparamos en tu navegador con tus criterios. Si hay coincidencias, el boton 🔔 muestra el contador y te llega una notificacion del navegador (si lo permites).<br><br>
-                Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona
+                Ejemplos: 🔥 incendios a &lt;30 km · 🚧 obras en tu ruta · 🌡️ calor extremo cerca · 🚆 retrasos tren en tu zona<br><br><strong>Web Push:</strong> Si inicias sesion y guardas al menos una ubicacion, recibiras los avisos incluso con la app cerrada (se comprueba cada 5 min).
             </div>
             <div id="alertList"><div class="loading"><span class="loading-spinner"></span></div></div>
             <div class="alert-form">
@@ -1956,7 +1995,9 @@ async function createAlert() {
     const level = document.getElementById('alertLevel').value;
     if (radius < 1 || radius > 500) { alert('Radio entre 1 y 500 km'); return; }
     if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
+        Notification.requestPermission().then(() => setupPushSubscription());
+    } else {
+        setupPushSubscription();
     }
     if (!isLoggedIn()) {
         const alerts = getGuestAlerts();
