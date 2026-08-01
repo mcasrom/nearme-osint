@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NearMe OSINT — Mapa de eventos en tiempo real</title>
-    <meta name="description" content="Wildfires, earthquakes, traffic, weather alerts, air quality, train delays and beaches — 15 open data feeds in one live PWA map. Currently covering Spain.">
+    <meta name="description" content="Open-source real-time public safety map: wildfires, earthquakes, traffic, weather alerts, air quality, train delays and beaches — 15 open data feeds in one live PWA. Built with Python/FastAPI, PostgreSQL+PostGIS and Leaflet. Spain.">
     <meta name="theme-color" content="#00d4ff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,16 +14,16 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
     <link rel="apple-touch-icon" href="/icon-256.png">
     <!-- Open Graph / RRSS -->
-    <meta property="og:title" content="NearMe OSINT — Real-time public safety events map">
-    <meta property="og:description" content="Wildfires, earthquakes, traffic, weather alerts, air quality, train delays and beaches — 15 open data feeds in one live PWA map. Currently covering Spain.">
+    <meta property="og:title" content="NearMe OSINT — Open-source real-time public safety events map">
+    <meta property="og:description" content="Open-source live map of wildfires, earthquakes, traffic, weather alerts, air quality, train delays and beaches. 15 open data feeds, Python/FastAPI + PostGIS + Leaflet. Spain.">
     <meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:url" content="https://nearme.viajeinteligencia.com">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="NearMe OSINT — Real-time public safety events map">
-    <meta name="twitter:description" content="Wildfires, earthquakes, traffic, weather alerts, air quality, train delays and beaches — 15 open data feeds in one live map.">
+    <meta name="twitter:title" content="NearMe OSINT — Open-source real-time public safety events map">
+    <meta name="twitter:description" content="Open-source live map of public safety events: wildfires, earthquakes, traffic, weather, air quality, trains, beaches. 15 open feeds, Python/FastAPI + PostGIS + Leaflet.">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
     <style>
       .kofi-fixed {
@@ -589,10 +589,11 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
                     <p><strong data-i18n="about_author">Autor:</strong> mcasrom (<a href="https://github.com/mcasrom" style="color:#4fc3f7;" target="_blank" rel="noopener">github.com/mcasrom</a>)</p>
                     <p><strong data-i18n="about_contact">Contacto:</strong> <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a></p>
                     <p><strong data-i18n="about_code">Codigo:</strong> <a href="https://github.com/mcasrom/nearme-osint" style="color:#4fc3f7;" target="_blank">github.com/mcasrom/nearme-osint</a></p>
+                    <p><strong data-i18n="about_use">Uso:</strong> <span data-i18n="about_use_body">Código abierto en GitHub. Sin SLA garantizado: proyecto personal/educativo, puede haber interrupciones.</span></p>
                     <p><strong data-i18n="about_privacy">Privacidad:</strong> Sin analytics, sin tracking, sin publicidad. No compartimos datos. <a href="#" onclick="event.preventDefault();showPrivacy()" style="color:#4fc3f7;">Detalles</a></p>
                     <p><strong data-i18n="about_support">Apoyar:</strong> <a href="https://ko-fi.com/m_castillo" style="color:#ff6d00;" target="_blank">☕ ko-fi.com/m_castillo</a></p>
                     <p style="margin-top:8px;"><strong>📱 PWA — Instalar como app</strong></p>
-                    <p>Añade NearMe a tu pantalla de inicio. Funciona offline con datos cacheados, sin navegador visible, con auto-refresh cada 5 minutos y alertas push.</p>
+                    <p>Añade NearMe a tu pantalla de inicio. Funciona offline con datos cacheados, sin navegador visible, con auto-refresh cada 5 minutos y alertas con notificación del navegador.</p>
                     <p>Chrome/Android: icono de instalar en la barra de direcciones. iOS: Compartir → Añadir a pantalla de inicio.</p>
                     <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">v0.9 — 30 Jul 2026 — <a href="/admin" style="color:#4fc3f7;">Admin</a></p>
                 </div>
@@ -603,7 +604,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
                 <summary>🔒 Privacidad y datos</summary>
                 <div class="content" style="font-size:0.82em;line-height:1.6;">
                     <p><strong>Que datos guardamos:</strong> Al registrarse, almacenamos tu nombre de usuario, email (opcional), y un hash cifrado de tu contraseña (bcrypt). Tambien guardas tus alertas y ubicaciones favoritas.</p>
-                    <p><strong>Para que:</strong> Exclusivamente para el sistema de alertas — comparamos los eventos del mapa contra tus criterios (tipo, radio, nivel) y te notificamos en el navegador. El email se usaria solo para alertas por correo (proximamente).</p>
+                    <p><strong>Para que:</strong> Exclusivamente para el sistema de alertas — comparamos los eventos del mapa contra tus criterios (tipo, radio, nivel) y te notificamos en el navegador.</p>
                     <p><strong>Que NO hacemos:</strong> No compartimos, vendemos ni cedemos datos a terceros. No hay analytics, rastreadores, cookies de seguimiento ni publicidad. No almacenamos IPs ni geolocalizacion del usuario.</p>
                     <p><strong>Control:</strong> Puedes borrar tus alertas en cualquier momento desde el panel. Para eliminar tu cuenta, escribe a <a href="mailto:news@viajeinteligencia.com" style="color:#4fc3f7;">news@viajeinteligencia.com</a>.</p>
                     <p style="margin-top:6px;font-size:0.85em;color:#607d8b;">Este proyecto es software libre (MIT). El codigo es auditabile en GitHub.</p>
@@ -1770,7 +1771,7 @@ function showAuthModal() {
                     <ul>
                         <li>🔔 Alertas personalizadas guardadas en el servidor</li>
                         <li>📱 Acceso desde cualquier dispositivo</li>
-                        <li>🔄 Notificaciones en tiempo real (pronto)</li>
+                        <li>🔔 Alertas con notificación en el navegador</li>
                     </ul>
                 </div>
                 <input type="text" id="regUser" placeholder="Usuario (min 3 caracteres)" class="auth-input">
@@ -2095,6 +2096,8 @@ const I18N = {
     about_contact: 'Contacto:',
     about_code: 'Codigo:',
     about_privacy: 'Privacidad:',
+    about_use: 'Uso:',
+    about_use_body: 'Código abierto en GitHub. Sin SLA garantizado: proyecto personal/educativo, puede haber interrupciones.',
     about_support: 'Apoyar:',
   },
   en: {
@@ -2116,6 +2119,8 @@ const I18N = {
     about_contact: 'Contact:',
     about_code: 'Code:',
     about_privacy: 'Privacy:',
+    about_use: 'Usage:',
+    about_use_body: 'Open-source on GitHub. No guaranteed SLA: personal/educational project, may have interruptions.',
     about_support: 'Support:',
   }
 };
