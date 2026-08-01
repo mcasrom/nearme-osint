@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from src.logging import get_logger
 from src.models import Event
-from src.config import DEFAULT_TTL_HOURS, DEFAULT_TTL_FALLBACK_HOURS, EVENT_STATUS_ACTIVE, EVENT_STATUS_RESOLVED, EVENT_STATUS_UPDATED
+from src.config import DEFAULT_TTL_HOURS, DEFAULT_TTL_FALLBACK_HOURS, EVENT_STATUS_ACTIVE, EVENT_STATUS_RESOLVED, EVENT_STATUS_UPDATED, SOURCE_CONFIDENCE
 
 logger = get_logger("src.db")
 
@@ -291,6 +291,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
         d = dict(r)
         d["distance_km"] = round(d.pop("distance_m", 0) / 1000, 1) if d.get("distance_m") else 0
         d["status"] = d.get("status", EVENT_STATUS_ACTIVE)
+        d["confidence"] = event_confidence(d.get("source", ""), d.get("updated_at"))
         if d.get("created_at"):
             d["created_at"] = d["created_at"].isoformat()
         if d.get("updated_at"):
@@ -434,6 +435,85 @@ def get_last_pipeline_run() -> dict | None:
     return dict(row) if row else None
 
 
+
+def event_confidence(source: str, updated_at) -> int:
+    """Score 0-100: fiabilidad de la fuente x frescura."""
+    base = SOURCE_CONFIDENCE.get(source, 60)
+    if not updated_at:
+        return base
+    age = datetime.now(timezone.utc) - updated_at
+    hours = age.total_seconds() / 3600
+    if hours < 0.5:
+        fresh = 1.0
+    elif hours < 2:
+        fresh = 0.9
+    elif hours < 6:
+        fresh = 0.75
+    elif hours < 12:
+        fresh = 0.55
+    else:
+        fresh = 0.35
+    return max(10, min(99, round(base * fresh)))
+
+
+
+
+def get_rankings(lat: float, lon: float, radius_km: float = 25, limit: int = 8) -> list[dict]:
+    """Top zonas (municipio) por nº de eventos activos en el radio."""
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT municipality AS name, region, COUNT(*) AS count,
+               MAX(CASE level WHEN 'critical' THEN 4 WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END) AS max_lvl
+        FROM events
+        WHERE status != %s
+          AND (expires_at > NOW() OR (expires_at IS NULL AND updated_at > NOW() - INTERVAL '2 hours'))
+          AND municipality IS NOT NULL AND municipality != ''
+          AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)
+        GROUP BY municipality, region
+        ORDER BY count DESC
+        LIMIT %s
+    """, (EVENT_STATUS_RESOLVED, lon, lat, radius_km * 1000, limit))
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    lvl_names = {4: "critical", 3: "alert", 2: "warning", 1: "info"}
+    return [{"name": r["name"], "region": r["region"], "count": r["count"],
+             "max_level": lvl_names.get(r["max_lvl"], "info")} for r in rows]
+
+
+def get_trends(hours: int = 24, bucket_hours: int = 2) -> dict:
+    """Serie temporal (bucket_hours) de eventos creados + hoy vs ayer (Europe/Madrid)."""
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT to_char(date_trunc('hour', created_at), 'HH24:00') AS label, COUNT(*) AS count
+        FROM events
+        WHERE created_at >= NOW() - INTERVAL '%s hours'
+        GROUP BY 1
+        ORDER BY 1
+    """, (hours,))
+    raw = cur.fetchall()
+    cur.execute("""
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('day', NOW() AT TIME ZONE 'Europe/Madrid')::timestamptz) AS hoy,
+          COUNT(*) FILTER (WHERE created_at < date_trunc('day', NOW() AT TIME ZONE 'Europe/Madrid')::timestamptz
+                           AND created_at >= (date_trunc('day', NOW() AT TIME ZONE 'Europe/Madrid') - INTERVAL '1 day')::timestamptz) AS ayer
+        FROM events
+        WHERE created_at >= NOW() - INTERVAL '2 days'
+    """)
+    day = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    series = []
+    for r in raw:
+        try:
+            h = int(r["label"].split(":")[0])
+            series.append({"label": r["label"], "count": r["count"], "idx": h})
+        except (ValueError, IndexError):
+            continue
+    return {"bucket_hours": bucket_hours, "series": series,
+            "hoy": day["hoy"] or 0, "ayer": day["ayer"] or 0}
 # ----- Expired cleanup -----
 
 def clean_expired():

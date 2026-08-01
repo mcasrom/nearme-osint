@@ -280,6 +280,16 @@ DEFAULT_TTL_HOURS = {
 
 DEFAULT_TTL_FALLBACK_HOURS = 72
 
+# Fiabilidad base por fuente (0-100) para el confidence score de cada evento.
+# Fuentes oficiales en tiempo real -> alto; agregadores/procesados -> medio.
+SOURCE_CONFIDENCE = {
+    "dgt": 95, "renfe": 94, "aemet": 93, "ign": 92, "proteccion_civil": 92,
+    "ree": 90, "energy": 90, "nasa_firms": 90, "usgs": 88, "miteco": 88,
+    "embalses": 85, "playas": 85, "copernicus": 85, "uv": 85, "openaq": 84,
+    "open_meteo": 82, "intelhub": 60,
+}
+
+
 
 # ── Pipeline ─────────────────────────────────────────────────
 PIPELINE_MAX_EVENTS_PER_COLLECTOR = 5000

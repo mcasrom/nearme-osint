@@ -230,6 +230,23 @@ def summary(
     return {"lat": lat, "lon": lon, "radius_km": radius, **s}
 
 
+@app.get("/api/rankings")
+def rankings(
+    lat: float = Query(40.42, description="Latitud"),
+    lon: float = Query(-3.70, description="Longitud"),
+    radius: float = Query(25, description="Radio en km"),
+    limit: int = Query(8, ge=1, le=20),
+):
+    from src.db import get_rankings, get_trends
+    return {
+        "lat": lat,
+        "lon": lon,
+        "radius_km": radius,
+        "top": get_rankings(lat, lon, radius, limit),
+        "trends": get_trends(),
+    }
+
+
 @app.get("/api/types")
 def event_types():
     from src.models import EVENT_TYPES

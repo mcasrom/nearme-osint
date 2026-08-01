@@ -435,6 +435,24 @@
             .btn { padding: 10px 12px; font-size: 0.85em; }
         }
     </style>
+<style>
+.conf-badge { display:inline-block; background:#0f3a2a; color:#7cf7a0; border:1px solid #1f6b45; border-radius:8px; padding:1px 7px; font-size:0.72em; font-weight:600; margin-left:4px; vertical-align:middle; }
+.rank-panel { margin-top:12px; padding:10px 12px; background:#111827; border-radius:8px; border:1px solid #1a2a4a; }
+.rank-title { font-size:0.85em; color:#00d4ff; font-weight:600; margin:10px 0 6px; }
+.rank-item { margin-bottom:6px; }
+.rank-row { display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:2px; }
+.rank-name { color:#d0dbe8; }
+.rank-count { font-weight:700; }
+.rank-track { height:5px; background:#0d1a2a; border-radius:3px; overflow:hidden; }
+.rank-bar { height:100%; border-radius:3px; }
+.trend-bars { display:flex; align-items:flex-end; gap:2px; height:56px; margin-top:4px; }
+.trend-col { flex:1; display:flex; align-items:flex-end; height:100%; }
+.trend-bar { width:100%; background:#00d4ff; border-radius:2px 2px 0 0; min-height:2px; opacity:0.85; }
+.trend-axis { display:flex; justify-content:space-between; font-size:0.6em; color:#607d8b; margin-top:2px; }
+body.light .rank-panel { background:#fff; border-color:#e0e0e0; }
+body.light .rank-name { color:#333; }
+body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0; }
+</style>
 </head>
 <body>
 <div id="app">
@@ -497,6 +515,13 @@
 
         <div id="poi-panel" style="display:none;"></div>
         <div id="stats" class="stats"></div>
+        <div class="rank-panel" id="rankPanel" style="display:none;">
+            <div class="rank-title">📊 Top zonas (incidencias)</div>
+            <div id="rankBody">Cargando...</div>
+            <div class="rank-title">📈 Tendencias 24h</div>
+            <div id="trendBody"></div>
+            <div id="dayBody" style="margin-top:6px;"></div>
+        </div>
         <div class="legend" id="legend"></div>
         <div id="events"><div class="loading"><span class="loading-spinner"></span>Cargando eventos...</div></div>
 
@@ -1133,16 +1158,27 @@ function toggleHeatmap() {
 }
 
 function loadEventsWithHeatmap() {
-    const fireLimit = parseInt(currentRadius) >= 500 ? 2000 : 1000;
-    const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=${fireLimit}&event_type=fire`;
-    fetch(url).then(r => r.json()).then(data => {
-        const fires = (data.events || []).filter(e => e.event_type === 'fire' && e.source === 'nasa_firms');
-        const heatData = fires.map(e => [e.lat, e.lon, Math.min(e.subtype ? parseFloat(e.subtype.replace('frp_','')) || 1 : 1, 300) / 100]);
+    const build = (events) => {
+        const lvlW = { critical: 1.0, alert: 0.75, warning: 0.5, info: 0.25 };
+        const now = Date.now();
+        const heatData = (events || []).map(e => {
+            let w;
+            if (e.event_type === 'fire' && e.source === 'nasa_firms') {
+                w = Math.min(getFRP(e) || (e.subtype ? parseFloat(e.subtype.replace('frp_', '')) || 1 : 1), 300) / 100;
+            } else {
+                w = lvlW[e.level] || 0.3;
+            }
+            if (e.updated_at) {
+                const age = (now - new Date(e.updated_at).getTime()) / 3600000;
+                w *= age < 0.5 ? 1 : age < 2 ? 0.9 : age < 6 ? 0.75 : age < 12 ? 0.55 : 0.35;
+            }
+            return [e.lat, e.lon, Math.max(0.05, Math.min(1, w))];
+        });
         if (heatData.length === 0) {
             const btn = document.getElementById('heatBtn');
             btn.className = 'btn btn-sm btn-heat';
             btn.textContent = 'Mapa de calor';
-            alert('No hay incendios en esta zona para el mapa de calor');
+            alert('No hay eventos en esta zona para el mapa de calor');
             return;
         }
         if (heatmapLayer) map.removeLayer(heatmapLayer);
@@ -1150,10 +1186,17 @@ function loadEventsWithHeatmap() {
             radius: 25, blur: 15, maxZoom: 10,
             gradient: { 0.2: '#ffff00', 0.4: '#ffaa00', 0.6: '#ff5500', 0.8: '#ff0000', 1.0: '#880000' }
         }).addTo(map);
-    }).catch(() => {
+        const btn = document.getElementById('heatBtn');
+        btn.className = 'btn btn-sm btn-heat active';
+        btn.textContent = 'Desactivar calor';
+    };
+    if (allEvents && allEvents.length) { build(allEvents); return; }
+    const url = `/api/nearby?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=1000`;
+    fetch(url).then(r => r.json()).then(data => build(data.events || [])).catch(() => {
         const btn = document.getElementById('heatBtn');
         btn.className = 'btn btn-sm btn-heat';
         btn.textContent = 'Mapa de calor';
+        alert('No se pudieron cargar eventos para el mapa de calor');
     });
 }
 
@@ -1178,6 +1221,7 @@ async function loadEvents() {
         allEvents = data.events || [];
         lastEventsCache = { data: data, ts: Date.now() };
         render(data);
+        loadRankings();
         checkAlerts(allEvents);
     } catch (e) {
         if (lastEventsCache) {
@@ -1393,7 +1437,7 @@ function renderMapMarkers() {
             eventType: e.event_type,
             eventLevel: e.level,
         });
-        m.bindPopup(`<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}<br><small>${descHtml}</small>`);
+        m.bindPopup(`<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}${e.confidence ? ' &middot; ' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%' : ''}<br><small>${descHtml}</small>`);
         window.clusterGroup.addLayer(m);
         markerBounds.push([e.lat, e.lon]);
     });
@@ -1419,7 +1463,7 @@ function renderEvents() {
         var shareBtn = navigator.share ? '<button class="share-btn" data-idx="' + idx + '" onclick="event.stopPropagation();shareEvent(allEvents[' + idx + '])" title="Compartir">📤</button>' : '';
         var fresh = freshnessBadge(e.updated_at);
         return '<div class="event" style="border-left-color:' + color + '" onclick="showEventDetail(' + idx + ')">\
-            <div class="title">' + lvl + ' ' + icon + ' ' + e.title + ' ' + badge + fresh + '</div>\
+            <div class="title">' + lvl + ' ' + icon + ' ' + e.title + ' ' + badge + fresh + confBadge(e) + '</div>\
             <div class="dist">' + e.distance_km + ' km &middot; ' + e.source + ' ' + shareBtn + '</div>\
             ' + (descHtml ? '<div class="desc">' + descHtml + '</div>' : '') + '\
             <div class="meta">' + (e.municipality || e.region || '') + ' ' + (e.country || '') + '</div>\
@@ -1974,6 +2018,51 @@ function updateAlertBadge(count) {
     } else {
         if (badge) badge.classList.remove('show');
     }
+}
+
+function confBadge(e) {
+    return e.confidence ? '<span class="conf-badge" title="Confianza: fiabilidad de la fuente + frescura">' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%</span>' : '';
+}
+
+async function loadRankings() {
+    const panel = document.getElementById('rankPanel');
+    if (!panel) return;
+    const url = `/api/rankings?lat=${currentLat}&lon=${currentLon}&radius=${currentRadius}&limit=8`;
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        renderRankings(data);
+        panel.style.display = 'block';
+    } catch (e) {
+        panel.style.display = 'none';
+    }
+}
+
+function renderRankings(data) {
+    const top = data.top || [];
+    const body = document.getElementById('rankBody');
+    const trendBody = document.getElementById('trendBody');
+    const dayBody = document.getElementById('dayBody');
+    const max = top.reduce((m, t) => Math.max(m, t.count), 1);
+    body.innerHTML = top.length === 0
+        ? '<div style="color:#607d8b;font-size:0.78em;padding:4px 0;">Sin incidencias con municipio en esta zona</div>'
+        : top.map(t => {
+            const pct = Math.round(t.count / max * 100);
+            const c = LEVEL_COLORS[t.max_level] || '#607d8b';
+            return '<div class="rank-item"><div class="rank-row"><span class="rank-name">' + t.name + '</span><span class="rank-count" style="color:' + c + '">' + t.count + '</span></div><div class="rank-track"><div class="rank-bar" style="width:' + pct + '%;background:' + c + ';"></div></div></div>';
+        }).join('');
+    const series = (data.trends && data.trends.series) || [];
+    const maxC = series.reduce((m, x) => Math.max(m, x.count), 1);
+    trendBody.innerHTML = '<div class="trend-bars">' + series.map(x => {
+        const h = Math.round(x.count / maxC * 100);
+        return '<div class="trend-col" title="' + x.label + ' · ' + x.count + ' eventos"><div class="trend-bar" style="height:' + Math.max(2, h) + '%"></div></div>';
+    }).join('') + '</div><div class="trend-axis">' + series.map(x => (x.idx % 3 === 0 ? '<span>' + x.idx + '</span>' : '<span></span>')).join('') + '</div>';
+    const t = data.trends || {};
+    const hoy = t.hoy || 0, ayer = t.ayer || 0;
+    const diff = ayer > 0 ? Math.round((hoy - ayer) / ayer * 100) : null;
+    const arrow = diff === null ? '' : (diff >= 0 ? ' <span style="color:#66bb6a;">▲ +' + diff + '%</span>' : ' <span style="color:#ef5350;">▼ ' + diff + '%</span>');
+    dayBody.innerHTML = '<div style="font-size:0.76em;color:#78909c;">Hoy <b style="color:#4fc3f7;">' + hoy + '</b> · Ayer <b>' + ayer + '</b>' + arrow + '</div>';
 }
 
 init();
