@@ -453,6 +453,10 @@ NOTAS de verificación:
 - El "bug crítico de encoding" (mojibake â/ðŸ”) del análisis es FALSO POSITIVO de su crawler: el HTML servido tiene UTF-8 correcto (62 emojis reales, 0 bytes corruptos, meta charset línea 5).
 - UX decision: registro/login debe pasar a segundo plano (guest-first), solo requerido al persistir ubicaciones/alertas.
 
+### Sprint 37e — Research mercado: visualizaciones de alto valor usuario (1 Ago 2026)
+- Busqueda web (mapas de incidentes en tiempo real, dashboards geo, 2026): features mas demandadas = heatmap de hotspots, score de riesgo por zona, timeline/playback historico, confidence/fiabilidad de eventos, Safe Zones + push, ranking/tendencias por region, rutas afectadas (DGT/RENFE), embed/API publica, export CSV/PDF.
+- Decision del usuario: implementar **1) Heatmap**, **4) Confidence/fiabilidad** y **7) Ranking/tendencias** (mayor retorno por esfuerzo con la infra existente). Los demas (score de riesgo por zona, timeline playback, safe zones + web push, rutas afectadas, embed, export) quedan en backlog.
+
 ### Sprint 37d — Fix datos obsoletos / feed DGT (1 Ago 2026)
 - **Problema reportado**: incidencias DGT del 28JUL (vehicleObstruction RM-C19, A-30 Ulea, etc.) visibles dias despues. Innumerables eventos obsoletos.
 - **Causa raiz 1 (datos eternos)**: 4.761 eventos activos con `expires_at NULL` (dgt 2905, miteco 1450, aemet 406), todos sin actualizar >24h. La consulta `(expires_at IS NULL OR expires_at > NOW())` los mostraba para siempre. El upsert usaba `expires_at = events.expires_at` (mantenia el NULL original) e ignoraba el TTL calculado.
