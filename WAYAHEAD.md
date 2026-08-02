@@ -532,13 +532,21 @@ Largo plazo / estrategico:
 - **Problema**: 4 timeouts del bot contra api.telegram.org (14:58-15:07 UTC). Diagnostico: DNS resuelve IPv6 (`2001:67c:4e8:f004::9`), ruta IPv6 inestable, `requests` la intenta primero -> 24.25 s (agota timeout 30). curl (v4+v6) iba bien; forzar IPv4 -> 0.23 s.
 - **Fix**: `urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET` al inicio de `telegram_bot.py` y `send_push_alerts.py`. Bot reiniciado (getMe 0.10 s).
 - **Monitor**: `scripts/check_telegram_api.py` (3 peticiones, log a `logs/telegram_api.log`) + cron `*/5`. Salud inicial: OK avg_ttfb=0.21s.
-- Commit: `TBD`.
+- Commit: `19bc6a9`.
 
 ## Fix 37l — RENFE alta velocidad: filtrar retrasos por fecha de servicio (1 Ago 2026)
 - **Problema**: avisos "vivos" pero con dato de ayer (usuario: "¿está actualizado? parece del hace días"). El feed `trip_updates_LD.pb` de RENFE sirve trip_updates de la fecha de servicio anterior (observado 14:40 UTC: 173 de 250 con fecha 07-31; 37 con retraso >5 min, p.ej. `Trip: 0514022026-07-31` +30 min en CUENCA-FERNANDO ZÓBEL). El colector ingería todo retraso >=10 min sin mirar la fecha -> re-creaba/reactualizaba retrasos de trenes de ayer cada ciclo 15 min (updated_at reciente -> confianza 94% enganosa).
 - **Fix** (`src/collectors/renfe/__init__.py`): en el feed LD se extrae la fecha de servicio del trip_id (sufijo `YYYY-MM-DD`) y se descartan los que no correspondan a hoy (Europe/Madrid). Cercanias no lleva fecha en el trip_id (intacto). Verificado contra feed live: 18 retrasos LD y 0 con fecha != hoy.
 - **Limpieza BD**: 39 eventos renfe alta_velocidad con fecha != hoy marcados `expired` (quedan 21 activos de hoy).
-- Commit: `TBD`.
+- Commit: `18a4a29`.
+
+## Fix 37n — Sismo Murcia: validación, radio de alerta y confirmación envío Telegram (2 Ago 2026)
+- **Contexto**: el usuario reportó un sismo en Murcia (M3.9 NW LIBRILLA.MU) que "no veía" en la app y del que "no saltaba" alerta en Telegram.
+- **Validación (sin cambios de código)**: el evento sí estaba y se veía (BD id 1180634, creado 10:15 UTC, sismo 09:59:28 UTC del 02-08; IGN lo revisó de M4.1→M3.9). No visible para el usuario por pestaña sin recargar / filtros / radio del mapa — no era un bug.
+- **Causa raíz de la alerta no enviada**: la alerta del usuario (id 3) tenía `radius_km=15` y el sismo estaba a ~23,4 km de su ubicación guardada (Murcia 37.9348,-1.1131). El matcher hace `get_events_nearby(loc, radius)` → no entraba; `push.log` mostraba `push_grupos=0 tg_grupos=0` (el pipeline iba bien, simplemente no había coincidencia). Radio subido a **30 km** (`UPDATE alerts SET radius_km=30 WHERE id=3`).
+- **Confirmación de envío**: tras subir el radio, el ciclo manual de `send_push_alerts.py` envió el aviso por push y Telegram (`tg_grupos=1`); `push_sent` registra `(user 3, alert 3, event 1180634, warning, telegram)` + 4 eventos DGT. El aviso de Telegram llegó **agrupado en un único mensaje "5 eventos cerca de..."** (terremoto + 4 incidencias DGT) — fácil de pasar por alto.
+- **Revisión IGN en caliente**: IGN revisa magnitudes y ubicación; el mismo `source_id` (`ign_es2026paacq`) se re-colecta y **se actualiza in-place** (M3.9 NW LIBRILLA → M4.1 SE PLIEGO.MU, coordenadas movidas, updated_at 11:15 UTC). Comportamiento normal de la fuente, el upsert por (source, source_id) lo maneja.
+- **Canal Telegram sano**: verificado con sendMessage directo al chat 47652516 (200 OK, message_id 25). Los "Read timed out" del bot en getUpdates son ruido del long-polling (timeout HTTP 30 s = timeout del long-poll) y no afectan al envío de alertas (sendMessage).
 
 ## Sprint 37f — Implementados: Heatmap multi-fuente, Confidence, Ranking/Tendencias (1 Ago 2026)
 - **Heatmap multi-fuente**: ya no solo incendios. Peso = severidad (critical 1.0 / alert 0.75 / warning 0.5 / info 0.25) x frescura (decay por antiguedad de updated_at); fuegos nasa_firms siguen usando FRP. Usa los eventos ya cargados (allEvents), fallback a fetch de /api/nearby.
