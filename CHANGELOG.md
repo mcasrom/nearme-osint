@@ -3,6 +3,16 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.13 — 4 Ago 2026 (permalink por evento + Web Push value-first + métricas)
+
+- **Permalink por evento**: cada evento se puede compartir con su enlace directo `?e=<id>` (`/api/event/{id}` en backend). Abre la app centrada en el evento con su detalle. Boton "🔗 Copiar enlace" en el modal de detalle y boton 📤 que comparte el permalink (Web Share API). Verificado E2E con Playwright (overlay abre, 0 errores de consola).
+- **Web Push value-first**: antes del dialogo crudo del navegador, pre-prompt con microcopy en valor ("Recibe avisos de eventos cerca de ti, aunque cierres la app", 3 pasos) en el modal de alertas y al crear una alerta. Solo pide permiso tras confirmar. i18n ES/EN (claves nv_*). Verificado E2E.
+- **Métricas de estado en UI**: strip bajo la barra de salud con "📊 N eventos en 24h · ✓ X% éxito · 🕐 última actualización hace X" (de /api/metrics + /api/status), i18n ES/EN, refresco cada 60 s.
+- **URL ?lang=en|es**: el parámetro de URL fuerza el idioma (para el lanzamiento de PH).
+- **Caché de imágenes en nginx**: static images con `Cache-Control: public, max-age=3600` (og-image revalidable por crawlers).
+- **Hero GIF** en README (`frontend/nearme-preview.gif`, 2.5 MB, 400x212, 5 capturas, loop).
+- sw -> `nearme-v8`.
+
 ## v0.12.2 — 1 Ago 2026 (ops: Telegram IPv4 + monitor)
 
 - **Fix timeouts Telegram**: python/requests resolvia api.telegram.org a IPv6 y la ruta IPv6 es inestable -> el bot y el envio de alertas agotaban los 30 s ("Read timed out", 4 episodios ~15:00 UTC). Forzado IPv4 via `urllib3.util.connection.allowed_gai_family = AF_INET` en `telegram_bot.py` y `send_push_alerts.py`. Verificado: getMe 0.10 s (antes 24.25 s por defecto).
