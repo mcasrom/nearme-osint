@@ -3,6 +3,14 @@
 Agregador de datos publicos geolocalizados en tiempo real, de codigo abierto.
 De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 
+## v0.14 — 4 Ago 2026 (paquete prensa: embed widget + export CSV/GeoJSON)
+
+- **Embed widget** `?embed=1`: modo pantalla completa para iframes (sin sidebar, onboarding ni rating; sin tracking de visitas), con badge de crédito "NearMe OSINT" y soporte de `?lat&lon&radius` para centrar una zona. Ejemplo prensa: `https://nearme.viajeinteligencia.com/?embed=1&lat=40.42&lon=-3.70&radius=200`. Verificado E2E con Chromium headless.
+- **Export CSV/GeoJSON**: botones "⬇️ CSV" / "⬇️ GeoJSON" que descargan los eventos visibles (con filtros aplicados). CSV con BOM UTF-8 y escaping RFC 4180 (16 columnas); GeoJSON como FeatureCollection ([lon,lat]). i18n ES/EN.
+- **Charset nginx**: `charset utf-8;` en el server block.
+- **UptimeRobot**: pendiente de configuración manual (monitor `https://nearme.viajeinteligencia.com/health`).
+- sw -> `nearme-v9`.
+
 ## v0.13 — 4 Ago 2026 (permalink por evento + Web Push value-first + métricas)
 
 - **Permalink por evento**: cada evento se puede compartir con su enlace directo `?e=<id>` (`/api/event/{id}` en backend). Abre la app centrada en el evento con su detalle. Boton "🔗 Copiar enlace" en el modal de detalle y boton 📤 que comparte el permalink (Web Share API). Verificado E2E con Playwright (overlay abre, 0 errores de consola).

@@ -58,6 +58,11 @@
         .health-pct { margin-left:auto; font-weight:600; }
         .metrics-strip { display:none; align-items:center; flex-wrap:wrap; gap:6px 14px; font-size:0.72em; padding:4px 10px 10px; color:#90a4ae; }
         .metrics-strip .m-chip { background:#0f1b2d; border:1px solid #1a2a4a; border-radius:6px; padding:2px 8px; white-space:nowrap; }
+        .export-row { display:flex; gap:6px; margin:0 0 10px; }
+        .btn-export { flex:1; background:#111827; border:1px solid #1a2a4a; border-radius:8px; color:#d0dbe8; padding:7px 0; font-size:0.78em; font-weight:600; cursor:pointer; transition:.2s; }
+        .btn-export:hover { border-color:#00d4ff; color:#fff; }
+        body.light .btn-export { background:#f5f7fa; border-color:#e0e0e0; color:#37474f; }
+        body.light .btn-export:hover { border-color:#0288d1; }
         body.light .metrics-strip { color:#607d8b; }
         body.light .metrics-strip .m-chip { background:#eef1f6; border-color:#cfd8dc; }
         body.light .health-bar { background:#e8eaf0; border-color:#cfd8dc; }
@@ -409,6 +414,13 @@
         .rating-widget.thankyou { cursor: default; }
         .rating-widget.thankyou .face { cursor: default; opacity: 0.4; }
         body.light .rating-widget { background: #fff; border-color: #cfd8dc; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+
+        body.embed-mode #sidebar { display: none; }
+        body.embed-mode #map { flex: 1; }
+        body.embed-mode .rating-widget { display: none; }
+        #embedCredit { display: none; position: fixed; top: 8px; left: 8px; z-index: 1000; background: rgba(13,21,32,.85); border: 1px solid #1a2a4a; border-radius: 8px; padding: 4px 10px; font-size: 0.72em; }
+        #embedCredit a { color: #00d4ff; text-decoration: none; }
+        body.embed-mode #embedCredit { display: block; }
         body.light .auth-modal { background: #fff; }
         body.light .auth-input { background: #f5f7fa; color: #263238; }
         body.light .auth-tab { color: #90a4ae; }
@@ -483,6 +495,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
 <body>
 <div id="app">
     <div id="map"></div>
+    <div id="embedCredit"><a href="https://nearme.viajeinteligencia.com/" target="_blank" rel="noopener">NearMe OSINT</a></div>
     <div id="sidebar">
         <div style="position:relative;">
             <h1>NearMe OSINT</h1>
@@ -508,6 +521,11 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
         <div class="location-hint" data-i18n="loc_hint">Escribe una ubicacion o haz clic en el mapa para fijar tu punto</div>
 
         <div class="coords-display" id="coords-display">40.42, -3.70</div>
+
+        <div class="export-row" id="exportRow">
+            <button class="btn-export" onclick="exportData('csv')" title="Exportar CSV" data-i18n-title="export_csv">⬇️ CSV</button>
+            <button class="btn-export" onclick="exportData('geojson')" title="Exportar GeoJSON" data-i18n-title="export_geojson">⬇️ GeoJSON</button>
+        </div>
 
         <div class="auth-bar" id="authBar">
             <button class="btn-login-bar" onclick="showAuthModal()" data-i18n="login">🔐 Iniciar sesion / Registro</button>
@@ -644,7 +662,13 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
 </div>
 <script>
 const DEFAULT_LAT = 40.42, DEFAULT_LON = -3.70;
-let map, marker, circle, currentLat = DEFAULT_LAT, currentLon = DEFAULT_LON, currentRadius = 200;
+const URLQ = new URLSearchParams(window.location.search);
+const EMBED_MODE = URLQ.get('embed') === '1';
+const URL_LAT = parseFloat(URLQ.get('lat')), URL_LON = parseFloat(URLQ.get('lon'));
+let map, marker, circle,
+    currentLat = isFinite(URL_LAT) ? URL_LAT : DEFAULT_LAT,
+    currentLon = isFinite(URL_LON) ? URL_LON : DEFAULT_LON,
+    currentRadius = Math.min(500, Math.max(1, parseInt(URLQ.get('radius')) || 200));
 let heatmapLayer = null;
 let activeFilters = new Set();
 let allEvents = [];
@@ -907,29 +931,76 @@ function levelBadge(level, eventType) {
 
 let radiusBtns = { 50: 'r50', 200: 'r200', 500: 'r500' };
 
+function exportData(fmt) {
+    var events = getFilteredEvents();
+    if (!events.length) { showToast('⚠️ No hay eventos en esta vista'); return; }
+    if (fmt === 'csv') exportCSV(events);
+    else exportGeoJSON(events);
+}
+
+function exportCSV(events) {
+    var cols = ['id', 'event_type', 'subtype', 'level', 'title', 'source', 'municipality', 'region', 'country', 'lat', 'lon', 'distance_km', 'confidence', 'created_at', 'updated_at', 'expires_at'];
+    var rows = events.map(function(e) {
+        return cols.map(function(c) { return csvCell(e[c]); }).join(',');
+    });
+    downloadBlob('\uFEFF' + cols.join(',') + '\n' + rows.join('\n'), 'nearme-eventos.csv', 'text/csv;charset=utf-8');
+    showToast('⬇️ CSV (' + events.length + ')');
+}
+
+function csvCell(v) {
+    if (v === undefined || v === null) return '';
+    var s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function exportGeoJSON(events) {
+    var fc = { type: 'FeatureCollection', features: [] };
+    var keys = ['id', 'event_type', 'subtype', 'level', 'title', 'description', 'source', 'municipality', 'region', 'country', 'confidence', 'created_at', 'updated_at', 'expires_at'];
+    events.forEach(function(e) {
+        if (!isFinite(e.lat) || !isFinite(e.lon)) return;
+        var p = {};
+        keys.forEach(function(k) { if (e[k] !== undefined && e[k] !== null) p[k] = e[k]; });
+        if (e.distance_km !== undefined) p.distance_km = e.distance_km;
+        fc.features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [e.lon, e.lat] }, properties: p });
+    });
+    downloadBlob(JSON.stringify(fc, null, 2), 'nearme-eventos.geojson', 'application/geo+json');
+    showToast('⬇️ GeoJSON (' + fc.features.length + ')');
+}
+
+function downloadBlob(text, filename, type) {
+    var blob = new Blob([text], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+}
+
 function init() {
-    fetch('/api/visit', { method: 'POST' });
+    if (EMBED_MODE) document.body.classList.add('embed-mode');
+    if (!EMBED_MODE) fetch('/api/visit', { method: 'POST' });
     var savedRadius = parseInt(localStorage.getItem('nearme_radius'));
     if (savedRadius && [50, 200, 500].indexOf(savedRadius) >= 0) currentRadius = savedRadius;
     try {
         var savedFilters = JSON.parse(localStorage.getItem('nearme_filters'));
         if (savedFilters && Array.isArray(savedFilters)) savedFilters.forEach(function(f) { activeFilters.add(f); });
     } catch(e) {}
-    if (!localStorage.getItem('nearme_alerts_explored')) {
+    if (!EMBED_MODE && !localStorage.getItem('nearme_alerts_explored')) {
         document.getElementById('alertBtn').classList.add('alert-btn-pulse');
     }
-    map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 6);
+    map = L.map('map').setView([currentLat, currentLon], EMBED_MODE ? 12 : 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', maxZoom: 18,
     }).addTo(map);
-    marker = L.circleMarker([DEFAULT_LAT, DEFAULT_LON], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
-    circle = L.circle([DEFAULT_LAT, DEFAULT_LON], { radius: currentRadius * 1000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
+    marker = L.circleMarker([currentLat, currentLon], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
+    circle = L.circle([currentLat, currentLon], { radius: currentRadius * 1000, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.05 }).addTo(map);
     map.on('click', onMapClick);
     updateRadiusBtns();
     const savedTheme = localStorage.getItem('nearme_theme');
     if (savedTheme === 'light') document.body.classList.add('light');
     updateDarkToggle();
-    if (!localStorage.getItem('nearme_onboarding')) setTimeout(showOnboarding, 500);
+    if (!EMBED_MODE && !localStorage.getItem('nearme_onboarding')) setTimeout(showOnboarding, 500);
     checkAuth();
     refreshSourceStatus();
     refreshMetrics();
@@ -2389,6 +2460,8 @@ const I18N = {
     nv_later: 'Ahora no',
     nv_bar: 'Activa las notificaciones para recibir alertas en segundo plano',
     nv_copied: 'Enlace copiado',
+    export_csv: 'Exportar CSV',
+    export_geojson: 'Exportar GeoJSON',
   },
   en: {
     tagline: "What's happening around you",
@@ -2447,6 +2520,8 @@ const I18N = {
     nv_later: 'Not now',
     nv_bar: 'Enable notifications to get alerts in the background',
     nv_copied: 'Link copied',
+    export_csv: 'Export CSV',
+    export_geojson: 'Export GeoJSON',
   }
 };
 
