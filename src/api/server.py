@@ -229,6 +229,15 @@ def nearby(
     }
 
 
+@app.get("/api/event/{event_id}")
+def event_by_id(event_id: int):
+    from src.db import get_event_by_id
+    ev = get_event_by_id(event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Evento no encontrado o expirado")
+    return ev
+
+
 @app.get("/api/summary")
 def summary(
     lat: float = Query(40.42, description="Latitud"),

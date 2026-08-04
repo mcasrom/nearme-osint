@@ -933,6 +933,7 @@ function init() {
     checkAuth();
     refreshSourceStatus();
     refreshMetrics();
+    openEventFromPermalink();
     loadEvents();
 }
 
@@ -1563,16 +1564,59 @@ function setRadius(km) {
 
 function flyTo(lat, lon) { map.flyTo([lat, lon], 13); }
 
+function openEventFromPermalink() {
+    var id = new URLSearchParams(window.location.search).get('e');
+    if (!id) return;
+    fetch('/api/event/' + encodeURIComponent(id))
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(ev) {
+            if (!ev || !ev.id) return;
+            currentLat = ev.lat;
+            currentLon = ev.lon;
+            updateMap();
+            loadEvents();
+            setTimeout(function() { showEventDetailObj(ev); }, 900);
+        })
+        .catch(function(){});
+}
+
+function eventPermalink(e) {
+    return 'https://nearme.viajeinteligencia.com/?e=' + e.id;
+}
+
+function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    if (done) done();
+}
+
+function copyEventLink(e) {
+    var url = eventPermalink(e);
+    var done = function() { showToast('🔗 ' + (I18N[currentLang()].nv_copied || 'Enlace copiado')); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(function() { fallbackCopy(url, done); });
+    } else fallbackCopy(url, done);
+}
+
 function shareEvent(e) {
     if (!navigator.share) return;
-    const text = e.title + ' - ' + e.distance_km + 'km · ' + e.source;
-    const url = 'https://www.google.com/maps?q=' + e.lat + ',' + e.lon;
-    navigator.share({ title: e.title || 'NearMe OSINT', text, url }).catch(function(){});
+    const text = e.title + ' - ' + e.distance_km + 'km · ' + e.source + ' — NearMe OSINT';
+    navigator.share({ title: e.title || 'NearMe OSINT', text, url: eventPermalink(e) }).catch(function(){});
 }
 
 function showEventDetail(idx) {
     var events = getFilteredEvents();
     var e = events[idx];
+    if (e) showEventDetailObj(e);
+}
+
+function showEventDetailObj(e) {
     if (!e) return;
     var overlay = document.createElement('div');
     overlay.className = 'onboarding-overlay';
@@ -1586,7 +1630,6 @@ function showEventDetail(idx) {
     var wazeUrl = 'https://www.waze.com/ul?ll=' + e.lat + ',' + e.lon + '&navigate=yes';
     var lvlEmoji = levelEmoji(e.level, e.event_type);
     var icon = ICONS[e.event_type] || '\uD83D\uDCCC';
-    var shareHtml = navigator.share ? '<a href="#" class="btn-detail" onclick="event.preventDefault();shareEvent(getFilteredEvents()[' + idx + ']);">📤 Compartir</a>' : '';
     overlay.innerHTML = '\
         <div class="detail-modal" onclick="event.stopPropagation()">\
             <button class="close-detail" onclick="this.closest(\'#detailOverlay\').remove()">&times;</button>\
@@ -1603,13 +1646,29 @@ function showEventDetail(idx) {
                 ' + (e.created_at ? '<div class="field" style="color:#607d8b;font-size:0.78em;">Creado: ' + e.created_at + '</div>' : '') + '\
             </div>\
             <div class="detail-actions">\
-                <a href="#" class="btn-detail primary" onclick="event.preventDefault();document.getElementById(\'detailOverlay\').remove();flyTo(' + e.lat + ',' + e.lon + ');">📍 Volar en mapa</a>\
+                <a href="#" class="btn-detail primary" id="detailFly">📍 Volar en mapa</a>\
                 <a href="' + mapsUrl + '" target="_blank" class="btn-detail" rel="noopener">🗺️ Google Maps</a>\
                 <a href="' + wazeUrl + '" target="_blank" class="btn-detail" rel="noopener">📍 Waze</a>\
-                ' + shareHtml + '\
+                <a href="#" class="btn-detail" id="detailCopy">🔗 Copiar enlace</a>\
+                ' + (navigator.share ? '<a href="#" class="btn-detail" id="detailShare">📤 Compartir</a>' : '') + '\
             </div>\
         </div>';
     document.body.appendChild(overlay);
+    var flyEl = document.getElementById('detailFly');
+    if (flyEl) flyEl.onclick = function(ev) {
+        ev.preventDefault();
+        overlay.remove();
+        flyTo(e.lat, e.lon);
+    };
+    var copyEl = document.getElementById('detailCopy');
+    if (copyEl) copyEl.onclick = function(ev) { ev.preventDefault(); copyEventLink(e); };
+    var shareEl = document.getElementById('detailShare');
+    if (shareEl) shareEl.onclick = function(ev) {
+        ev.preventDefault();
+        if (navigator.share) {
+            navigator.share({ title: e.title || 'NearMe OSINT', text: e.title + ' - ' + e.distance_km + 'km · ' + e.source + ' — NearMe OSINT', url: eventPermalink(e) }).catch(function(){});
+        }
+    };
 }
 
 // ===== Saved Locations =====
@@ -1901,6 +1960,45 @@ function requestNotifPerm() {
     Notification.requestPermission();
 }
 
+function requestNotifPermValueFirst(onGranted) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+        if (onGranted) onGranted();
+        return;
+    }
+    showNotifValuePrompt(onGranted);
+}
+
+function showNotifValuePrompt(onGranted) {
+    var overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.id = 'notifValueOverlay';
+    overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+    var L = I18N[currentLang()];
+    overlay.innerHTML = '\
+        <div class="onboarding-modal" style="max-width:430px;" onclick="event.stopPropagation()">\
+            <h2>🔔 ' + L.nv_title + '</h2>\
+            <div class="sub">' + L.nv_body + '</div>\
+            <div class="onboarding-step"><div class="num">1</div><div class="text">' + L.nv_step1 + '</div></div>\
+            <div class="onboarding-step"><div class="num">2</div><div class="text">' + L.nv_step2 + '</div></div>\
+            <div class="onboarding-step"><div class="num">3</div><div class="text">' + L.nv_step3 + '</div></div>\
+            <button class="btn" id="nvEnableBtn">' + L.nv_btn + '</button>\
+            <div style="text-align:center;margin-top:10px;"><a href="#" id="nvLater" style="color:#78909c;font-size:0.8em;">' + L.nv_later + '</a></div>\
+        </div>';
+    document.body.appendChild(overlay);
+    document.getElementById('nvEnableBtn').onclick = function() {
+        overlay.remove();
+        Notification.requestPermission().then(function(perm) {
+            if (perm === 'granted' && typeof setupPushSubscription === 'function') setupPushSubscription();
+            if (onGranted) onGranted();
+        });
+    };
+    document.getElementById('nvLater').onclick = function(ev) {
+        ev.preventDefault();
+        overlay.remove();
+    };
+}
+
 function showBrowserNotification(title, body) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     try { new Notification(title, { body, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🔔</text></svg>' }); } catch {}
@@ -2055,8 +2153,9 @@ function renderAlertCards(alerts, list, permBar) {
 async function loadAlertList() {
     const list = document.getElementById('alertList');
     if (!list) return;
+    const L = I18N[currentLang()];
     const perm = 'Notification' in window ? Notification.permission : 'denied';
-    const permBar = perm === 'default' ? '<div class="notif-perm-bar show">🔔 Activa las notificaciones para recibir alertas en segundo plano<button onclick="requestNotifPerm();this.parentElement.classList.remove(\'show\');">Activar</button></div>' : '';
+    const permBar = perm === 'default' ? '<div class="notif-perm-bar show">🔔 ' + L.nv_bar + '<button onclick="requestNotifPermValueFirst();this.parentElement.classList.remove(\'show\');">Activar</button></div>' : '';
     if (!isLoggedIn()) {
         renderAlertCards(getGuestAlerts(), list, permBar);
         return;
@@ -2076,11 +2175,7 @@ async function createAlert() {
     const radius = parseInt(document.getElementById('alertRadius').value) || 15;
     const level = document.getElementById('alertLevel').value;
     if (radius < 1 || radius > 500) { alert('Radio entre 1 y 500 km'); return; }
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then(() => setupPushSubscription());
-    } else {
-        setupPushSubscription();
-    }
+    requestNotifPermValueFirst(function() { setupPushSubscription(); });
     if (!isLoggedIn()) {
         const alerts = getGuestAlerts();
         alerts.push({ id: Date.now(), event_type: type, radius_km: radius, min_level: level, enabled: true });
@@ -2285,6 +2380,15 @@ const I18N = {
     tg_linked: 'Enlazado a {user}',
     tg_unlink: 'Desvincular',
     tg_err: 'No se pudo generar el codigo. Intentalo otra vez.',
+    nv_title: 'Alertas en tu zona',
+    nv_body: 'Recibe avisos de eventos cerca de ti, aunque cierres la app',
+    nv_step1: 'Elige los tipos de evento, el nivel y el radio',
+    nv_step2: 'Te avisamos en el navegador (y en Telegram si lo vinculas)',
+    nv_step3: 'Puedes desactivarlo cuando quieras',
+    nv_btn: 'Activar notificaciones',
+    nv_later: 'Ahora no',
+    nv_bar: 'Activa las notificaciones para recibir alertas en segundo plano',
+    nv_copied: 'Enlace copiado',
   },
   en: {
     tagline: "What's happening around you",
@@ -2334,6 +2438,15 @@ const I18N = {
     tg_linked: 'Linked to {user}',
     tg_unlink: 'Unlink',
     tg_err: 'Could not generate a code. Try again.',
+    nv_title: 'Alerts in your area',
+    nv_body: 'Get notified about events near you, even with the app closed',
+    nv_step1: 'Pick event types, level and radius',
+    nv_step2: 'We notify you in the browser (and Telegram if linked)',
+    nv_step3: 'You can turn it off anytime',
+    nv_btn: 'Enable notifications',
+    nv_later: 'Not now',
+    nv_bar: 'Enable notifications to get alerts in the background',
+    nv_copied: 'Link copied',
   }
 };
 

@@ -323,6 +323,33 @@ def save_events_batch(events: list[Event]) -> int:
     return saved
 
 
+def get_event_by_id(event_id: int) -> Optional[dict]:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT id, source, source_id, event_type, subtype, lat, lon, radius_m,
+               level, title, description, country, region, municipality,
+               status, created_at, updated_at, expires_at
+        FROM events
+        WHERE id = %s
+          AND status != %s
+          AND (expires_at > NOW() OR (expires_at IS NULL AND updated_at > NOW() - INTERVAL '2 hours'))
+    """, (event_id, EVENT_STATUS_RESOLVED))
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    if not row:
+        return None
+    d = dict(row)
+    d["status"] = d.get("status", EVENT_STATUS_ACTIVE)
+    d["distance_km"] = 0.0
+    d["confidence"] = event_confidence(d.get("source", ""), d.get("updated_at"))
+    for k in ("created_at", "updated_at", "expires_at"):
+        if d.get(k):
+            d[k] = d[k].isoformat()
+    return d
+
+
 def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
                       limit: int = 500, event_type: Optional[str] = None,
                       min_level: Optional[str] = None) -> list[dict]:
