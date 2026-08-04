@@ -19,6 +19,10 @@
   🔥 Incendios · 🚧 Tráfico · 🌡️ Meteorología · 🌫️ Calidad del aire · 🚆 Trenes · 🏚️ Terremotos · ⚡ Energía · 🏖️ Playas
 </p>
 
+<p align="center">
+  <img src="frontend/nearme-preview.gif" alt="NearMe OSINT en acción" width="640" />
+</p>
+
 ---
 
 Un **agregador OSINT geográfico en tiempo real** que une 15 fuentes de datos públicos y oficiales en un solo mapa interactivo con niveles de severidad, mediciones continuas y alertas personalizables. Funciona como una **PWA instalable y offline**.

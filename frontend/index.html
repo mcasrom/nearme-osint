@@ -56,6 +56,10 @@
         .health-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; transition:.3s; }
         .health-text { color:#78909c; }
         .health-pct { margin-left:auto; font-weight:600; }
+        .metrics-strip { display:none; align-items:center; flex-wrap:wrap; gap:6px 14px; font-size:0.72em; padding:4px 10px 10px; color:#90a4ae; }
+        .metrics-strip .m-chip { background:#0f1b2d; border:1px solid #1a2a4a; border-radius:6px; padding:2px 8px; white-space:nowrap; }
+        body.light .metrics-strip { color:#607d8b; }
+        body.light .metrics-strip .m-chip { background:#eef1f6; border-color:#cfd8dc; }
         body.light .health-bar { background:#e8eaf0; border-color:#cfd8dc; }
         body.light .health-text { color:#546e7a; }
         .event { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; background: #111827; cursor: pointer; transition: 0.2s; border-left: 3px solid #607d8b; }
@@ -495,6 +499,8 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <span class="health-pct" id="healthPct"></span>
         </div>
 
+        <div class="metrics-strip" id="metricsStrip"></div>
+
         <div class="search-box">
             <input type="text" id="search-input" placeholder="Buscar ciudad, direccion..." data-i18n="search_ph" data-i18n-ph="1" onkeydown="if(event.key==='Enter')searchLocation()" />
             <button onclick="searchLocation()" title="Buscar">&#128269;</button>
@@ -804,6 +810,34 @@ function updateHealthBar(data) {
     bar.style.borderColor = hue + '44';
 }
 
+function fmtNum(n) {
+    if (n == null || isNaN(n)) return '0';
+    return Number(n).toLocaleString('es-ES');
+}
+
+function refreshMetrics() {
+    var strip = document.getElementById('metricsStrip');
+    if (!strip) return;
+    var L = I18N[currentLang()];
+    Promise.all([fetch('/api/metrics').then(r => r.ok ? r.json() : null),
+                 fetch('/api/status').then(r => r.ok ? r.json() : null)])
+        .then(function(results) {
+            var m = results[0], s = results[1];
+            var chips = [];
+            if (m && m.total_runs > 0) {
+                chips.push('<span class="m-chip">' + L.metrics_events.replace('{n}', fmtNum(m.total_events)) + '</span>');
+                chips.push('<span class="m-chip">' + L.metrics_success.replace('{p}', m.success_rate) + '</span>');
+            }
+            if (s && s.collectors && s.collectors.length) {
+                var last = null;
+                s.collectors.forEach(function(c) { if (c.last_run) { var t = new Date(c.last_run).getTime(); if (!last || t > last) last = t; } });
+                if (last) chips.push('<span class="m-chip" title="' + L.metrics_title + '">' + L.metrics_updated.replace('{t}', timeAgo(new Date(last).toISOString())) + '</span>');
+            }
+            if (chips.length) { strip.innerHTML = chips.join(''); strip.style.display = 'flex'; }
+            else strip.style.display = 'none';
+        }).catch(function() { strip.style.display = 'none'; });
+}
+
 var staleBannerTimer = null;
 
 function updateStaleBanner() {
@@ -828,7 +862,7 @@ function updateStaleBanner() {
             banner.style.display = 'none';
         }
     }
-    staleBannerTimer = setTimeout(function() { refreshSourceStatus(); updateStaleBanner(); }, 60000);
+    staleBannerTimer = setTimeout(function() { refreshSourceStatus(); updateStaleBanner(); refreshMetrics(); }, 60000);
 }
 
 function freshnessBadge(updatedAt) {
@@ -898,6 +932,7 @@ function init() {
     if (!localStorage.getItem('nearme_onboarding')) setTimeout(showOnboarding, 500);
     checkAuth();
     refreshSourceStatus();
+    refreshMetrics();
     loadEvents();
 }
 
@@ -2213,6 +2248,10 @@ const I18N = {
     heat: 'Mapa de calor',
     heat_on: 'Desactivar calor',
     health_loading: 'Cargando estado...',
+    metrics_events: '📊 {n} eventos en 24h',
+    metrics_success: '✓ {p}% éxito',
+    metrics_updated: '🕐 última actualización: hace {t}',
+    metrics_title: 'Eventos procesados y tasa de éxito de los colectores en las últimas 24 h',
     loading_events: 'Cargando eventos...',
     about_title: 'Sobre NearMe OSINT',
     about_desc: 'Agregador de datos publicos geolocalizados en tiempo real. 15 fuentes oficiales y abiertas (APIs REST, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unificadas en un flujo unico de eventos con coordenadas, niveles de severidad y mediciones continuas.',
@@ -2258,6 +2297,10 @@ const I18N = {
     heat: 'Heatmap',
     heat_on: 'Disable heatmap',
     health_loading: 'Loading status...',
+    metrics_events: '📊 {n} events in 24h',
+    metrics_success: '✓ {p}% success',
+    metrics_updated: '🕐 last update: {t} ago',
+    metrics_title: 'Processed events and collector success rate over the last 24 h',
     loading_events: 'Loading events...',
     about_title: 'About NearMe OSINT',
     about_desc: 'Real-time aggregator of geolocated public data. 15 official and open sources (REST APIs, RSS, CSV, GeoJSON, GTFS-RT, CAP-XML) unified into a single event stream with coordinates, severity levels and continuous measurements.',
@@ -2294,7 +2337,11 @@ const I18N = {
   }
 };
 
-function currentLang() { return localStorage.getItem('nearme_lang') === 'en' ? 'en' : 'es'; }
+function currentLang() {
+    const p = new URLSearchParams(window.location.search).get('lang');
+    if (p === 'en' || p === 'es') return p;
+    return localStorage.getItem('nearme_lang') === 'en' ? 'en' : 'es';
+}
 
 function applyLang(lang) {
   const t = I18N[lang];
