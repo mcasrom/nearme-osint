@@ -8,7 +8,7 @@ De mas reciente a mas antiguo. Detalles tecnicos: [WAYAHEAD.md](WAYAHEAD.md).
 - **Embed widget** `?embed=1`: modo pantalla completa para iframes (sin sidebar, onboarding ni rating; sin tracking de visitas), con badge de crédito "NearMe OSINT" y soporte de `?lat&lon&radius` para centrar una zona. Ejemplo prensa: `https://nearme.viajeinteligencia.com/?embed=1&lat=40.42&lon=-3.70&radius=200`. Verificado E2E con Chromium headless.
 - **Export CSV/GeoJSON**: botones "⬇️ CSV" / "⬇️ GeoJSON" que descargan los eventos visibles (con filtros aplicados). CSV con BOM UTF-8 y escaping RFC 4180 (16 columnas); GeoJSON como FeatureCollection ([lon,lat]). i18n ES/EN.
 - **Charset nginx**: `charset utf-8;` en el server block.
-- **UptimeRobot**: pendiente de configuración manual (monitor `https://nearme.viajeinteligencia.com/health`).
+- **Monitor de salud local**: cron `*/5` con `scripts/healthcheck.sh` (API + DB + freshness del pipeline), alerta Telegram solo en cambio de estado. UptimeRobot queda **opcional** (monitor HTTP a `/health`) para una status page pública.
 - sw -> `nearme-v9`.
 
 ## v0.13 — 4 Ago 2026 (permalink por evento + Web Push value-first + métricas)
