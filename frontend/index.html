@@ -1542,13 +1542,14 @@ function renderMapMarkers() {
             const lvlColor = LEVEL_COLORS[maxLevelName] || '#607d8b';
             const topEmoji = ICONS[topType] || '\uD83D\uDCCC';
             const size = cluster.getChildCount() < 100 ? 40 : 50;
-            const glow = maxLvl >= 3 ? `box-shadow:0 0 12px ${lvlColor}88;` : '';
+            const glow = maxLvl >= 3 ? `box-shadow:0 0 14px ${lvlColor}aa;` : '';
             const pulseAnim = maxLvl >= 3 ? `animation:pulse-${maxLevelName} 1.6s infinite;` : '';
+            const clusterBorder = maxLvl >= 3 ? '3px' : '2px';
             return L.divIcon({
                 html: `<div style="
                     width:${size}px;height:${size}px;border-radius:50%;
                     background:rgba(10,14,23,0.85);
-                    border:2px solid ${lvlColor};
+                    border:${clusterBorder} solid ${lvlColor};
                     display:flex;flex-direction:column;align-items:center;justify-content:center;
                     font-size:${size < 45 ? 14 : 12}px;color:#fff;
                     ${glow}${pulseAnim}
@@ -1605,6 +1606,8 @@ function renderMapMarkers() {
             borderStyle = `border:3px solid ${lvlColor};`;
             pulse = 'animation:pulse-alert-fire 1.6s infinite;';
             glow = `box-shadow:0 0 0 3px ${lvlColor}55, 0 0 12px ${lvlColor}aa;`;
+            rel = 'position:relative;';
+            badge = '<span style="position:absolute;top:-5px;right:-5px;background:#ff9800;color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);">⚠</span>';
         }
 
         const m = L.marker([e.lat, e.lon], {
