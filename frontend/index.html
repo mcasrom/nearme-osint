@@ -447,6 +447,8 @@
         .empanel-row a { color: #00d4ff; text-decoration: none; }
         .empanel-row a:hover { text-decoration: underline; }
         .empanel-phone { color: #78909c; }
+        .empanel-note { font-size: 0.72em; color: #78909c; margin-top: 8px; line-height: 1.45; }
+        body.light .empanel-note { color: #78909c; }
         body.light .empanel { background: rgba(0,212,255,0.06); border-color: #cbe8ff; }
         body.light .empanel-row { color: #546e7a; }
         body.light .detail-modal { background: #fff; }
@@ -593,6 +595,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
                     <p>Los iconos con <strong>pulso</strong> son alertas activas (alert/critical). El <strong>tamano</strong> varia con la intensidad (incendios grandes = 🔥 mayor).</p>
                     <p>Los <strong>clusters</strong> agrupan eventos cercanos. Muestran el icono del tipo dominante, el numero de eventos, y el color del borde segun la gravedad maxima del grupo.</p>
                     <p>Haz clic en un evento del listado lateral para volar al punto en el mapa. El badge de frescura (🟢<30min, 🟠<2h, 🔴≥2h) indica hace cuanto se actualizo.</p>
+                    <p>🆘 En eventos de <strong>alta severidad (alert/critical)</strong> se muestra un panel con <strong>contactos oficiales</strong> de tu comunidad (112, Cruz Roja, Protección Civil) y un boton para <strong>compartir tu ubicacion</strong> de forma segura — todo ocurre en tu dispositivo, nada se sube al servidor.</p>
                 </div>
             </details>
         </div>
@@ -1777,6 +1780,7 @@ function renderEmergencyPanel(box, d) {
         html += '</div>';
     });
     html += '<button class="btn-detail primary" style="margin-top:10px;width:100%;" id="shareLocBtn">📍 Compartir mi ubicación</button>';
+    html += '<div class="empanel-note">Aparece solo en eventos de alta severidad (alert/critical). Contactos de referencia; para emergencias inmediatas llama siempre al <b>112</b>.</div>';
     box.innerHTML = html;
     var btn = document.getElementById('shareLocBtn');
     if (btn) btn.onclick = function(ev) { ev.preventDefault(); shareMyLocation(); };
