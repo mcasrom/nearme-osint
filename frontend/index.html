@@ -139,6 +139,7 @@
         .level-badge.warning { background: #fbc02d; color: #000; }
         .level-badge.info { background: #1976d2; color: #fff; }
         @keyframes pulse-critical { 0%, 100% { box-shadow: 0 0 6px rgba(211,47,47,0.6); } 50% { box-shadow: 0 0 20px rgba(211,47,47,0.9); } }
+        @keyframes pulse-fire-critical { 0%, 100% { box-shadow: 0 0 0 3px rgba(244,67,54,0.5), 0 0 16px rgba(244,67,54,0.9); } 50% { box-shadow: 0 0 0 6px rgba(244,67,54,0.15), 0 0 26px rgba(244,67,54,1); } }
         @keyframes pulse-alert { 0%, 100% { box-shadow: 0 0 4px rgba(245,124,0,0.4); } 50% { box-shadow: 0 0 14px rgba(245,124,0,0.7); } }
         .marker-cluster-small { background-color: rgba(0,212,255,0.3); }
         .marker-cluster-small div { background-color: rgba(0,212,255,0.7); }
@@ -1570,6 +1571,7 @@ function renderMapMarkers() {
         if (e.event_type === 'fire') {
             const frp = getFRP(e);
             size = fireSize(frp);
+            if (lvlOrder[e.level] >= 4) size = Math.max(size, 40);
         } else if (lvlOrder[e.level] >= 4) {
             size = 34;
         } else if (lvlOrder[e.level] >= 3) {
@@ -1584,19 +1586,31 @@ function renderMapMarkers() {
         }
 
         const isHigh = lvlOrder[e.level] >= 3;
-        const pulse = isHigh ? `animation:pulse-${e.level} 2s infinite;` : '';
-        const glow = isHigh ? `box-shadow:0 0 10px ${lvlColor}99;` : 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+        const isCriticalFire = e.event_type === 'fire' && lvlOrder[e.level] >= 4;
+        let borderStyle = `border:2px solid ${lvlColor};`;
+        let pulse = isHigh ? `animation:pulse-${e.level} 2s infinite;` : '';
+        let glow = isHigh ? `box-shadow:0 0 10px ${lvlColor}99;` : 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+        let rel = '';
+        let badge = '';
+        if (isCriticalFire) {
+            borderStyle = 'border:3px solid #ff1744;';
+            pulse = 'animation:pulse-fire-critical 1.2s infinite;';
+            glow = 'box-shadow:0 0 0 3px rgba(244,67,54,0.5), 0 0 18px rgba(244,67,54,0.95);';
+            rel = 'position:relative;';
+            badge = '<span style="position:absolute;top:-5px;right:-5px;background:#ff1744;color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);">!</span>';
+        }
 
         const m = L.marker([e.lat, e.lon], {
             icon: L.divIcon({
                 html: `<div style="
+                    ${rel}
                     width:${size}px;height:${size}px;border-radius:50%;
                     background:${bgColor};
-                    border:2px solid ${lvlColor};
+                    ${borderStyle}
                     display:flex;align-items:center;justify-content:center;
                     font-size:${Math.round(size * 0.5)}px;line-height:1;
                     ${pulse}${glow}
-                " title="${e.event_type} (${e.level})">${evIcon}</div>`,
+                " title="${e.event_type} (${e.level})">${evIcon}${badge}</div>`,
                 className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
             }),
             eventType: e.event_type,
