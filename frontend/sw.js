@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nearme-v14';
+const CACHE_NAME = 'nearme-v15';
 const STATIC_ASSETS = [
     '/',
     '/manifest.json',
@@ -14,9 +14,14 @@ const API_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
+    // cache: "reload" -> ignora la caché HTTP del navegador para precachear SIEMPRE la versión nueva.
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
+            return Promise.all(STATIC_ASSETS.map((a) =>
+                fetch(a, { cache: 'reload' })
+                    .then((r) => { if (r && r.ok) return cache.put(a, r); })
+                    .catch(() => {})
+            ));
         })
     );
     self.skipWaiting();
@@ -54,6 +59,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // index.html / navegación: SIEMPRE network-first (la app nueva al instante), fallback a caché offline.
+    if (event.request.mode === 'navigate' || path === '/' || path === '/index.html') {
+        event.respondWith(networkFirstPage(event.request));
+        return;
+    }
+
     event.respondWith(cacheFirst(event.request));
 });
 
@@ -61,7 +72,7 @@ async function cacheFirst(request) {
     const cached = await caches.match(request);
     if (cached) return cached;
     try {
-        const response = await fetch(request);
+        const response = await fetch(request, { cache: 'no-cache' });
         if (response && response.status === 200) {
             const cache = await caches.open(CACHE_NAME);
             cache.put(request, response.clone());
@@ -90,6 +101,20 @@ async function networkFirst(request) {
     }
 }
 
+async function networkFirstPage(request) {
+    try {
+        const response = await fetch(request, { cache: 'no-cache' });
+        if (response && response.status === 200) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, response.clone());
+        }
+        return response;
+    } catch {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        return new Response('Offline', { status: 503 });
+    }
+}
 
 // ---------- Web Push ----------
 self.addEventListener('push', (event) => {
@@ -125,4 +150,3 @@ self.addEventListener('notificationclick', (event) => {
         })
     );
 });
-
