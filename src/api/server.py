@@ -238,6 +238,15 @@ def event_by_id(event_id: int):
     return ev
 
 
+@app.get("/api/event/{event_id}/resources")
+def event_resources(event_id: int):
+    from src.db import get_event_resources
+    data = get_event_resources(event_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Evento no encontrado o expirado")
+    return data
+
+
 @app.get("/api/summary")
 def summary(
     lat: float = Query(40.42, description="Latitud"),

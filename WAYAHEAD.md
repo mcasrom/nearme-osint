@@ -593,6 +593,15 @@ Largo plazo / estrategico:
 - **Deploy**: commits `8993984` (A/B/C/D) y posterior (permalinks + value-first). sw -> `nearme-v8`. Los 3 entornos sincronizados (laptop, GitHub, server vía rsync).
 - Nota: el `git HEAD` del server queda desactualizado tras rsync (modelo deploy.sh); el código desplegado es el correcto (gif/endpoint verificados en vivo).
 
+## Sprint 40 — Panel de recursos de emergencia (5 Ago 2026)
+
+- **Objetivo (opción A, bajo riesgo)**: panel automático con recursos de ayuda cuando un evento activo es alert/critical en tipos desastre (fire, flood, earthquake, storm, wind, snow, heatwave).
+- **Capa CCAA**: `assets/spain-ccaa.geojson` (19 features, fuente Click That Hood / INE `cod_ccaa`) cargada en PostGIS (`spain_ccaa`), lookup espacial `ST_Within` por lat/lon del evento (los eventos desastre no tienen `region` pero sí coordenadas).
+- **Directorio**: tabla `emergency_resources` sembrada por CCAA con referencias oficiales reales y nacionales: Cruz Roja (900 22 11 22, cruzroja.es) y Protección Civil (112, proteccioncivil.es). 112 fijo en el panel. Los contactos específicos por CCAA quedan pendientes de curado manual (no se inventan datos).
+- **Endpoint**: `GET /api/event/{id}/resources` → `{qualified, phone_112, ccaa, resources}`. Fuera de España o evento no cualificado → `qualified:false` y lista vacía (sin error).
+- **Frontend**: en el modal de detalle del evento se inserta el panel `🚨 Recursos de emergencia` (112 + Cruz Roja + Protección Civil) cuando cualifica, y botón **"📍 Compartir mi ubicación"** (100% cliente: `navigator.geolocation` + Web Share, fallback WhatsApp `wa.me`; nada se envía al servidor, coherente con zero-tracking).
+- **Verificado**: lookup Madrid→13, Sevilla→01, Canarias→05, fuera→None; endpoint con incendio alert en Castilla y León (qualified, recursos) y con evento no cualificado (qualified:false); render E2E headless del panel. SW → nearme-v10.
+
 ## Sprint 39 — Paquete para prensa/analistas: embed widget + export CSV/GeoJSON (4 Ago 2026)
 - **Embed widget** (`?embed=1`): oculta sidebar, onboarding, rating widget y tracking de visitas; mapa a pantalla completa del iframe con badge de crédito "NearMe OSINT" (enlazado, top-left). Parámetros `?lat&lon&radius` para que el embed centre una zona concreta (zoom 12, radio 50/200/500 km). Uso típico en prensa: `https://nearme.viajeinteligencia.com/?embed=1&lat=40.42&lon=-3.70&radius=200`. Verificado E2E con Chromium headless: `embed-mode` aplicado, sidebar `display:none`, onboarding no se muestra, `embedCredit` visible, mapa 780x493, params aplicados, modo normal intacto.
 - **Export CSV/GeoJSON**: botones "⬇️ CSV" y "⬇️ GeoJSON" en el sidebar que descargan los eventos actuales (respetando filtros activos) — `exportData()`, `exportCSV()` (BOM UTF-8 + escaping RFC 4180), `exportGeoJSON()` (FeatureCollection con lat/lon en [lon,lat]), `downloadBlob()` con revoke de URL. CSV: 16 columnas (id, event_type, subtype, level, title, source, municipality, region, country, lat, lon, distance_km, confidence, created_at, updated_at, expires_at). i18n ES/EN (`export_csv`/`export_geojson`).

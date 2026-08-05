@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
@@ -9,6 +11,9 @@ from src.models import Event
 from src.config import DEFAULT_TTL_HOURS, DEFAULT_TTL_FALLBACK_HOURS, EVENT_STATUS_ACTIVE, EVENT_STATUS_RESOLVED, EVENT_STATUS_UPDATED, SOURCE_CONFIDENCE
 
 logger = get_logger("src.db")
+
+DISASTER_TYPES = {"fire", "flood", "earthquake", "storm", "wind", "snow", "heatwave"}
+EMERGENCY_LEVELS = {"alert", "critical"}
 
 DB_CONFIG = {
     "dbname": os.environ.get("DB_NAME", "nearme_osint"),
@@ -228,10 +233,129 @@ def init_db():
             UNIQUE (user_id)
         )
     """)
+    # Capa de CCAA + directorio de recursos de emergencia (panel de emergencia)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS spain_ccaa (
+            cod_ccaa TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            geom GEOMETRY(MultiPolygon, 4326) NOT NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_ccaa_geom ON spain_ccaa USING GIST(geom)")
+    _ensure_ccaa_layer(cur)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS emergency_resources (
+            id SERIAL PRIMARY KEY,
+            ccaa_code TEXT NOT NULL REFERENCES spain_ccaa(cod_ccaa) ON DELETE CASCADE,
+            resource_type TEXT NOT NULL,
+            name TEXT NOT NULL,
+            phone TEXT DEFAULT '',
+            url TEXT DEFAULT '',
+            active BOOLEAN DEFAULT true,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_er_ccaa ON emergency_resources(ccaa_code)")
+    _seed_emergency_resources(cur)
+
     conn.commit()
     cur.close()
     release_conn(conn)
     logger.info("Base de datos inicializada")
+
+
+def _ensure_ccaa_layer(cur):
+    """Carga los límites de CCAA desde assets/spain-ccaa.geojson si la tabla está vacía."""
+    cur.execute("SELECT count(*) FROM spain_ccaa")
+    if cur.fetchone()[0] > 0:
+        return
+    path = Path(__file__).resolve().parent.parent / "assets" / "spain-ccaa.geojson"
+    if not path.exists():
+        logger.warning("[ccaa] geojson no encontrado: %s", path)
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning("[ccaa] error leyendo geojson: %s", e)
+        return
+    n = 0
+    for f in data.get("features", []):
+        props = f.get("properties", {})
+        code = str(props.get("cod_ccaa") or "").strip()
+        name = str(props.get("noml_ccaa") or props.get("name") or code).strip()
+        if not code or not f.get("geometry"):
+            continue
+        cur.execute(
+            "INSERT INTO spain_ccaa (cod_ccaa, name, geom) VALUES (%s, %s, "
+            "ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)) "
+            "ON CONFLICT (cod_ccaa) DO UPDATE SET name = EXCLUDED.name, geom = EXCLUDED.geom",
+            (code, name, json.dumps(f["geometry"])))
+        n += 1
+    logger.info("[ccaa] capa de CCAA cargada (%d features)", n)
+
+
+def _seed_emergency_resources(cur):
+    """Siembra el directorio de recursos (Cruz Roja + Protección Civil) por CCAA con datos oficiales reales."""
+    cur.execute("SELECT count(*) FROM emergency_resources")
+    if cur.fetchone()[0] > 0:
+        return
+    cur.execute("SELECT cod_ccaa FROM spain_ccaa")
+    ccaas = [r[0] for r in cur.fetchall()]
+    rows = [
+        ("cruz_roja", "Cruz Roja", "900 22 11 22", "https://www.cruzroja.es/"),
+        ("proteccion_civil", "Protección Civil", "112", "https://www.proteccioncivil.es/"),
+    ]
+    for code in ccaas:
+        for rtype, rname, phone, url in rows:
+            cur.execute(
+                "INSERT INTO emergency_resources (ccaa_code, resource_type, name, phone, url) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (code, rtype, rname, phone, url))
+    logger.info("[ccaa] recursos de emergencia sembrados (%d CCAA x %d)", len(ccaas), len(rows))
+
+
+def get_ccaa_for_point(lat: float, lon: float) -> Optional[dict]:
+    """Devuelve {code, name} de la CCAA que contiene el punto, o None."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT cod_ccaa AS code, name FROM spain_ccaa "
+            "WHERE ST_Within(ST_SetSRID(ST_MakePoint(%s, %s), 4326), geom) LIMIT 1",
+            (lon, lat))
+        r = cur.fetchone()
+        cur.close()
+        return dict(r) if r else None
+    finally:
+        release_conn(conn)
+
+
+def get_event_resources(event_id: int) -> Optional[dict]:
+    """Recursos de emergencia para un evento que cualifica (alert/critical + tipo desastre)."""
+    ev = get_event_by_id(event_id)
+    if not ev:
+        return None
+    result = {"qualified": False, "phone_112": "112", "ccaa": None, "resources": []}
+    if ev.get("level") not in EMERGENCY_LEVELS or ev.get("event_type") not in DISASTER_TYPES:
+        return result
+    if ev.get("lat") is None or ev.get("lon") is None:
+        return result
+    ccaa = get_ccaa_for_point(ev["lat"], ev["lon"])
+    if not ccaa:
+        return result
+    result["qualified"] = True
+    result["ccaa"] = ccaa
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT resource_type, name, phone, url FROM emergency_resources "
+            "WHERE ccaa_code = %s AND active ORDER BY resource_type", (ccaa["code"],))
+        result["resources"] = list(cur.fetchall())
+        cur.close()
+    finally:
+        release_conn(conn)
+    return result
 
 
 def _event_to_row(event: Event) -> tuple:

@@ -441,6 +441,14 @@
         .detail-actions .btn-detail:hover { border-color: #00d4ff; color: #00d4ff; }
         .detail-actions .btn-detail.primary { background: #00d4ff; color: #0a0e17; border-color: #00d4ff; font-weight: 600; }
         .detail-actions .btn-detail.primary:hover { background: #00b8d4; }
+        .empanel { margin-top: 16px; border: 1px solid #1a2a4a; border-radius: 10px; padding: 12px; background: rgba(0,212,255,0.04); }
+        .empanel-title { font-weight: 700; color: #00d4ff; font-size: 0.82em; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+        .empanel-row { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #b0bec5; margin-bottom: 6px; flex-wrap: wrap; }
+        .empanel-row a { color: #00d4ff; text-decoration: none; }
+        .empanel-row a:hover { text-decoration: underline; }
+        .empanel-phone { color: #78909c; }
+        body.light .empanel { background: rgba(0,212,255,0.06); border-color: #cbe8ff; }
+        body.light .empanel-row { color: #546e7a; }
         body.light .detail-modal { background: #fff; }
         body.light .detail-body { color: #546e7a; }
         body.light .detail-body .field strong { color: #263238; }
@@ -1740,6 +1748,54 @@ function showEventDetailObj(e) {
             navigator.share({ title: e.title || 'NearMe OSINT', text: e.title + ' - ' + e.distance_km + 'km · ' + e.source + ' — NearMe OSINT', url: eventPermalink(e) }).catch(function(){});
         }
     };
+    loadEventResources(e, overlay);
+}
+
+function loadEventResources(e, overlay) {
+    var box = document.createElement('div');
+    box.className = 'empanel';
+    box.style.display = 'none';
+    var actions = overlay.querySelector('.detail-actions');
+    if (actions && actions.parentNode) {
+        actions.parentNode.insertBefore(box, actions.nextSibling);
+    }
+    fetch('/api/event/' + e.id + '/resources')
+        .then(function(r) { return r.json(); })
+        .then(function(d) { renderEmergencyPanel(box, d); })
+        .catch(function() { box.style.display = 'none'; });
+}
+
+function renderEmergencyPanel(box, d) {
+    if (!d || !d.qualified) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    var html = '<div class="empanel-title">🚨 Recursos de emergencia</div>';
+    html += '<div class="empanel-row">📞 Emergencias: <b>' + d.phone_112 + '</b></div>';
+    (d.resources || []).forEach(function(r) {
+        var icon = r.resource_type === 'cruz_roja' ? '⛑️' : '🚒';
+        html += '<div class="empanel-row">' + icon + ' <a href="' + r.url + '" target="_blank" rel="noopener">' + r.name + '</a>';
+        if (r.phone) html += ' <span class="empanel-phone">' + r.phone + '</span>';
+        html += '</div>';
+    });
+    html += '<button class="btn-detail primary" style="margin-top:10px;width:100%;" id="shareLocBtn">📍 Compartir mi ubicación</button>';
+    box.innerHTML = html;
+    var btn = document.getElementById('shareLocBtn');
+    if (btn) btn.onclick = function(ev) { ev.preventDefault(); shareMyLocation(); };
+}
+
+function shareMyLocation() {
+    if (!navigator.geolocation) { alert('La geolocalización no está disponible en este navegador.'); return; }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        var lat = pos.coords.latitude, lon = pos.coords.longitude;
+        var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lon;
+        var text = 'Mi ubicación actual: ' + mapsUrl;
+        if (navigator.share) {
+            navigator.share({ title: 'Mi ubicación', text: text, url: mapsUrl }).catch(function() {});
+        } else {
+            window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        }
+    }, function() {
+        alert('No se pudo obtener tu ubicación. Actívala en los ajustes del navegador.');
+    });
 }
 
 // ===== Saved Locations =====
