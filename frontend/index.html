@@ -141,6 +141,7 @@
         @keyframes pulse-critical { 0%, 100% { box-shadow: 0 0 6px rgba(211,47,47,0.6); } 50% { box-shadow: 0 0 20px rgba(211,47,47,0.9); } }
         @keyframes pulse-fire-critical { 0%, 100% { box-shadow: 0 0 0 3px rgba(244,67,54,0.5), 0 0 16px rgba(244,67,54,0.9); } 50% { box-shadow: 0 0 0 6px rgba(244,67,54,0.15), 0 0 26px rgba(244,67,54,1); } }
         @keyframes pulse-alert { 0%, 100% { box-shadow: 0 0 4px rgba(245,124,0,0.4); } 50% { box-shadow: 0 0 14px rgba(245,124,0,0.7); } }
+        @keyframes pulse-alert-fire { 0%, 100% { box-shadow: 0 0 0 3px rgba(245,124,0,0.45), 0 0 12px rgba(245,124,0,0.85); } 50% { box-shadow: 0 0 0 6px rgba(245,124,0,0.15), 0 0 20px rgba(245,124,0,1); } }
         .marker-cluster-small { background-color: rgba(0,212,255,0.3); }
         .marker-cluster-small div { background-color: rgba(0,212,255,0.7); }
         .marker-cluster-medium { background-color: rgba(255,152,0,0.3); }
@@ -1587,6 +1588,7 @@ function renderMapMarkers() {
 
         const isHigh = lvlOrder[e.level] >= 3;
         const isCriticalFire = e.event_type === 'fire' && lvlOrder[e.level] >= 4;
+        const isAlertFire = e.event_type === 'fire' && lvlOrder[e.level] === 3;
         let borderStyle = `border:2px solid ${lvlColor};`;
         let pulse = isHigh ? `animation:pulse-${e.level} 2s infinite;` : '';
         let glow = isHigh ? `box-shadow:0 0 10px ${lvlColor}99;` : 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
@@ -1598,6 +1600,10 @@ function renderMapMarkers() {
             glow = 'box-shadow:0 0 0 3px rgba(244,67,54,0.5), 0 0 18px rgba(244,67,54,0.95);';
             rel = 'position:relative;';
             badge = '<span style="position:absolute;top:-5px;right:-5px;background:#ff1744;color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);">!</span>';
+        } else if (isAlertFire) {
+            borderStyle = `border:3px solid ${lvlColor};`;
+            pulse = 'animation:pulse-alert-fire 1.6s infinite;';
+            glow = `box-shadow:0 0 0 3px ${lvlColor}55, 0 0 12px ${lvlColor}aa;`;
         }
 
         const m = L.marker([e.lat, e.lon], {
