@@ -1626,7 +1626,21 @@ function renderMapMarkers() {
             eventType: e.event_type,
             eventLevel: e.level,
         });
-        m.bindPopup(`<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}${e.confidence ? ' &middot; ' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%' : ''}<br><small>${descHtml}</small>`);
+        var _pop = document.createElement('div');
+        _pop.innerHTML = `<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}${e.confidence ? ' &middot; ' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%' : ''}<br><small>${descHtml}</small>`;
+        var _dl = document.createElement('a');
+        _dl.href = '#';
+        _dl.style.cssText = 'display:inline-block;margin-top:8px;font-weight:600;color:#00d4ff;text-decoration:none;';
+        _dl.textContent = '\uD83D\uDD0D Ver detalle';
+        _dl.onclick = function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            m.closePopup();
+            showEventDetailObj(e);
+        };
+        _pop.appendChild(document.createElement('br'));
+        _pop.appendChild(_dl);
+        m.bindPopup(_pop);
         window.clusterGroup.addLayer(m);
         markerBounds.push([e.lat, e.lon]);
     });
