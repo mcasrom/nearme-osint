@@ -1817,6 +1817,34 @@ function shareEvent(e) {
     navigator.share({ title: e.title || 'NearMe OSINT', text, url: eventPermalink(e) }).catch(function(){});
 }
 
+// ===== Track patterns (Sprint 41) =====
+function showEventPattern(id) {
+    var el = document.getElementById('detailPattern');
+    if (!el) return;
+    el.innerHTML = '<div style="color:#607d8b;padding:6px 0;font-size:.8em;">Cargando patrón...</div>';
+    fetch('/api/event/' + id + '/history')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        var pts = (d && d.points) || [];
+        if (!pts.length) { el.innerHTML = '<div style="color:#607d8b;padding:6px 0;font-size:.8em;">Sin historial registrado para este evento.</div>'; return; }
+        var colors = { info:'#607d8b', warning:'#ff9800', alert:'#ff5722', critical:'#f44336', active:'#00d4ff', resolved:'#4caf50' };
+        var n = pts.length;
+        var strip = '<div style="display:flex;gap:2px;margin-top:6px;">';
+        pts.forEach(function(p){
+            var c = colors[p.level] || colors[p.status] || '#607d8b';
+            strip += '<div title="' + (p.ts || '') + ' · ' + (p.level || p.status || '') + '" style="flex:1;height:18px;background:' + c + ';border-radius:2px;opacity:0.85;"></div>';
+        });
+        strip += '</div>';
+        var changes = 0;
+        for (var i = 1; i < n; i++) { if (pts[i].level !== pts[i-1].level) changes++; }
+        el.innerHTML = '<div><strong style="font-size:.85em;">📈 Patrón temporal (' + n + ' estados)</strong></div>' + strip +
+            '<div style="color:#607d8b;font-size:.72em;margin-top:4px;">' +
+            String(pts[0].ts || '').slice(0, 16) + ' → ' + String(pts[n-1].ts || '').slice(0, 16) +
+            ' · ' + changes + ' cambio(s) de nivel</div>';
+      })
+      .catch(function(){ el.innerHTML = '<div style="color:#f87171;padding:6px 0;font-size:.8em;">No se pudo cargar el patrón.</div>'; });
+}
+
 function showEventDetail(idx) {
     var events = getFilteredEvents();
     var e = events[idx];
@@ -1852,15 +1880,19 @@ function showEventDetailObj(e) {
                 ' + (desc ? '<div class="field"><strong>Descripcion:</strong><br>' + desc.replace(/\|/g, '<br>') + '</div>' : '') + '\
                 ' + (e.created_at ? '<div class="field" style="color:#607d8b;font-size:0.78em;">Creado: ' + e.created_at + '</div>' : '') + '\
             </div>\
+            <div id="detailPattern" style="margin-top:8px;"></div>\
             <div class="detail-actions">\
                 <a href="#" class="btn-detail primary" id="detailFly">📍 Volar en mapa</a>\
                 <a href="' + mapsUrl + '" target="_blank" class="btn-detail" rel="noopener">🗺️ Google Maps</a>\
                 <a href="' + wazeUrl + '" target="_blank" class="btn-detail" rel="noopener">📍 Waze</a>\
                 <a href="#" class="btn-detail" id="detailCopy">🔗 Copiar enlace</a>\
+                <a href="#" class="btn-detail" id="detailPatternBtn">📈 Patrón</a>\
                 ' + (navigator.share ? '<a href="#" class="btn-detail" id="detailShare">📤 Compartir</a>' : '') + '\
             </div>\
         </div>';
     document.body.appendChild(overlay);
+    var patBtn = document.getElementById('detailPatternBtn');
+    if (patBtn) patBtn.onclick = function(ev) { ev.preventDefault(); ev.stopPropagation(); showEventPattern(e.id); };
     var flyEl = document.getElementById('detailFly');
     if (flyEl) flyEl.onclick = function(ev) {
         ev.preventDefault();
