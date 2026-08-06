@@ -247,6 +247,26 @@ def event_resources(event_id: int):
     return data
 
 
+@app.get("/api/event/{event_id}/history")
+def event_history(event_id: int, limit: int = Query(200, ge=1, le=1000)):
+    from src.db import get_event_history
+    return {"event_id": event_id, "points": get_event_history(event_id, limit)}
+
+
+@app.get("/api/timeline")
+def timeline(
+    start: str = Query(..., description="ISO inicio (UTC)"),
+    end: str = Query(..., description="ISO fin (UTC)"),
+    step_hours: int = Query(6, ge=1, le=48),
+):
+    from src.db import get_timeline_counts
+    try:
+        data = get_timeline_counts(start, end, step_hours)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Fechas invalidas: {e}")
+    return {"start": start, "end": end, "step_hours": step_hours, "points": data}
+
+
 @app.get("/api/summary")
 def summary(
     lat: float = Query(40.42, description="Latitud"),

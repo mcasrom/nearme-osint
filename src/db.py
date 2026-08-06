@@ -100,6 +100,22 @@ def init_db():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)")
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS event_history (
+            id BIGSERIAL PRIMARY KEY,
+            event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+            source TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            lat DOUBLE PRECISION NOT NULL,
+            lon DOUBLE PRECISION NOT NULL,
+            level TEXT,
+            status TEXT,
+            title TEXT,
+            snapshot_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_event_history_event ON event_history(event_id, snapshot_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_event_history_time ON event_history(snapshot_at)")
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
@@ -416,6 +432,10 @@ def save_events_batch(events: list[Event]) -> int:
     saved = 0
     for event in events:
         try:
+            cur.execute(
+                "SELECT id, level, status, lat, lon, title FROM events WHERE source=%s AND source_id=%s",
+                (event.source, event.source_id))
+            existing = cur.fetchone()
             row = _event_to_row(event)
             cur.execute("""
                 INSERT INTO events (source, source_id, event_type, subtype, lat, lon, radius_m,
@@ -437,7 +457,20 @@ def save_events_batch(events: list[Event]) -> int:
                     created_at = events.created_at,
                     updated_at = NOW(),
                     expires_at = EXCLUDED.expires_at
+                RETURNING id
             """, row)
+            event_id = cur.fetchone()[0]
+            changed = existing is None or (
+                existing[1] != event.level or existing[2] != event.status
+                or abs(existing[3] - event.lat) > 1e-6 or abs(existing[4] - event.lon) > 1e-6
+                or existing[5] != event.title
+            )
+            if changed:
+                cur.execute(
+                    "INSERT INTO event_history (event_id, source, event_type, lat, lon, level, status, title) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (event_id, event.source, event.event_type, event.lat, event.lon,
+                     event.level, event.status, event.title))
             saved += 1
         except Exception as e:
             logger.warning("Error guardando evento batch: %s", e)
@@ -445,6 +478,68 @@ def save_events_batch(events: list[Event]) -> int:
     cur.close()
     release_conn(conn)
     return saved
+
+
+def get_event_history(event_id: int, limit: int = 200):
+    """Snapshots de un evento a lo largo del tiempo (para track patterns)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT snapshot_at, level, status, lat, lon, title FROM event_history "
+        "WHERE event_id=%s ORDER BY snapshot_at ASC LIMIT %s",
+        (event_id, limit))
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    return [
+        {"ts": r[0].isoformat(), "level": r[1], "status": r[2],
+         "lat": r[3], "lon": r[4], "title": r[5]}
+        for r in rows
+    ]
+
+
+def get_timeline_counts(start: str, end: str, step_hours: int = 6):
+    """Nº de eventos activos por ventana de tiempo (playback)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        WITH buckets AS (
+            SELECT generate_series(%s::timestamptz, %s::timestamptz,
+                                   make_interval(hours => %s)) AS ts
+        )
+        SELECT to_char(b.ts, 'YYYY-MM-DD"T"HH24:MI') AS bucket,
+               COUNT(ev.id) AS active
+        FROM buckets b
+        LEFT JOIN LATERAL (
+            SELECT e.id FROM events e
+            WHERE e.created_at <= b.ts
+              AND (e.expires_at IS NULL OR e.expires_at > b.ts)
+        ) ev ON TRUE
+        GROUP BY b.ts
+        ORDER BY b.ts
+    """, (start, end, step_hours))
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    return [{"bucket": r[0], "active": r[1]} for r in rows]
+
+
+def cleanup_history_retention(days: int = 365) -> dict:
+    """Política de rotación: borra historial y eventos resueltos antiguos (>days)."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM event_history WHERE snapshot_at < %s", (cutoff,))
+    h_del = cur.rowcount
+    cur.execute("DELETE FROM events WHERE status=%s AND updated_at < %s",
+                (EVENT_STATUS_RESOLVED, cutoff))
+    e_del = cur.rowcount
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    logger.info("[retention] limpieza %s dias: %s historial, %s eventos resueltos borrados",
+                days, h_del, e_del)
+    return {"history_deleted": h_del, "events_deleted": e_del}
 
 
 def get_event_by_id(event_id: int) -> Optional[dict]:
