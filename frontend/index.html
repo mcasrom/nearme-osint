@@ -564,6 +564,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <button class="btn btn-sm btn-outline" onclick="showOnboarding()" style="flex:1;" id="helpBtn">Ayuda</button>
             <button class="btn btn-sm btn-outline" onclick="showAlertModal()" style="flex:1;position:relative;" id="alertBtn">Alertas</button>
             <button class="btn btn-sm btn-outline" onclick="toggleTimeline()" style="flex:1;" id="timelineBtn" data-i18n="timeline">⏳ Timeline</button>
+            <button class="btn btn-sm btn-outline" onclick="toggleTrends()" style="flex:1;" id="trendsBtn">📊 Tendencias</button>
         </div>
 
         <div id="timelinePanel" class="hidden" style="background:#0d1322;border-bottom:1px solid var(--line);padding:10px 14px;font-size:.8em;">
@@ -576,6 +577,8 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <input type="range" id="timelineRange" min="0" max="0" value="0" style="width:100%;margin-top:6px;accent-color:#00d4ff;" oninput="applyTimelineFilter(+this.value)">
             <div style="color:#607d8b;margin-top:4px;">Arrastra el deslizador o pulsa ▶ para ver qué eventos estaban activos en cada momento (últimos 7 días). · <span id="timelineHint"></span></div>
         </div>
+
+        <div id="trendsPanel" class="hidden" style="background:#0d1322;border-bottom:1px solid var(--line);padding:10px 14px;font-size:.8em;"></div>
 
         <div class="filters-wrap" id="filtersWrap">
             <div class="filters-toggle" onclick="toggleFilters()" id="filtersToggle">
@@ -1698,6 +1701,50 @@ function loadTimeline() {
         sl.max = n - 1; sl.value = n - 1;
         applyTimelineFilter(n - 1);
       }).catch(function(){ document.getElementById('timelineChart').innerHTML = '<span style="color:#f87171">No hay datos de timeline.</span>'; });
+}
+function toggleTrends(){
+  var p = document.getElementById('trendsPanel');
+  if (p.classList.contains('hidden')) { p.classList.remove('hidden'); loadTrends(); }
+  else p.classList.add('hidden');
+}
+function renderLine(containerId, points, color, label){
+  var el = document.getElementById(containerId);
+  if (!points || !points.length) { el.innerHTML = '<div style="color:#607d8b;font-size:.78em;">Sin datos todavía (acumulando...)</div>'; return; }
+  var n = points.length, w = 560, h = 120, pad = 8;
+  var vals = points.map(function(p){ return p.value; });
+  var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
+  var span = (max - min) || 1;
+  var step = w / Math.max(1, n - 1);
+  var pts = points.map(function(p,i){ return [i*step+pad, h-pad-((p.value-min)/span)*(h-2*pad)]; });
+  var last = points[n-1];
+  el.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:.75em;color:#b0bec5;margin-bottom:2px;"><span>'+label+'</span><span>último: '+Number(last.value).toFixed(1)+' · '+last.date+'</span></div>' +
+    '<svg viewBox="0 0 '+(w+2*pad)+' '+(h+2*pad)+'" style="width:100%;height:110px;">' +
+      '<polyline points="'+pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2" opacity="0.9"/>' +
+      pts.map(function(p){ return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="'+color+'"/>'; }).join('') +
+    '</svg>';
+}
+function loadTrends(){
+  var p = document.getElementById('trendsPanel');
+  p.innerHTML = '<div style="color:#607d8b;text-align:center;padding:10px;">Cargando tendencias...</div>';
+  fetch('/api/stats/trends?days=60').then(r=>r.json()).then(function(d){
+    var s = d.stats || {};
+    var defs = [
+      ['Embalses · nivel medio (%)', '#00d4ff', (s.embalses||{}).nivel_medio_pct||[]],
+      ['RENFE · retraso medio (min)', '#ffb74d', (s.renfe||{}).retraso_medio_min||[]],
+      ['RENFE · nº retrasos/día', '#ff8a65', (s.renfe||{}).num_retrasos||[]],
+      ['Incendios · detecciones/día', '#ef5350', (s.nasa_firms||{}).incendios||[]],
+      ['Incendios · hectáreas estimadas', '#f48fb1', (s.nasa_firms||{}).hectareas_est||[]],
+      ['Calidad aire · ICA medio', '#81c784', (s.miteco||{}).ica_medio||[]],
+      ['Calidad aire · días Regular/Malo', '#aed581', (s.miteco||{}).dias_regular_bad||[]]
+    ];
+    var html = '<div class="empanel-title">📊 Tendencias (estadísticas diarias)</div>' +
+      '<div style="font-size:.75em;color:#607d8b;margin-bottom:4px;">Agregadas diariamente desde los eventos recolectados · actualizadas cada 24h · últimos 60 días.</div>';
+    defs.forEach(function(d,i){ html += '<div style="margin-top:12px;" id="trendChart'+i+'"></div>'; });
+    p.innerHTML = html;
+    defs.forEach(function(d,i){ renderLine('trendChart'+i, d[2], d[1], d[0]); });
+    p.innerHTML += '<div style="font-size:.7em;color:#607d8b;margin-top:8px;">Hectáreas estimadas: proxy FRP→ha (0.3 ha/MW), orientativo.</div>';
+  }).catch(function(){ p.innerHTML = '<div style="color:#f87171">No se pudieron cargar las tendencias.</div>'; });
 }
 function applyTimelineFilter(idx) {
     var sl = document.getElementById('timelineRange');

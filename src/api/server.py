@@ -295,6 +295,28 @@ def rankings(
     }
 
 
+@app.get("/api/stats/trends")
+def stats_trends(days: int = Query(60, ge=1, le=365)):
+    """Estadísticas diarias por fuente (tabla daily_stats, pre-agregada por cron 23:00)."""
+    from src.db import get_conn, release_conn
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT stat_date, source, metric, value FROM daily_stats "
+            "WHERE stat_date >= CURRENT_DATE - %s::int ORDER BY stat_date",
+            (days,))
+        rows = cur.fetchall()
+    finally:
+        release_conn(conn)
+    out = {}
+    for r in rows:
+        sd = r[0]
+        d = sd.isoformat() if hasattr(sd, "isoformat") else str(sd)
+        out.setdefault(r[1], {}).setdefault(r[2], []).append({"date": d, "value": r[3]})
+    return {"days": days, "stats": out}
+
+
 @app.get("/api/types")
 def event_types():
     from src.models import EVENT_TYPES

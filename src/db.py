@@ -100,6 +100,16 @@ def init_db():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)")
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS daily_stats (
+            stat_date DATE NOT NULL,
+            source TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value DOUBLE PRECISION,
+            PRIMARY KEY(stat_date, source, metric)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date)")
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS event_history (
             id BIGSERIAL PRIMARY KEY,
             event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
