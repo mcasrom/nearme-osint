@@ -574,7 +574,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             </div>
             <div id="timelineChart" style="margin-top:8px;height:44px;"></div>
             <input type="range" id="timelineRange" min="0" max="0" value="0" style="width:100%;margin-top:6px;accent-color:#00d4ff;" oninput="applyTimelineFilter(+this.value)">
-            <div style="color:#607d8b;margin-top:4px;">Arrastra para ver los eventos activos en cada momento · <span id="timelineHint"></span></div>
+            <div style="color:#607d8b;margin-top:4px;">Arrastra el deslizador o pulsa ▶ para ver qué eventos estaban activos en cada momento (últimos 7 días). · <span id="timelineHint"></span></div>
         </div>
 
         <div class="filters-wrap" id="filtersWrap">
@@ -1094,6 +1094,7 @@ function showOnboarding() {
         { img: 'ph/06-event-clusters.png', t: L.ob_step2_t, b: L.ob_step2_b },
         { img: 'ph/03-poi-filters.png', t: L.ob_step3_t, b: L.ob_step3_b },
         { img: 'ph/04-mobile-pwa.png', t: L.ob_step4_t, b: L.ob_step4_b },
+        { img: 'ph/06-event-clusters.png', t: L.ob_step5_t, b: L.ob_step5_b },
     ];
     let cur = 0;
     const overlay = document.createElement('div');
@@ -2661,6 +2662,8 @@ const I18N = {
     ob_step3_b: 'Usa el panel de filtros para ver solo lo que te importa. Toca el mapa para ver puntos de interes cercanos: hospitales, farmacias, gasolineras, bomberos...',
     ob_step4_t: 'Instala y activa alertas',
     ob_step4_b: 'Anade NearMe a tu pantalla de inicio (funciona offline, con auto-refresh). Registrate y crea alertas personalizadas: te avisamos en el navegador cuando algo ocurra cerca.',
+    ob_step5_t: 'Timeline y patrón de eventos',
+    ob_step5_b: 'Pulsa "⏳ Timeline" para ver cómo evolucionan los eventos en los últimos 7 días: arrastra el deslizador o reproduce la animación. En el detalle de cualquier evento, pulsa "📈 Patrón" para ver sus cambios de nivel a lo largo del tiempo.',
     tg_intro: 'Recibe los avisos tambien en tu Telegram (ademas del push del navegador).',
     tg_btn: 'Alertas por Telegram',
     tg_howto: 'Abre {bot} en Telegram y envia: <b>/nearme {code}</b>',
@@ -2721,6 +2724,8 @@ const I18N = {
     ob_step3_b: 'Use the filter panel to focus on what matters. Tap the map to find nearby points of interest: hospitals, pharmacies, gas stations, fire stations...',
     ob_step4_t: 'Install & get alerts',
     ob_step4_b: 'Add NearMe to your home screen (works offline, with auto-refresh). Register and create custom alerts: we notify you in the browser when something happens nearby.',
+    ob_step5_t: 'Timeline & event patterns',
+    ob_step5_b: 'Tap "⏳ Timeline" to see how events evolve over the last 7 days: drag the slider or play the animation. In any event detail, tap "📈 Patrón" to see its level changes over time.',
     tg_intro: 'Also get alerts on Telegram (in addition to browser push).',
     tg_btn: 'Telegram alerts',
     tg_howto: 'Open {bot} in Telegram and send: <b>/nearme {code}</b>',
