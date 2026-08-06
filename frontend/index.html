@@ -563,6 +563,18 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <button class="btn btn-sm btn-heat" onclick="toggleHeatmap()" id="heatBtn" style="flex:1;" data-i18n="heat">Mapa de calor</button>
             <button class="btn btn-sm btn-outline" onclick="showOnboarding()" style="flex:1;" id="helpBtn">Ayuda</button>
             <button class="btn btn-sm btn-outline" onclick="showAlertModal()" style="flex:1;position:relative;" id="alertBtn">Alertas</button>
+            <button class="btn btn-sm btn-outline" onclick="toggleTimeline()" style="flex:1;" id="timelineBtn" data-i18n="timeline">⏳ Timeline</button>
+        </div>
+
+        <div id="timelinePanel" class="hidden" style="background:#0d1322;border-bottom:1px solid var(--line);padding:10px 14px;font-size:.8em;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <b>⏳ Playback (últimos 7 días)</b>
+                <button class="btn btn-sm btn-outline" onclick="playTimeline()" id="playBtn" style="padding:3px 10px;">▶ Reproducir</button>
+                <button class="btn btn-sm btn-outline" onclick="resetTimeline()" style="padding:3px 10px;">✕</button>
+            </div>
+            <div id="timelineChart" style="margin-top:8px;height:44px;"></div>
+            <input type="range" id="timelineRange" min="0" max="0" value="0" style="width:100%;margin-top:6px;accent-color:#00d4ff;" oninput="applyTimelineFilter(+this.value)">
+            <div style="color:#607d8b;margin-top:4px;">Arrastra para ver los eventos activos en cada momento · <span id="timelineHint"></span></div>
         </div>
 
         <div class="filters-wrap" id="filtersWrap">
@@ -1519,6 +1531,7 @@ function renderLegend(events) {
 function renderMapMarkers() {
     const filtered = getFilteredEvents();
     if (window.clusterGroup) map.removeLayer(window.clusterGroup);
+    window.allMarkers = [];
     window.clusterGroup = L.markerClusterGroup({
         maxClusterRadius: 40,
         spiderfyOnMaxZoom: true,
@@ -1641,6 +1654,9 @@ function renderMapMarkers() {
         _pop.appendChild(document.createElement('br'));
         _pop.appendChild(_dl);
         m.bindPopup(_pop);
+        m._nearmeEv = e;
+        window.allMarkers = window.allMarkers || [];
+        window.allMarkers.push(m);
         window.clusterGroup.addLayer(m);
         markerBounds.push([e.lat, e.lon]);
     });
@@ -1648,6 +1664,77 @@ function renderMapMarkers() {
     if (markerBounds.length > 0) {
         try { map.fitBounds(markerBounds, { padding: [40, 40], maxZoom: 10 }); } catch(_) {}
     }
+}
+
+// ===== Timeline / Playback (Sprint 41) =====
+var timelinePlaying = null;
+function toggleTimeline() {
+    var p = document.getElementById('timelinePanel');
+    if (p.classList.contains('hidden')) {
+        p.classList.remove('hidden');
+        loadTimeline();
+    } else {
+        resetTimeline();
+    }
+}
+function loadTimeline() {
+    var end = new Date();
+    var start = new Date(end.getTime() - 7 * 86400000);
+    fetch('/api/timeline?start=' + start.toISOString() + '&end=' + end.toISOString() + '&step_hours=24')
+      .then(function(r){ return r.json(); }).then(function(d){
+        var pts = d.points || [];
+        var max = Math.max.apply(null, pts.map(function(p){ return p.active; }).concat([1]));
+        var n = Math.max(pts.length, 1);
+        var svg = '<svg width="100%" height="44" viewBox="0 0 100 44" preserveAspectRatio="none">';
+        pts.forEach(function(p, i){
+            var x = (i / (n - 1)) * 100;
+            var h = (p.active / max) * 38;
+            svg += '<rect x="' + x + '" y="' + (42 - h) + '" width="' + (100 / n) + '" height="' + h + '" fill="#00d4ff" opacity="0.75"/>';
+        });
+        svg += '</svg>';
+        document.getElementById('timelineChart').innerHTML = svg;
+        var sl = document.getElementById('timelineRange');
+        sl.max = n - 1; sl.value = n - 1;
+        applyTimelineFilter(n - 1);
+      }).catch(function(){ document.getElementById('timelineChart').innerHTML = '<span style="color:#f87171">No hay datos de timeline.</span>'; });
+}
+function applyTimelineFilter(idx) {
+    var sl = document.getElementById('timelineRange');
+    if (!sl || sl.max === 0) return;
+    var end = new Date(), start = new Date(end.getTime() - 7 * 86400000);
+    var T = start.getTime() + (idx / sl.max) * (end.getTime() - start.getTime());
+    window.clusterGroup.clearLayers();
+    var shown = 0;
+    (window.allMarkers || []).forEach(function(m){
+        var e = m._nearmeEv; if (!e) return;
+        var created = new Date(e.created_at).getTime();
+        var expires = e.expires_at ? new Date(e.expires_at).getTime() : Infinity;
+        if (created <= T && T <= expires) { window.clusterGroup.addLayer(m); shown++; }
+    });
+    var hint = document.getElementById('timelineHint');
+    if (hint) hint.textContent = new Date(T).toLocaleString() + ' · ' + shown + ' eventos activos';
+}
+function playTimeline() {
+    var sl = document.getElementById('timelineRange');
+    if (!sl || sl.max === 0) return;
+    var btn = document.getElementById('playBtn');
+    if (timelinePlaying) { clearInterval(timelinePlaying); timelinePlaying = null; btn.textContent = '▶ Reproducir'; return; }
+    btn.textContent = '⏸ Pausar';
+    timelinePlaying = setInterval(function(){
+        var v = parseInt(sl.value);
+        if (v >= sl.max) { sl.value = 0; }
+        else { sl.value = v + 1; }
+        sl.dispatchEvent(new Event('input'));
+    }, 800);
+}
+function resetTimeline() {
+    if (timelinePlaying) { clearInterval(timelinePlaying); timelinePlaying = null; }
+    document.getElementById('timelinePanel').classList.add('hidden');
+    if (window.clusterGroup) {
+        window.clusterGroup.clearLayers();
+        (window.allMarkers || []).forEach(function(m){ window.clusterGroup.addLayer(m); });
+    }
+    var btn = document.getElementById('playBtn'); if (btn) btn.textContent = '▶ Reproducir';
 }
 
 function renderEvents() {
