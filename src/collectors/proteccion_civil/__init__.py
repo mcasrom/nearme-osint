@@ -1,4 +1,5 @@
 import os
+import re
 import httpx
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -7,7 +8,6 @@ from src.logging import get_logger
 from src.models import Event
 
 AEMET_API_KEY = os.environ.get("AEMET_API_KEY", "")
-
 
 logger = get_logger("src.collectors.proteccion_civil")
 
@@ -23,7 +23,7 @@ class ProteccionCivilCollector(BaseCollector):
         return events
 
     async def _aemet_warnings(self):
-        """Get weather warnings from AEMET (official Spanish meteorological agency)"""
+        """Avisos meteorológicos oficiales de AEMET (CAP / Common Alerting Protocol)."""
         events = []
         if not AEMET_API_KEY:
             logger.warning("AEMET_API_KEY no configurada, saltando avisos meteorológicos")
@@ -34,8 +34,7 @@ class ProteccionCivilCollector(BaseCollector):
             headers = {"api_key": AEMET_API_KEY}
 
             async with httpx.AsyncClient(timeout=20, headers=headers) as client:
-                # Try to get latest warnings for all Spain
-                resp = await client.get(f"{base}/avisos_cap/ultimoelaborado/area/es")
+                resp = await client.get(f"{base}/avisos_cap/ultimoelaborado/area/esp")
             if resp.status_code != 200:
                 logger.warning("AEMET avisos: HTTP %s", resp.status_code)
                 return events
@@ -46,42 +45,27 @@ class ProteccionCivilCollector(BaseCollector):
                 logger.warning("AEMET avisos: No data URL")
                 return events
 
-            # Download the CAP (Common Alerting Protocol) XML files
             async with httpx.AsyncClient(timeout=30, headers=headers) as client:
                 data_resp = await client.get(data_url)
             if data_resp.status_code != 200:
                 logger.warning("AEMET avisos data: HTTP %s", data_resp.status_code)
                 return events
 
-            # Parse CAP XML
-            try:
-                # AEMET returns a GTAR archive containing multiple CAP files
-                import tempfile
-                import zipfile
-                import io
+            # El contenido es un archivo GTAR (concatenación) con múltiples XML CAP.
+            content = data_resp.content
+            if len(content) < 100:
+                return events
 
-                content = data_resp.content
-                if len(content) < 100:
-                    return events
-
-                # Try to parse as XML directly first
+            starts = [m.start() for m in re.finditer(rb"<\?xml", content)]
+            for s in starts:
+                e = content.find(b"</alert>", s)
+                if e == -1:
+                    continue
                 try:
-                    root = ET.fromstring(content)
+                    root = ET.fromstring(content[s:e + 8])
                     events.extend(self._parse_cap_xml(root))
                 except ET.ParseError:
-                    # Try as zip archive
-                    try:
-                        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                            for name in zf.namelist():
-                                if name.endswith('.xml') or name.endswith('.cap'):
-                                    cap_data = zf.read(name)
-                                    cap_root = ET.fromstring(cap_data)
-                                    events.extend(self._parse_cap_xml(cap_root))
-                    except zipfile.BadZipFile:
-                        pass
-
-            except Exception as e:
-                logger.warning("AEMET CAP parse: %s", e)
+                    continue
 
             logger.info("AEMET avisos: %d alertas meteorológicas", len(events))
         except Exception as e:
@@ -89,55 +73,74 @@ class ProteccionCivilCollector(BaseCollector):
         return events
 
     def _parse_cap_xml(self, root):
-        """Parse CAP (Common Alerting Protocol) XML"""
+        """Parse CAP XML (el root ES el <alert>). Geolocaliza por centroide del polígono."""
         events = []
         ns = {'cap': 'urn:oasis:names:tc:emergency:cap:1.2'}
 
-        for alert in root.findall('.//cap:alert', ns):
-            try:
-                sender = alert.findtext('cap:sender', '', ns)
-                sent = alert.findtext('cap:sent', '', ns)
+        if root.tag.split('}')[-1] != 'alert':
+            root = root.find('.//cap:alert', ns)
+            if root is None:
+                return events
 
-                for info in alert.findall('cap:info', ns):
-                    headline = info.findtext('cap:headline', '', ns)
-                    description = info.findtext('cap:description', '', ns)
-                    severity = info.findtext('cap:severity', '', ns)
-                    urgency = info.findtext('cap:urgency', '', ns)
-                    category = info.findtext('cap:category', '', ns)
+        try:
+            sent = root.findtext('cap:sent', '', ns)
+            for info in root.findall('cap:info', ns):
+                headline = info.findtext('cap:headline', '', ns)
+                description = info.findtext('cap:description', '', ns)
+                severity = info.findtext('cap:severity', '', ns)
+                urgency = info.findtext('cap:urgency', '', ns)
 
-                    # Get coordinates from area
-                    for area in info.findall('cap:area', ns):
-                        area_desc = area.findtext('cap:areaDesc', '', ns)
-                        circle = area.findtext('cap:circle', '', ns)
+                for area in info.findall('cap:area', ns):
+                    area_desc = area.findtext('cap:areaDesc', '', ns)
+                    lat, lon, radius = 40.4168, -3.7038, 50000
 
-                        lat, lon, radius = 40.4168, -3.7038, 50000
-                        if circle:
-                            parts = circle.split()
-                            if len(parts) >= 2:
+                    poly = area.findtext('cap:polygon', '', ns)
+                    if poly:
+                        pts = []
+                        for tok in poly.split():
+                            if ',' in tok:
+                                p = tok.split(',')
+                                try:
+                                    pts.append((float(p[0]), float(p[1])))
+                                except ValueError:
+                                    pass
+                        if pts:
+                            lat = sum(p[0] for p in pts) / len(pts)
+                            lon = sum(p[1] for p in pts) / len(pts)
+
+                    circle = area.findtext('cap:circle', '', ns)
+                    if not poly and circle:
+                        parts = circle.split()
+                        if len(parts) >= 2:
+                            try:
                                 lat, lon = float(parts[0]), float(parts[1])
                                 if len(parts) >= 3:
                                     radius = float(parts[2]) * 1000
+                            except ValueError:
+                                pass
 
-                        # Map severity to level
-                        level = 'info'
-                        if severity.lower() in ('extreme', 'severe'):
-                            level = 'alert'
-                        elif severity.lower() == 'moderate':
-                            level = 'warning'
+                    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                        continue
 
-                        events.append(Event(
-                            source="aemet_avisos",
-                            source_id=f"aemet_aviso_{sent}_{lat}_{lon}",
-                            event_type="warning",
-                            subtype="alerta_meteorologica",
-                            lat=lat, lon=lon,
-                            radius_m=radius,
-                            level=level,
-                            title=f"Aviso: {headline}",
-                            description=f"{description}. Zona: {area_desc}. Severidad: {severity}. Urgencia: {urgency}",
-                            country="ES",
-                        ))
-            except Exception:
-                pass
+                    level = 'info'
+                    if severity.lower() in ('extreme', 'severe'):
+                        level = 'alert'
+                    elif severity.lower() == 'moderate':
+                        level = 'warning'
+
+                    events.append(Event(
+                        source="aemet_avisos",
+                        source_id=f"aemet_aviso_{sent}_{lat:.3f}_{lon:.3f}",
+                        event_type="warning",
+                        subtype="alerta_meteorologica",
+                        lat=lat, lon=lon,
+                        radius_m=radius,
+                        level=level,
+                        title=f"Aviso: {headline}",
+                        description=f"{description}. Zona: {area_desc}. Severidad: {severity}. Urgencia: {urgency}",
+                        country="ES",
+                    ))
+        except Exception:
+            pass
 
         return events

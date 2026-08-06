@@ -31,7 +31,7 @@ class AirQualityCollector(BaseCollector):
     async def collect(self):
         events = []
         try:
-            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}, verify=False) as client:
                 resp = await client.get(ICA_URL)
             if resp.status_code != 200:
                 logger.warning("MITECO: HTTP %s", resp.status_code)
