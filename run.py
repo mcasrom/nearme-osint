@@ -29,11 +29,9 @@ def register_collectors():
         COLLECTORS.append(AEMETCollector())
     except Exception as e:
         logger.warning("No se pudo cargar AEMET: %s", e)
-    try:
-        from src.collectors.copernicus import CopernicusCollector
-        COLLECTORS.append(CopernicusCollector())
-    except Exception as e:
-        logger.warning("No se pudo cargar Copernicus: %s", e)
+    # Copernicus EMS retirado: el feed de activaciones se movio a un portal web
+    # (mapping.emergency.copernicus.eu) sin feed JSON publico; incendios cubiertos
+    # por NASA FIRMS y terremotos por USGS (colector DGT).
     try:
         from src.collectors.openaq import OpenAQCollector
         COLLECTORS.append(OpenAQCollector())

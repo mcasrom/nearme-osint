@@ -39,10 +39,15 @@ class AEMETCollector(BaseCollector):
                 data_resp = await client.get(data_url, headers=headers, timeout=20)
                 if data_resp.status_code != 200:
                     return None
-                text = data_resp.text.strip()
+                raw = data_resp.content
+                try:
+                    text = raw.decode("utf-8").strip()
+                except UnicodeDecodeError:
+                    text = raw.decode("latin-1").strip()
                 if not text or text in ("[]", "null"):
                     return None
-                return data_resp.json()
+                import json as _json
+                return _json.loads(text)
         except Exception as e:
             logger.warning("AEMET %s: %s", endpoint, e)
             return None

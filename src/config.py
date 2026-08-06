@@ -36,16 +36,7 @@ AEMET_RAIN_WARNING_MM = 8
 AEMET_STATION_RADIUS_M = 25000
 
 
-# ── Copernicus / GWIS ────────────────────────────────────────
-GWIS_URL = "https://gwis.jrc.ec.europa.eu/api/active-fires"
-GWIS_LIMIT = 30
-GWIS_COUNTRY = "ES"
-GWIS_MAX_FIRES = 20
-GWIS_FIRE_RADIUS_M = 1500
-GWIS_FRP_ALERT_THRESHOLD = 50
-CEMS_URL = "https://emergency.copernicus.eu/mapping/activations-rapid/feed"
-CEMS_MAX_ACTIVATIONS = 10
-CEMS_ACTIVATION_RADIUS_M = 20000
+# Copernicus EMS/GWIS retirado (feed sin JSON publico; incendios por FIRMS, terremotos por USGS)
 COPERNICUS_INTERVAL_MINUTES = 60
 
 
