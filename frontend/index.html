@@ -552,21 +552,24 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             </div>
         </div>
 
-        <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="locate()" style="flex:1;background:#111827;color:#607d8b;border:1px solid #1a2a4a;" title="Usar mi ubicacion" data-i18n-title="gps">GPS</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(50)" id="r50" style="flex:1;">50 km</button>
             <button class="btn btn-sm" onclick="setRadius(200)" id="r200" style="flex:1;">200 km</button>
             <button class="btn btn-sm btn-outline" onclick="setRadius(500)" id="r500" style="flex:1;">500 km</button>
         </div>
 
-        <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
             <button class="btn btn-sm btn-heat" onclick="toggleHeatmap()" id="heatBtn" style="flex:1;" data-i18n="heat">Mapa de calor</button>
             <button class="btn btn-sm btn-outline" onclick="showOnboarding()" style="flex:1;" id="helpBtn">Ayuda</button>
             <button class="btn btn-sm btn-outline" onclick="showAlertModal()" style="flex:1;position:relative;" id="alertBtn">Alertas</button>
             <button class="btn btn-sm btn-outline" onclick="toggleTimeline()" style="flex:1;" id="timelineBtn" data-i18n="timeline">⏳ Timeline</button>
             <button class="btn btn-sm btn-outline" onclick="toggleTrends()" style="flex:1;" id="trendsBtn">📊 Tendencias</button>
-            <button class="btn btn-sm btn-outline" onclick="toggleOnlyActive()" style="flex:1;" id="onlyActiveBtn" title="Ocultar eventos ya expirados">⏱ Solo activos</button>
-            <button class="btn btn-sm btn-outline" onclick="shareZone()" style="flex:1;" id="zoneShareBtn" title="Compartir esta zona">📤 Zona</button>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="toggleOnlyActive()" style="flex:1;min-width:120px;" id="onlyActiveBtn" title="Ocultar eventos ya expirados">⏱ Solo activos</button>
+            <button class="btn btn-sm btn-outline" onclick="shareZone()" style="flex:1;min-width:120px;" id="zoneShareBtn" title="Compartir esta zona">📤 Compartir zona</button>
         </div>
 
         <div id="timelinePanel" class="hidden" style="background:#0d1322;border-bottom:1px solid var(--line);padding:10px 14px;font-size:.8em;">
