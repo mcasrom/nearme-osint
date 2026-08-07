@@ -1707,10 +1707,30 @@ function toggleTrends(){
   if (p.classList.contains('hidden')) { p.classList.remove('hidden'); loadTrends(); }
   else p.classList.add('hidden');
 }
-function renderLine(containerId, points, color, label){
+var TREND_METRICS = [
+  { key:'embalses', metric:'nivel_medio_pct', label:'Embalses · nivel medio', unit:'%', color:'#00d4ff',
+    desc:'Media del nivel de llenado (%) de los embalses recolectados ese día.' },
+  { key:'renfe', metric:'retraso_medio_min', label:'RENFE · retraso medio', unit:'min', color:'#ffb74d',
+    desc:'Retraso medio (minutos) de los trenes con incidencia registrados ese día.' },
+  { key:'renfe', metric:'num_retrasos', label:'RENFE · registros de retraso', unit:'reg.', color:'#ff8a65',
+    desc:'Nº de registros de retraso (tren·parada) ese día. Cada parada de un tren retrasado cuenta como 1 registro; varios registros pueden ser del mismo tren.' },
+  { key:'nasa_firms', metric:'incendios', label:'Incendios · detecciones', unit:'det.', color:'#ef5350',
+    desc:'Detecciones de incendio activo (NASA FIRMS, satélites MODIS/VIIRS) en España ese día.' },
+  { key:'nasa_firms', metric:'hectareas_est', label:'Incendios · hectáreas estimadas', unit:'ha', color:'#f48fb1',
+    desc:'Estimación orientativa de superficie afectada: 0,3 ha por MW de potencia radiativa (FRP). No es un dato oficial.' },
+  { key:'miteco', metric:'ica_medio', label:'Calidad del aire · ICA medio', unit:'ICA', color:'#81c784',
+    desc:'Índice de Calidad del Aire medio de las estaciones (MITECO) ese día. Escala ~0-100: menor = mejor.' },
+  { key:'miteco', metric:'dias_regular_bad', label:'Calidad del aire · lecturas Regular/Malo', unit:'lect.', color:'#aed581',
+    desc:'Nº de mediciones de estaciones con calidad Regular, Mala o Muy mala ese día (mediciones por estación y hora, no días enteros).' }
+];
+function fmtStat(v){
+  if (v == null) return '—';
+  return Number(v) >= 1000 ? Number(v).toLocaleString('es-ES') : Number(v).toFixed(1);
+}
+function renderLine(containerId, meta, points){
   var el = document.getElementById(containerId);
   if (!points || !points.length) { el.innerHTML = '<div style="color:#607d8b;font-size:.78em;">Sin datos todavía (acumulando...)</div>'; return; }
-  var n = points.length, w = 560, h = 120, pad = 8;
+  var n = points.length, w = 560, h = 110, pad = 8;
   var vals = points.map(function(p){ return p.value; });
   var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
   var span = (max - min) || 1;
@@ -1718,10 +1738,14 @@ function renderLine(containerId, points, color, label){
   var pts = points.map(function(p,i){ return [i*step+pad, h-pad-((p.value-min)/span)*(h-2*pad)]; });
   var last = points[n-1];
   el.innerHTML =
-    '<div style="display:flex;justify-content:space-between;font-size:.75em;color:#b0bec5;margin-bottom:2px;"><span>'+label+'</span><span>último: '+Number(last.value).toFixed(1)+' · '+last.date+'</span></div>' +
-    '<svg viewBox="0 0 '+(w+2*pad)+' '+(h+2*pad)+'" style="width:100%;height:110px;">' +
-      '<polyline points="'+pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2" opacity="0.9"/>' +
-      pts.map(function(p){ return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="'+color+'"/>'; }).join('') +
+    '<div style="font-size:.8em;font-weight:700;color:#d0dbe8;">'+meta.label+' <span style="color:#607d8b;font-weight:400;">('+meta.unit+')</span></div>' +
+    '<div style="font-size:.72em;color:#607d8b;margin:2px 0 4px;line-height:1.4;">'+meta.desc+'</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:.72em;color:#b0bec5;margin-bottom:2px;"><span>último: <b style="color:'+meta.color+';">'+fmtStat(last.value)+' '+meta.unit+'</b> · '+last.date+'</span><span>rango: '+fmtStat(min)+' – '+fmtStat(max)+' '+meta.unit+'</span></div>' +
+    '<svg viewBox="0 0 '+(w+2*pad)+' '+(h+2*pad)+'" style="width:100%;height:104px;">' +
+      '<line x1="'+pad+'" y1="'+pad+'" x2="'+(w+pad)+'" y2="'+pad+'" stroke="#1a2a4a" stroke-width="1"/>' +
+      '<line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w+pad)+'" y2="'+(h-pad)+'" stroke="#1a2a4a" stroke-width="1"/>' +
+      '<polyline points="'+pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ')+'" fill="none" stroke="'+meta.color+'" stroke-width="2" opacity="0.9"/>' +
+      pts.map(function(p){ return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="'+meta.color+'"/>'; }).join('') +
     '</svg>';
 }
 function loadTrends(){
@@ -1729,23 +1753,18 @@ function loadTrends(){
   p.innerHTML = '<div style="color:#607d8b;text-align:center;padding:10px;">Cargando tendencias...</div>';
   fetch('/api/stats/trends?days=60').then(r=>r.json()).then(function(d){
     var s = d.stats || {};
-    var defs = [
-      ['Embalses · nivel medio (%)', '#00d4ff', (s.embalses||{}).nivel_medio_pct||[]],
-      ['RENFE · retraso medio (min)', '#ffb74d', (s.renfe||{}).retraso_medio_min||[]],
-      ['RENFE · nº retrasos/día', '#ff8a65', (s.renfe||{}).num_retrasos||[]],
-      ['Incendios · detecciones/día', '#ef5350', (s.nasa_firms||{}).incendios||[]],
-      ['Incendios · hectáreas estimadas', '#f48fb1', (s.nasa_firms||{}).hectareas_est||[]],
-      ['Calidad aire · ICA medio', '#81c784', (s.miteco||{}).ica_medio||[]],
-      ['Calidad aire · días Regular/Malo', '#aed581', (s.miteco||{}).dias_regular_bad||[]]
-    ];
-    var html = '<div class="empanel-title">📊 Tendencias (estadísticas diarias)</div>' +
-      '<div style="font-size:.75em;color:#607d8b;margin-bottom:4px;">Agregadas diariamente desde los eventos recolectados · actualizadas cada 24h · últimos 60 días.</div>';
-    defs.forEach(function(d,i){ html += '<div style="margin-top:12px;" id="trendChart'+i+'"></div>'; });
+    var html = '<div class="empanel-title">📊 Tendencias · estadísticas diarias</div>' +
+      '<div style="font-size:.72em;color:#607d8b;margin-bottom:2px;line-height:1.5;">Estadísticas agregadas cada 24 h a partir de los eventos recolectados (últimos 60 días). Cada gráfico indica qué mide y cómo se calcula.</div>';
+    TREND_METRICS.forEach(function(meta,i){ html += '<div style="margin-top:14px;" id="trendChart'+i+'"></div>'; });
     p.innerHTML = html;
-    defs.forEach(function(d,i){ renderLine('trendChart'+i, d[2], d[1], d[0]); });
-    p.innerHTML += '<div style="font-size:.7em;color:#607d8b;margin-top:8px;">Hectáreas estimadas: proxy FRP→ha (0.3 ha/MW), orientativo.</div>';
+    TREND_METRICS.forEach(function(meta,i){
+      var pts = ((s[meta.key]||{})[meta.metric]) || [];
+      renderLine('trendChart'+i, meta, pts);
+    });
+    p.innerHTML += '<div style="font-size:.7em;color:#607d8b;margin-top:10px;line-height:1.6;">ℹ️ <b>Notas:</b> las «detecciones» de incendios son puntos de calor satelital (pueden incluir quema agrícola); las hectáreas son un proxy orientativo, no un dato oficial; los «registros de retraso» de RENFE cuentan tren·parada; el ICA es la media de las estaciones reportadas ese día.</div>';
   }).catch(function(){ p.innerHTML = '<div style="color:#f87171">No se pudieron cargar las tendencias.</div>'; });
 }
+
 function applyTimelineFilter(idx) {
     var sl = document.getElementById('timelineRange');
     if (!sl || sl.max === 0) return;
