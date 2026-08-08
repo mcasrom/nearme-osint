@@ -1184,7 +1184,7 @@ function toggleFilter(type) {
     } else {
         activeFilters.add(type);
     }
-    localStorage.setItem('nearme_filters', JSON.stringify(Array.from(activeFilters)));
+    try { localStorage.setItem('nearme_filters', JSON.stringify(Array.from(activeFilters))); } catch (e) {}
     renderFilterChips();
     renderEvents();
     renderMapMarkers();
@@ -1900,13 +1900,14 @@ function renderEvents() {
     }).join('');
 }
 
-function setRadius(km) {
-    currentRadius = km;
-    localStorage.setItem('nearme_radius', km);
-    updateRadiusBtns();
-    updateMap();
-    loadEvents();
-}
+ function setRadius(km) {
+     currentRadius = km;
+     // localStorage puede estar lleno (quota exceeded); nunca debe bloquear la UI
+     try { localStorage.setItem('nearme_radius', km); } catch (e) {}
+     updateRadiusBtns();
+     updateMap();
+     loadEvents();
+ }
 
 function flyTo(lat, lon) { map.flyTo([lat, lon], 13); }
 
@@ -2108,13 +2109,13 @@ function getGuestLocations() {
     try { return JSON.parse(localStorage.getItem(GKEY_LOCATIONS)) || []; } catch (e) { return []; }
 }
 function setGuestLocations(arr) {
-    localStorage.setItem(GKEY_LOCATIONS, JSON.stringify(arr));
+    try { localStorage.setItem(GKEY_LOCATIONS, JSON.stringify(arr)); } catch (e) {}
 }
 function getGuestAlerts() {
     try { return JSON.parse(localStorage.getItem(GKEY_ALERTS)) || []; } catch (e) { return []; }
 }
 function setGuestAlerts(arr) {
-    localStorage.setItem(GKEY_ALERTS, JSON.stringify(arr));
+    try { localStorage.setItem(GKEY_ALERTS, JSON.stringify(arr)); } catch (e) {}
 }
 
 async function saveCurrentLocation() {
