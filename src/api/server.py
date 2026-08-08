@@ -12,7 +12,7 @@ import httpx
 import jwt
 from fastapi import FastAPI, Query, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
@@ -695,6 +695,14 @@ def serve_sitemap():
     if sitemap.exists():
         return FileResponse(str(sitemap), media_type="application/xml")
     return {"error": "Not found"}
+
+
+INDEXNOW_KEY = "133a9cae0b643b77df12b5282f23fba9"
+
+
+@app.get("/indexnow.key")
+def serve_indexnow_key():
+    return Response(content=INDEXNOW_KEY, media_type="text/plain")
 
 
 @app.post("/api/visit")
