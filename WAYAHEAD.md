@@ -629,3 +629,13 @@ Largo plazo / estrategico:
 - **Resultado verificado**: Alarcón expira el 15-Ago (antes 22-Jul), **0 embalses expirados** (antes 83), **452/452 visibles**, y Alarcón aparece en `/api/nearby` y en producción (mapa).
 - **Sin impacto en recursos**: solo cambia la fecha de expiración al insertar; no hay queries ni procesamiento extra.
 - **Commit**: `54ba2a2`. Backup: `src/collectors/embalses/__init__.py.bak-20260808`.
+
+## Fix 41b — Embalses: frescura visible (Opción 1) (8 Ago 2026)
+
+- **Objetivo**: superar la expiración de forma automática Y transparente — el dato de nivel de embalse no desaparece del mapa (TTL 7d del Fix 41a) y, además, se indica cuándo se midió.
+- **Colector**: la descripción del embalse ahora incluye **"Medición: DD/MM/AAAA HH:MM"** (la `ultima_lectura` real de la fuente). Alarcón: "Medición: 22/07/2026 08:40".
+- **Frontend**:
+  - **Popup del marcador en el mapa**: ahora muestra `freshnessBadge(updated_at)` (verde <30min, naranja <2h, rojo ≥2h) — misma función ya usada en el listado.
+  - **Modal de detalle**: nueva línea "Actualizado: <fecha> + freshnessBadge".
+- **Resultado**: el embalse se ve siempre (TTL 7d desde recolección, refrescado cada 30 min por el upsert) y el usuario ve la frescura real de la medición. Sin impacto en recursos (solo texto + badge).
+- **Commits**: colector + frontend en `e47eca5`.
