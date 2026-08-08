@@ -1715,7 +1715,7 @@ function renderMapMarkers() {
             eventLevel: e.level,
         });
         var _pop = document.createElement('div');
-        _pop.innerHTML = `<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source}${e.confidence ? ' &middot; ' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%' : ''}<br><small>${descHtml}</small>`;
+        _pop.innerHTML = `<b>${lvlEmoji} ${evIcon} ${e.title} ${levelBadge(e.level, e.event_type)}</b><br>${e.distance_km} km &middot; ${e.source} ${freshnessBadge(e.updated_at)}${e.confidence ? ' &middot; ' + String.fromCharCode(0x2713) + ' ' + e.confidence + '%' : ''}<br><small>${descHtml}</small>`;
         var _dl = document.createElement('a');
         _dl.href = '#';
         _dl.style.cssText = 'display:inline-block;margin-top:8px;font-weight:600;color:#00d4ff;text-decoration:none;';
@@ -2017,6 +2017,7 @@ function showEventDetailObj(e) {
                 ' + (e.country ? '<div class="field"><strong>Pais:</strong> ' + e.country + '</div>' : '') + '\
                 ' + (desc ? '<div class="field"><strong>Descripcion:</strong><br>' + desc.replace(/\|/g, '<br>') + '</div>' : '') + '\
                 ' + (e.created_at ? '<div class="field" style="color:#607d8b;font-size:0.78em;">Creado: ' + e.created_at + '</div>' : '') + '\
+                ' + (e.updated_at ? '<div class="field" style="color:#607d8b;font-size:0.78em;">Actualizado: ' + e.updated_at + ' ' + freshnessBadge(e.updated_at) + '</div>' : '') + '\
             </div>\
             <div id="detailPattern" style="margin-top:8px;"></div>\
             <div class="detail-actions">\

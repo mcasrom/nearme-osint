@@ -63,6 +63,13 @@ class EmbalsesCollector(BaseCollector):
                 desc_parts.append(f"Nivel: {pct}%")
             if vol is not None and cap is not None:
                 desc_parts.append(f"Volumen: {vol} hm³ / {cap} hm³")
+            ultima = emb.get("ultima_lectura")
+            if ultima:
+                try:
+                    ults = datetime.fromisoformat(ultima)
+                    desc_parts.append(f"Medición: {ults.strftime('%d/%m/%Y %H:%M')}")
+                except Exception:
+                    pass
             description = " · ".join(desc_parts)
 
             # Los datos de nivel de embalse son estables durante dias y la
