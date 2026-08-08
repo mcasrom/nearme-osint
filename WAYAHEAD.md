@@ -617,3 +617,15 @@ Largo plazo / estrategico:
 - **Monitor local (activo)**: cron `*/5` con `scripts/healthcheck.sh` — verifica `/health` (api=ok, database=connected) y freshness del pipeline (<45 min desde el último collector run). Alerta por Telegram (`@nearme_status_bot`) SOLO en cambio de estado (down/recovery), no cada ejecución. Estado actual `up`, último check `api=ok db=connected pipeline_age=<Xs`. Sin dependencias externas.
 - **UptimeRobot (OPCIONAL)**: se deja como canal externo opcional — crear monitor HTTP(S) a `https://nearme.viajeinteligencia.com/health`, intervalo 5 min, alerta email; útil solo si se quiere una status page pública para la landing/README. No automatizable (requiere cuenta externa), por eso el monitor local es el canal primario.
 - **Deploy**: sw -> `nearme-v9`, v0.14 en CHANGELOG. Los 3 entornos sincronizados (laptop, GitHub, server vía rsync).
+
+## Fix 41a — Embalses invisibles: expiración 7 días desde recolección (8 Ago 2026)
+
+- **Síntoma reportado**: el embalse de Alarcón (1112 hm³, río Riansares, Cuenca) — un embalse importante — no mostraba icono/porcentaje en el mapa, mientras que embalses menores sí aparecían.
+- **Causa raíz (3 niveles)**:
+  1. La fuente `estadoembalses.es` NO renueva la `ultima_lectura` de todos los embalses con la misma frecuencia. Alarcón (y Contreras, La Toba en Cuenca, 80+ más) llevaban lectura del 22-Jul-2026.
+  2. El colector calculaba `expires_at = ultima_lectura + 6h` → con lectura vieja, `expires_at` quedaba en el pasado.
+  3. La consulta `/api/nearby` excluye `expires_at > NOW()` → los 83 embalses con lectura vieja eran **invisibles** pese a estar en la BD (452 con coords, 369 visibles).
+- **Fix**: los datos de nivel de embalse son estables durante días y el colector corre cada 30 min (refresca `expires_at` en cada colección), así que se fija **expiración de 7 días desde el momento de recolección** (ya no desde `ultima_lectura`). `EMBALSE_TTL_DAYS = 7`.
+- **Resultado verificado**: Alarcón expira el 15-Ago (antes 22-Jul), **0 embalses expirados** (antes 83), **452/452 visibles**, y Alarcón aparece en `/api/nearby` y en producción (mapa).
+- **Sin impacto en recursos**: solo cambia la fecha de expiración al insertar; no hay queries ni procesamiento extra.
+- **Commit**: `54ba2a2`. Backup: `src/collectors/embalses/__init__.py.bak-20260808`.
