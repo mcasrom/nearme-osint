@@ -681,6 +681,14 @@ def serve_firms():
     return {"error": "Page not found"}
 
 
+@app.get("/calidad-aire")
+def serve_calidad_aire():
+    page = FRONTEND_DIR / "calidad-aire.html"
+    if page.exists():
+        return FileResponse(str(page))
+    return {"error": "Page not found"}
+
+
 @app.get("/robots.txt")
 def serve_robots():
     robots = FRONTEND_DIR / "robots.txt"
