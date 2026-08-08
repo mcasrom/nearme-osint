@@ -673,6 +673,30 @@ def serve_frontend():
     return {"error": "Frontend not found"}
 
 
+@app.get("/firms")
+def serve_firms():
+    firms = FRONTEND_DIR / "firms.html"
+    if firms.exists():
+        return FileResponse(str(firms))
+    return {"error": "Page not found"}
+
+
+@app.get("/robots.txt")
+def serve_robots():
+    robots = FRONTEND_DIR / "robots.txt"
+    if robots.exists():
+        return FileResponse(str(robots), media_type="text/plain")
+    return {"error": "Not found"}
+
+
+@app.get("/sitemap.xml")
+def serve_sitemap():
+    sitemap = FRONTEND_DIR / "sitemap.xml"
+    if sitemap.exists():
+        return FileResponse(str(sitemap), media_type="application/xml")
+    return {"error": "Not found"}
+
+
 @app.post("/api/visit")
 def record_visit():
     from src.db import record_page_view

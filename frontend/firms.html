@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¿Qué es FIRMS? · Detección de incendios por satélite | NearMe OSINT</title>
+<meta name="description" content="Qué es FIRMS (Fire Information for Resource Management System) de la NASA: cómo se detectan incendios por satélite con VIIRS y MODIS, qué significan los focos de calor y cómo consultar incendios en vivo en España.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://nearme.viajeinteligencia.com/firms">
+<meta property="og:type" content="article">
+<meta property="og:title" content="¿Qué es FIRMS y cómo detecta incendios por satélite? | NearMe OSINT">
+<meta property="og:description" content="Guía sobre FIRMS de la NASA: sensores VIIRS y MODIS, focos de calor, y cómo ver incendios en tiempo real en España.">
+<meta property="og:url" content="https://nearme.viajeinteligencia.com/firms">
+<meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  body{font-family:-apple-system,system-ui,sans-serif;background:#0B0F17;color:#E7EBF3;line-height:1.6;margin:0;padding:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:32px 24px;}
+  h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px;}
+  .meta{font-family:ui-monospace,monospace;font-size:13px;color:#8993A8;margin-bottom:24px;}
+  h2{font-size:20px;font-weight:700;margin-top:32px;}
+  p{font-size:16px;color:#C9D2E0;}
+  code{background:#1a2233;padding:2px 6px;border-radius:4px;font-size:14px;}
+  .cta{display:inline-block;background:#FFB454;color:#1A1200;font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none;margin-top:24px;}
+  a{color:#67E8F9;}
+  ul{color:#C9D2E0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>¿Qué es FIRMS y cómo detecta los incendios por satélite?</h1>
+  <div class="meta">NearMe OSINT · Actualizado 2026 · Fuente: NASA FIRMS</div>
+
+  <p><strong>FIRMS</strong> (Fire Information for Resource Management System) es un servicio de la <strong>NASA</strong> que detecta focos de calor activos en la Tierra usando satélites. NearMe lo integra para mostrarte los <a href="/">incendios en vivo en España</a> en tiempo real.</p>
+
+  <h2>Cómo funcionan los sensores VIIRS y MODIS</h2>
+  <p>FIRMS procesa datos de dos instrumentos satelitales:</p>
+  <ul>
+    <li><strong>VIIRS</strong> (Visible Infrared Imaging Radiometer Suite): detecta focos muy pequeños, con resolución de 375 metros. Es el más sensible a incendios incipientes.</li>
+    <li><strong>MODIS</strong>: resolución de 1 km, cobertura global. Bueno para incendios grandes y seguimiento prolongado.</li>
+  </ul>
+  <p>Ambos detectan la <strong>radiación térmica</strong> en el infrarrojo: un píxel con temperatura muy superior a su entorno se marca como <em>foco de calor</em> (hotspot).</p>
+
+  <h2>¿Qué significa un "foco de calor" (hotspot)?</h2>
+  <p>Un hotspot es un píxel donde el satélite detecta una anomalía térmica. Puede ser un <strong>incendio forestal</strong>, una quema agrícola controlada, o incluso actividad industrial. NearMe además usa la medida <strong>FRP</strong> (Fire Radiative Power, en megavatios) para estimar la intensidad del foco: a mayor FRP, mayor tamaño del incendio.</p>
+
+  <h2>Limitaciones que debes conocer</h2>
+  <ul>
+    <li>Los satélites pasan sobre cada punto varias veces al día: puede haber <strong>retraso de minutos a horas</strong> desde el inicio del fuego.</li>
+    <li>El <strong>humo y las nubes</strong> pueden ocultar focos reales.</li>
+    <li>No distingue automáticamente fuego de <strong>quemas controladas</strong>.</li>
+    <li>Para emergencias, contacta siempre con las autoridades (112 / 112).</li>
+  </ul>
+
+  <h2>Ver incendios en vivo en España</h2>
+  <p>El mapa de <a href="/">NearMe</a> muestra los focos FIRMS junto a sismos (IGN/USGS), calidad del aire (MITECO/OpenAQ), avisos meteorológicos (AEMET) y tráfico (DGT), todo en una sola vista.</p>
+  <a class="cta" href="/">Ver incendios en vivo →</a>
+</div>
+</body>
+</html>
