@@ -65,16 +65,17 @@ class EmbalsesCollector(BaseCollector):
                 desc_parts.append(f"Volumen: {vol} hm³ / {cap} hm³")
             description = " · ".join(desc_parts)
 
-            ultima = emb.get("ultima_lectura")
-            expires = None
-            if ultima:
-                try:
-                    ults = datetime.fromisoformat(ultima)
-                    expires = (ults + timedelta(hours=TTL_HOURS)).isoformat()
-                except Exception:
-                    pass
-            if not expires:
-                expires = (now + timedelta(hours=TTL_HOURS)).isoformat()
+            # Los datos de nivel de embalse son estables durante dias y la
+            # fuente (estadoembalses.es) no renueva la ultima_lectura de todos
+            # los embalses con la misma frecuencia (p. ej. Alarcon lleva semanas
+            # con lectura del 22-Jul). Si expiramos basandonos en
+            # ultima_lectura + TTL_HOURS, esos embalses quedan con expires_at
+            # en el pasado y el backend los excluye del mapa (bug: 83 embalses
+            # invisibles). Como este colector se re-ejecuta cada 30 min y
+            # refresca expires_at, usamos una expiracion larga desde la
+            # recoleccion: el embalse es visible 7 dias desde cada coleccion.
+            EMBALSE_TTL_DAYS = 7
+            expires = (now + timedelta(days=EMBALSE_TTL_DAYS)).isoformat()
 
             events.append(Event(
                 source="embalses",
