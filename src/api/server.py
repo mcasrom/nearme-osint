@@ -718,6 +718,14 @@ def serve_calidad_aire():
     return {"error": "Page not found"}
 
 
+@app.get("/precio-luz")
+def serve_precio_luz():
+    page = FRONTEND_DIR / "precio-luz.html"
+    if page.exists():
+        return FileResponse(str(page))
+    return {"error": "Page not found"}
+
+
 @app.get("/robots.txt")
 def serve_robots():
     robots = FRONTEND_DIR / "robots.txt"
