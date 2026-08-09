@@ -229,6 +229,35 @@ def nearby(
     }
 
 
+@app.get("/api/ccaa-stats")
+def ccaa_stats():
+    """Eventos críticos/alert por CCAA (spatial join con spain_ccaa).
+    Para colorear el mapa territorial del Radar de Emergencias."""
+    from src.db import get_conn, release_conn
+    import psycopg2.extras
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT c.name AS ccaa,
+                   COUNT(*) FILTER (WHERE e.level = 'critical') AS critical,
+                   COUNT(*) FILTER (WHERE e.level = 'alert') AS alert,
+                   COUNT(*) AS total
+            FROM events e
+            JOIN spain_ccaa c ON ST_Contains(c.geom, e.geom)
+            WHERE e.expires_at > NOW()
+              AND e.status != 'resolved'
+              AND e.level IN ('critical','alert','warning')
+            GROUP BY c.name
+            ORDER BY total DESC
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        return {"ccaa": rows, "generated": datetime.now(timezone.utc).isoformat()}
+    finally:
+        release_conn(conn)
+
+
 @app.get("/api/event/{event_id}")
 def event_by_id(event_id: int):
     from src.db import get_event_by_id
