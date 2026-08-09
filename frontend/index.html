@@ -143,6 +143,7 @@
         @keyframes pulse-fire-critical { 0%, 100% { box-shadow: 0 0 0 3px rgba(244,67,54,0.5), 0 0 16px rgba(244,67,54,0.9); } 50% { box-shadow: 0 0 0 6px rgba(244,67,54,0.15), 0 0 26px rgba(244,67,54,1); } }
         @keyframes pulse-alert { 0%, 100% { box-shadow: 0 0 4px rgba(245,124,0,0.4); } 50% { box-shadow: 0 0 14px rgba(245,124,0,0.7); } }
         @keyframes pulse-alert-fire { 0%, 100% { box-shadow: 0 0 0 3px rgba(245,124,0,0.45), 0 0 12px rgba(245,124,0,0.85); } 50% { box-shadow: 0 0 0 6px rgba(245,124,0,0.15), 0 0 20px rgba(245,124,0,1); } }
+        @keyframes event-flash { 0% { transform: scale(0.7); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
         .marker-cluster-small { background-color: rgba(0,212,255,0.3); }
         .marker-cluster-small div { background-color: rgba(0,212,255,0.7); }
         .marker-cluster-medium { background-color: rgba(255,152,0,0.3); }
@@ -1432,6 +1433,33 @@ async function loadEvents() {
 var onlyActive = false;
 function isExpired(e) { return e.expires_at && new Date(e.expires_at).getTime() < Date.now(); }
 function severityRank(e) { return { critical: 4, alert: 3, warning: 2, info: 1 }[e.level] || 0; }
+
+// FLASH temporal por tipo de evento. Cada tipo tiene una ventana de relevancia
+// (horas desde la creación). Si el evento es "nuevo" dentro de esa ventana,
+// se dibuja un anillo pulsante que va decayendo con la antigüedad.
+//   sismo/terremoto  -> 48h
+//   incendio         -> 72h (hasta extinción; el evento vive mientras la fuente lo da)
+//   carretera/trafico-> 6h
+//   aviso meteorológico -> 12h
+//   resto            -> 24h
+function eventFlash(e) {
+  var created = e.created_at ? new Date(e.created_at).getTime() : 0;
+  if (!created) return null;
+  var ageH = (Date.now() - created) / 3600000;
+  var type = e.event_type;
+  var hours = 24;
+  if (type === 'earthquake' || type === 'sismo') hours = 48;
+  else if (type === 'fire') hours = 72;
+  else if (type === 'road_incident' || type === 'traffic') hours = 6;
+  else if (type === 'weather' || type === 'warning') hours = 12;
+  if (ageH < 0 || ageH > hours) return null;
+  // intensidad: más reciente = más opaco/rápido
+  var t = 1 - (ageH / hours); // 1 recién creado, 0 a punto de expirar
+  var dur = (1.6 - t * 0.8).toFixed(2);
+  var op = (0.35 + t * 0.5).toFixed(2);
+  var color = type === 'fire' ? '#ff5722' : type === 'earthquake' ? '#ff1744' : '#ffb300';
+  return { color: color, anim: 'event-flash', dur: dur, op: op, type: type };
+}
 function getFilteredEvents() {
     var base = activeFilters.size === 0 ? allEvents : allEvents.filter(e => activeFilters.has(e.event_type));
     if (onlyActive) base = base.filter(e => !isExpired(e));
@@ -1677,6 +1705,10 @@ function renderMapMarkers() {
             bgColor = fireHeatColor(frp);
         }
 
+        // FLASH por tipo de evento + antigüedad: destaca temporalmente los
+        // eventos "nuevos" con un anillo pulsante. Cada tipo tiene su duración
+        // de relevancia (sismo 48h, incendio 72h, carretera 6h, etc).
+        const flash = eventFlash(e);
         const isHigh = lvlOrder[e.level] >= 3;
         const isCriticalFire = e.event_type === 'fire' && lvlOrder[e.level] >= 4;
         const isAlertFire = e.event_type === 'fire' && lvlOrder[e.level] === 3;
@@ -1701,7 +1733,9 @@ function renderMapMarkers() {
 
         const m = L.marker([e.lat, e.lon], {
             icon: L.divIcon({
-                html: `<div style="
+                html: `<div style="position:relative;">
+                    ${flash ? `<span style="position:absolute;inset:-8px;border-radius:50%;border:2px solid ${flash.color};animation:${flash.anim} ${flash.dur}s ease-out infinite;"></span>` : ''}
+                    <div style="
                     ${rel}
                     width:${size}px;height:${size}px;border-radius:50%;
                     background:${bgColor};
@@ -1709,7 +1743,8 @@ function renderMapMarkers() {
                     display:flex;align-items:center;justify-content:center;
                     font-size:${Math.round(size * 0.5)}px;line-height:1;
                     ${pulse}${glow}
-                " title="${e.event_type} (${e.level})">${evIcon}${badge}</div>`,
+                    " title="${e.event_type} (${e.level})">${evIcon}${badge}</div>
+                </div>`,
                 className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
             }),
             eventType: e.event_type,
