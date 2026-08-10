@@ -4,4 +4,6 @@
   <url><loc>https://nearme.viajeinteligencia.com/firms</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-aire</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/precio-luz</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/incendios</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/trafico</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>
