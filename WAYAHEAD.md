@@ -639,3 +639,14 @@ Largo plazo / estrategico:
   - **Modal de detalle**: nueva línea "Actualizado: <fecha> + freshnessBadge".
 - **Resultado**: el embalse se ve siempre (TTL 7d desde recolección, refrescado cada 30 min por el upsert) y el usuario ve la frescura real de la medición. Sin impacto en recursos (solo texto + badge).
 - **Commits**: colector + frontend en `e47eca5`.
+## Sprint SEO — NearMe: landing pages de tráfico e incendios (10 Ago 2026)
+
+- **Objetivo**: fase 2 del plan 30 días — capturar búsqueda real ("incendios en vivo España", "tráfico DGT ahora").
+- **2 posts evergreen** (archivos estáticos servidos por nginx con URLs limpias):
+  - `/incendios` — mapa de focos de calor NASA FIRMS (VIIRS/MODIS), severidad, timeline 7 días, alertas. CTA al mapa.
+  - `/trafico` — incidencias DGT (DATEX II), retenciones/accidentes/obras por provincia. CTA al mapa.
+- **Sitemap**: 4 → 6 URLs. IndexNow enviado (HTTP 202).
+- **Fix nginx**: los locations nuevos requerían `root` explícito (patrón de calidad-aire) — con `curl -I` verificado 200.
+- **Verificado**: 6 URLs de NearMe 200, ecosistema intacto.
+- **Commit**: `aaff80c`. Coste ~0.
+
