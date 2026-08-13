@@ -259,6 +259,33 @@ def init_db():
             UNIQUE (user_id)
         )
     """)
+    # Preferencias configurables del bot de Telegram (menu inline del propio bot)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_prefs (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            event_types TEXT DEFAULT '',
+            locations TEXT DEFAULT '',
+            frequency TEXT DEFAULT 'inmediato',
+            critical_only BOOLEAN DEFAULT false,
+            last_digest_at TIMESTAMPTZ,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_digest (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            bucket TEXT NOT NULL,
+            items TEXT NOT NULL DEFAULT '[]',
+            count INTEGER NOT NULL DEFAULT 0,
+            sent BOOLEAN DEFAULT false,
+            due_at TIMESTAMPTZ NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (user_id, bucket)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tg_digest_due ON telegram_digest(sent, due_at)")
+
     # Capa de CCAA + directorio de recursos de emergencia (panel de emergencia)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS spain_ccaa (
@@ -1327,3 +1354,110 @@ def delete_telegram_subscription_by_chat(chat_id: int) -> bool:
     cur.close()
     release_conn(conn)
     return deleted
+
+
+def get_user_by_chat(chat_id: int) -> int | None:
+    """Devuelve el user_id vinculado a un chat de Telegram (o None)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT user_id FROM telegram_subscriptions WHERE chat_id = %s", (chat_id,))
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    return row[0] if row else None
+
+
+def get_telegram_prefs(user_id: int) -> dict:
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT event_types, locations, frequency, critical_only, last_digest_at, updated_at FROM telegram_prefs WHERE user_id = %s",
+        (user_id,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    release_conn(conn)
+    if not row:
+        return {"event_types": "", "locations": "", "frequency": "inmediato", "critical_only": False}
+    d = dict(row)
+    d["event_types"] = d.get("event_types") or ""
+    d["locations"] = d.get("locations") or ""
+    d["frequency"] = d.get("frequency") or "inmediato"
+    d["critical_only"] = bool(d.get("critical_only"))
+    return d
+
+
+def set_telegram_prefs(user_id: int, **kwargs) -> dict:
+    """Actualiza (upsert) preferencias del bot. Acepta: event_types, locations,
+    frequency, critical_only ('' en event_types/locations = todos)."""
+    allowed = {"event_types", "locations", "frequency", "critical_only"}
+    updates = {k: v for k, v in kwargs.items() if k in allowed}
+    if not updates:
+        return get_telegram_prefs(user_id)
+    if "event_types" in updates:
+        updates["event_types"] = ",".join(sorted(updates["event_types"])) if isinstance(updates["event_types"], (list, tuple, set)) else updates["event_types"]
+    if "locations" in updates:
+        updates["locations"] = ",".join(str(x) for x in sorted(int(v) for v in updates["locations"])) if isinstance(updates["locations"], (list, tuple, set)) else updates["locations"]
+    sets = ", ".join(f"{k} = %s" for k in updates)
+    vals = list(updates.values())
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(f"""
+        INSERT INTO telegram_prefs (user_id, {', '.join(updates.keys())}, updated_at)
+        VALUES (%s, {', '.join(['%s'] * len(updates))}, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET {', '.join(f'{k} = EXCLUDED.{k}' for k in updates)}, updated_at = NOW()
+    """, [user_id] + vals)
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+    return get_telegram_prefs(user_id)
+
+
+def upsert_telegram_digest(user_id: int, bucket: str, lines: list[str], due_at) -> None:
+    """Acumula lineas de resumen para un usuario/bucket con vencimiento due_at."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT items, count FROM telegram_digest WHERE user_id = %s AND bucket = %s", (user_id, bucket))
+    row = cur.fetchone()
+    if row:
+        items = json.loads(row[0]) if row[0] else []
+        items = list(dict.fromkeys(items + lines))
+        cur.execute(
+            "UPDATE telegram_digest SET items = %s, count = %s WHERE user_id = %s AND bucket = %s",
+            (json.dumps(items, ensure_ascii=False), len(items), user_id, bucket)
+        )
+    else:
+        cur.execute(
+            "INSERT INTO telegram_digest (user_id, bucket, items, count, due_at) VALUES (%s, %s, %s, %s, %s)",
+            (user_id, bucket, json.dumps(list(dict.fromkeys(lines)), ensure_ascii=False), len(list(dict.fromkeys(lines))), due_at)
+        )
+    conn.commit()
+    cur.close()
+    release_conn(conn)
+
+
+def get_due_digests() -> list[dict]:
+    """Resumenes pendientes de enviar cuya ventana ya vencio (due_at <= NOW)."""
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT id, user_id, bucket, items, count FROM telegram_digest WHERE sent = false AND due_at <= NOW() ORDER BY due_at ASC"
+    )
+    rows = cur.fetchall()
+    cur.close()
+    release_conn(conn)
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["items"] = json.loads(d["items"]) if d["items"] else []
+        result.append(d)
+    return result
+
+
+def mark_digest_sent(digest_id: int) -> None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("UPDATE telegram_digest SET sent = true WHERE id = %s", (digest_id,))
+    conn.commit()
+    cur.close()
+    release_conn(conn)

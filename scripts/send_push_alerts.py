@@ -36,6 +36,10 @@ from src.db import (
     mark_push_sent,
     delete_push_subscription,
     prune_push_sent,
+    get_telegram_prefs,
+    upsert_telegram_digest,
+    get_due_digests,
+    mark_digest_sent,
 )
 
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
@@ -95,7 +99,44 @@ def build_items_text(items, loc_name):
     return n, body
 
 
+FREQ_HOURS = {"resumen_6h": 6, "resumen_24h": 24}
+
+
+def digest_bucket(now, hours):
+    window = hours * 3600
+    start = int(now.timestamp()) - (int(now.timestamp()) % window)
+    return f"{now.strftime('%Y-%m-%d')}:{start}"
+
+
+def digest_due_at(now, hours):
+    window = hours * 3600
+    start = int(now.timestamp()) - (int(now.timestamp()) % window)
+    return datetime.fromtimestamp(start + window, tz=timezone.utc)
+
+
+def flush_telegram_digests():
+    """Envia los resumenes (frecuencia resumen_6h/resumen_24h) cuya ventana vencio."""
+    if not TG_TOKEN:
+        return
+    for d in get_due_digests():
+        chat_id = get_telegram_chat(d["user_id"])
+        if not chat_id:
+            mark_digest_sent(d["id"])
+            continue
+        items = d["items"][:15]
+        more = len(d["items"]) - len(items)
+        text = "<b>🔔 Resumen de tus avisos NearMe</b>\n" + "\n".join(items)
+        if more > 0:
+            text += f"\n(+{more} mas)"
+        if send_telegram(chat_id, text):
+            mark_digest_sent(d["id"])
+            print(f"[{now_iso()}] [DIGEST] user={d['user_id']} chat={chat_id} items={len(d['items'])}")
+        else:
+            print(f"[{now_iso()}] [SKIP] digest user={d['user_id']} chat={chat_id}")
+
+
 def main():
+    flush_telegram_digests()
     user_ids = get_push_users()
     total_push = 0
     total_tg = 0
@@ -173,7 +214,33 @@ def main():
                         push_here += 1
 
             if chat_id:
-                tg_items = [it for it in items if (alert_id, it[2]["id"], it[2]["level"]) not in sent_tg]
+                prefs = get_telegram_prefs(user_id)
+                freq = prefs.get("frequency", "inmediato")
+                if freq == "silencio":
+                    continue
+                pref_locs = [int(x) for x in prefs["locations"].split(",") if x.strip()] if prefs.get("locations") else []
+
+                filtered = []
+                for it in items:
+                    loc, alert, e = it
+                    if pref_locs and loc["id"] not in pref_locs:
+                        continue
+                    if prefs.get("critical_only") and e.get("level") != "critical":
+                        continue
+                    filtered.append(it)
+
+                if freq in FREQ_HOURS:
+                    lines = []
+                    for it in filtered:
+                        _, _, e = it
+                        lines.append(f"{EMOJIS.get(e['event_type'], '📍')} {html.escape((e.get('title') or '')[:80])}")
+                    if lines:
+                        now = datetime.now(timezone.utc)
+                        hours = FREQ_HOURS[freq]
+                        upsert_telegram_digest(user_id, digest_bucket(now, hours), lines, digest_due_at(now, hours))
+                    continue
+
+                tg_items = [it for it in filtered if (alert_id, it[2]["id"], it[2]["level"]) not in sent_tg]
                 if tg_items:
                     tn, tbody = build_items_text(tg_items, loc["name"])
                     text = f"<b>🔔 {tn} evento{'s' if tn != 1 else ''} cerca de {loc['name']}</b>\n{tbody}"
