@@ -346,6 +346,35 @@ def stats_trends(days: int = Query(60, ge=1, le=365)):
     return {"days": days, "stats": out}
 
 
+@app.get("/api/stats/traffic")
+def stats_traffic():
+    """Agregados nacionales de incidencias DGT activas (event_type=road_incident)."""
+    from src.db import get_conn, release_conn
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM events WHERE event_type='road_incident' AND status='active'")
+        active = cur.fetchone()[0]
+        cur.execute(
+            "SELECT subtype, count(*) FROM events "
+            "WHERE event_type='road_incident' AND status='active' AND subtype <> '' "
+            "GROUP BY subtype ORDER BY 2 DESC")
+        subtipos = [{"subtype": r[0], "count": r[1]} for r in cur.fetchall()]
+        cur.execute(
+            "SELECT region, count(*) FROM events "
+            "WHERE event_type='road_incident' AND status='active' AND region <> '' "
+            "GROUP BY region ORDER BY 2 DESC LIMIT 5")
+        regiones = [{"region": r[0], "count": r[1]} for r in cur.fetchall()]
+        cur.execute(
+            "SELECT max(updated_at) FROM events "
+            "WHERE event_type='road_incident' AND status='active'")
+        updated = cur.fetchone()[0]
+    finally:
+        release_conn(conn)
+    updated = updated.isoformat() if hasattr(updated, "isoformat") else (str(updated) if updated else None)
+    return {"active": active, "subtipos": subtipos, "regiones": regiones, "updated": updated}
+
+
 @app.get("/api/types")
 def event_types():
     from src.models import EVENT_TYPES
