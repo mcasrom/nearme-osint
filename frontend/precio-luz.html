@@ -24,7 +24,7 @@
   "publisher": { "@type": "Organization", "name": "Viaje Inteligencia" }
 }
 </script>
-<style>  :root{--bg:#F4F6FB;--panel:#FFFFFF;--line:#D6DDEA;--text:#16202E;--text2:#33415C;--dim:#5B6B84;--faint:#8A97AC;--amber:#D9820A;--on-amber:#FFFFFF;--cyan:#0E9FAE;--code-bg:#E9EEF7;--code-line:#CBD5E1;}
+<style>  :root{--bg:#F4F6FB;--panel:#FFFFFF;--line:#D6DDEA;--text:#16202E;--text2:#33415C;--dim:#5B6B84;--faint:#8A97AC;--amber:#D9820A;--on-amber:#FFFFFF;--cyan:#0E9FAE;--code-bg:#E9EEF7;--code-line:var(--text2);}
   html[data-theme="dark"]{--bg:#0B0F17;--panel:#121826;--line:#232B3D;--text:#E7EBF3;--text2:#C9D2E0;--dim:#8993A8;--faint:#576076;--amber:#FFB454;--on-amber:#1A1200;--cyan:#67E8F9;--code-bg:#1a2233;--code-line:#1e293b;}
   .theme-row{display:flex;justify-content:flex-end;margin-bottom:8px;}
   .theme-btn{font-family:ui-monospace,monospace;font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 12px;cursor:pointer;}
@@ -32,16 +32,16 @@
   .kofi-guide{display:inline-block;background:#29ABE0;color:#fff;font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none;margin-top:36px;}
   .kofi-guide:hover{opacity:.92;}
 
-  body{font-family:-apple-system,system-ui,sans-serif;background:#0B0F17;color:#E7EBF3;line-height:1.65;margin:0;padding:0;}
+  body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;margin:0;padding:0;}
   .wrap{max-width:720px;margin:0 auto;padding:32px 24px;}
   h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px;}
-  .meta{font-family:ui-monospace,monospace;font-size:13px;color:#8993A8;margin-bottom:24px;}
+  .meta{font-family:ui-monospace,monospace;font-size:13px;color:var(--dim);margin-bottom:24px;}
   h2{font-size:20px;font-weight:700;margin-top:32px;}
-  p{font-size:16px;color:#C9D2E0;}
-  code{background:#1a2233;padding:2px 6px;border-radius:4px;font-size:14px;}
-  .cta{display:inline-block;background:#FFB454;color:#1A1200;font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none;margin-top:24px;}
-  a{color:#67E8F9;}
-  ul{color:#C9D2E0;}
+  p{font-size:16px;color:var(--text2);}
+  code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:14px;}
+  .cta{display:inline-block;background:var(--amber);color:var(--on-amber);font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none;margin-top:24px;}
+  a{color:var(--cyan);}
+  ul{color:var(--text2);}
 </style>
 </head>
 <body>
