@@ -93,6 +93,11 @@ def register_collectors():
     except Exception as e:
         logger.warning("No se pudo cargar UV: %s", e)
     try:
+        from src.collectors.precipitacion import PrecipitacionCollector
+        COLLECTORS.append(PrecipitacionCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar Precipitación: %s", e)
+    try:
         from src.collectors.energy import EnergyCollector
         COLLECTORS.append(EnergyCollector())
     except Exception as e:

@@ -40,8 +40,14 @@ def compute_day(conn, day: date):
     stats = []
 
     # Embalses: nivel medio
+    # Los eventos de embalse se upsertean (created_at fijo desde el primer insert,
+    # updated_at se renueva cada 30 min). Para no perder el histórico (días con
+    # created_at) ni quedarse atascado en el pasado, usamos la fecha más reciente
+    # de ambas (GREATEST): los días antiguos cuentan por created_at, los recientes
+    # por updated_at.
     cur.execute(
-        "SELECT description FROM events WHERE source='embalses' AND created_at >= %s AND created_at < %s",
+        "SELECT description FROM events WHERE source='embalses' "
+        "AND GREATEST(created_at, updated_at) >= %s AND GREATEST(created_at, updated_at) < %s",
         (start, end))
     rows = cur.fetchall()
     niveles = []
