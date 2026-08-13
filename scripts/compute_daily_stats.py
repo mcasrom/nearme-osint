@@ -117,6 +117,8 @@ def compute_day(conn, day: date):
         stats.append(("miteco", "ica_medio", sum(icas) / len(icas)))
         stats.append(("miteco", "dias_regular_bad", float(regular)))
 
+    if not stats:
+        return stats
     cur.execute(
         "DELETE FROM daily_stats WHERE stat_date=%s", (day.isoformat(),))
     for src, metric, value in stats:
