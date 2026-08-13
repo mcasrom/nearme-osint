@@ -14,7 +14,14 @@
 <meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
 <meta property="og:locale" content="es_ES">
 <meta name="twitter:card" content="summary_large_image">
-<style>
+<style>  :root{--bg:#F4F6FB;--panel:#FFFFFF;--line:#D6DDEA;--text:#16202E;--text2:#33415C;--dim:#5B6B84;--faint:#8A97AC;--amber:#D9820A;--on-amber:#FFFFFF;--cyan:#0E9FAE;--code-bg:#E9EEF7;--code-line:#CBD5E1;}
+  html[data-theme="dark"]{--bg:#0B0F17;--panel:#121826;--line:#232B3D;--text:#E7EBF3;--text2:#C9D2E0;--dim:#8993A8;--faint:#576076;--amber:#FFB454;--on-amber:#1A1200;--cyan:#67E8F9;--code-bg:#1a2233;--code-line:#1e293b;}
+  .theme-row{display:flex;justify-content:flex-end;margin-bottom:8px;}
+  .theme-btn{font-family:ui-monospace,monospace;font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 12px;cursor:pointer;}
+  .theme-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .kofi-guide{display:inline-block;background:#29ABE0;color:#fff;font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none;margin-top:36px;}
+  .kofi-guide:hover{opacity:.92;}
+
   body{font-family:-apple-system,system-ui,sans-serif;background:#0B0F17;color:#E7EBF3;line-height:1.6;margin:0;padding:0;}
   .wrap{max-width:720px;margin:0 auto;padding:32px 24px;}
   h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px;}
@@ -31,8 +38,10 @@
 </style>
 </head>
 <body>
+<script>try{var t=localStorage.getItem('guide-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 <div class="wrap">
-  <h1>🔥 Incendios en vivo en España: mapa actualizado cada 15 minutos</h1>
+  <div class="theme-row"><button class="theme-btn" id="themeBtn" type="button">🌙 Oscuro</button></div>
+<h1>🔥 Incendios en vivo en España: mapa actualizado cada 15 minutos</h1>
   <div class="meta">NearMe · Datos de NASA FIRMS (VIIRS/MODIS) · Actualización cada 15 min</div>
 
   <p>¿Hay un incendio cerca de ti ahora mismo? NearMe combina los <b>focos de calor detectados por satélite</b> de la NASA (FIRMS) con avisos oficiales para mostrarte en un solo mapa los incendios activos, su severidad y evolución.</p>
@@ -63,6 +72,22 @@
   <a class="cta" href="/">🗺️ Ver incendios en vivo ahora →</a>
 
   <p style="margin-top:24px;font-size:13px;color:#8993A8;">Fuente: NASA FIRMS (Fire Information for Resource Management System). Los focos de calor son una aproximación; para emergencias llama siempre al <b>112</b> o a Protección Civil.</p>
+  <div style="text-align:center;">
+    <a class="kofi-guide" href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener">☕ Si te ha sido útil, invítame a un café en Ko-fi</a>
+    <p style="font-family:ui-monospace,monospace;font-size:12px;color:var(--faint);margin-top:12px;">Los servidores y las fuentes de datos los paga su autor.</p>
+  </div>
 </div>
+<script>
+  var root = document.documentElement, btn = document.getElementById('themeBtn');
+  function sync(){
+    if (btn) btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀️ Claro' : '🌙 Oscuro';
+  }
+  sync();
+  if (btn) btn.addEventListener('click', function(){
+    if (root.getAttribute('data-theme') === 'dark'){ root.removeAttribute('data-theme'); try{localStorage.setItem('guide-theme','light');}catch(e){} }
+    else { root.setAttribute('data-theme','dark'); try{localStorage.setItem('guide-theme','dark');}catch(e){} }
+    sync();
+  });
+</script>
 </body>
 </html>
