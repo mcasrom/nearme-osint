@@ -3,7 +3,7 @@
 Calcula métricas por día y fuente a partir de los eventos recolectados:
   - embalses: nivel medio (%)
   - renfe: retraso medio (min) y nº de retrasos
-  - nasa_firms: incendios (nº), FRP total y hectáreas estimadas (proxy FRP->ha)
+  - nasa_firms: incendios (nº), FRP total y hectáreas estimadas (área por píxel activo)
   - miteco: ICA medio y nº de días con calidad Regular/Bad
 
 Uso:
@@ -21,9 +21,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.db import get_conn
 
-# Proxy de área quemada estimada (FRP total en MW -> hectáreas). Aproximación
-# divulgativa a partir de la literatura (relación FRP-área); etiquetar como estimado.
-FRP_TO_HA = 0.3
+# Área quemada estimada por detección activa (ha/píxel) según sensor, a partir
+# del tamaño nominal del píxel (MODIS ~1 km², VIIRS ~375 m) y del factor de área
+# quemada por detección típico de las estimaciones satelitales. Etiquetar como
+# estimado (≈): una misma detección puede persistir varios días.
+HA_PER_PIXEL_MODIS = 84.0
+HA_PER_PIXEL_VIIRS = 14.0
 
 
 def _row(cur, sql, params=()):
@@ -80,16 +83,22 @@ def compute_day(conn, day: date):
         (start, end))
     rows = cur.fetchall()
     frps = []
+    ha_est = 0.0
     for (desc,) in rows:
         m = re.search(r"FRP:\s*([\d.]+)\s*MW", desc or "")
         if m:
             frps.append(float(m.group(1)))
+        s = re.search(r"Sat[ée]lite:\s*([^.\n]+)", desc or "")
+        sat = s.group(1).strip().upper() if s else ""
+        is_viirs = any(k in sat for k in ("NPP", "NOAA", "VIIRS"))
+        ha_est += HA_PER_PIXEL_VIIRS if is_viirs else HA_PER_PIXEL_MODIS
     if rows:
         stats.append(("nasa_firms", "incendios", float(len(rows))))
     if frps:
         total_frp = sum(frps)
         stats.append(("nasa_firms", "frp_total_mw", total_frp))
-        stats.append(("nasa_firms", "hectareas_est", total_frp * FRP_TO_HA))
+    if ha_est:
+        stats.append(("nasa_firms", "hectareas_est", ha_est))
 
     # Calidad del aire (MITECO): ICA medio y días Regular/Bad
     cur.execute(
