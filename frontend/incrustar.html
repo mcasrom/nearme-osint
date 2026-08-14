@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cómo incrustar el mapa en vivo de tu zona en tu web · NearMe</title>
+<meta name="description" content="Incrusta gratis el mapa de eventos en vivo (incendios, avisos, tráfico, calidad del aire) de tu zona en tu web, camping o casa rural. Código listo en 1 minuto, a cambio de un enlace.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://nearme.viajeinteligencia.com/incrustar">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Cómo incrustar el mapa en vivo de tu zona en tu web">
+<meta property="og:description" content="Mapa de eventos en vivo para tu web o casa rural. Código listo, gratis, a cambio de un enlace.">
+<meta property="og:url" content="https://nearme.viajeinteligencia.com/incrustar">
+<meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{--bg:#F4F6FB;--panel:#FFFFFF;--line:#D6DDEA;--text:#16202E;--text2:#33415C;--dim:#5B6B84;--faint:#8A97AC;--amber:#D9820A;--green:#0E9F6E;--cyan:#0E9FAE;--code-bg:#E9EEF7;--code-line:#CBD5E1;}
+  html[data-theme="dark"]{--bg:#0B0F17;--panel:#121826;--line:#232B3D;--text:#E7EBF3;--text2:#C9D2E0;--dim:#8993A8;--faint:#576076;--amber:#FFB454;--green:#34D399;--cyan:#67E8F9;--code-bg:#1a2233;--code-line:#1e293b;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;transition:background .2s,color .2s;}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 20px 60px;}
+  .top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:16px;}
+  .top h1{font-size:24px;font-weight:800;letter-spacing:-0.02em;}
+  .theme-btn{font-family:ui-monospace,monospace;font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 12px;cursor:pointer;}
+  .theme-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .meta{font-size:11px;color:var(--faint);font-family:ui-monospace,monospace;margin-bottom:22px;}
+  .fresh{display:inline-block;background:var(--panel);border:1px solid var(--green);color:var(--green);font-family:ui-monospace,monospace;font-size:11px;padding:4px 12px;border-radius:999px;margin-bottom:22px;}
+  h2{font-size:19px;font-weight:800;letter-spacing:-0.02em;margin:28px 0 12px;}
+  p{font-size:15px;color:var(--text2);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .card b{color:var(--text);}
+  .geo{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .geo input{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--text);font-size:14px;outline:none;}
+  .geo input:focus{border-color:var(--amber);}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;cursor:pointer;}
+  .btn:hover{opacity:.92;}
+  pre{background:var(--code-bg);border:1px solid var(--code-line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.6;}
+  code{font-family:ui-monospace,monospace;color:var(--cyan);}
+  .copy{cursor:pointer;margin-top:10px;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:8px 14px;font-family:ui-monospace,monospace;font-size:12px;}
+  .copy:hover{border-color:var(--amber);color:var(--amber);}
+  .preview{margin-top:18px;}
+  .preview iframe{width:100%;height:480px;border:1px solid var(--line);border-radius:12px;}
+  .foot{margin-top:34px;font-size:11px;color:var(--faint);text-align:center;font-family:ui-monospace,monospace;line-height:1.8;}
+  .foot a{color:var(--amber);text-decoration:none;}
+  .kofi{display:inline-block;margin-top:14px;background:#29ABE0;color:#fff;font-weight:700;padding:9px 16px;border-radius:9px;text-decoration:none;font-size:12px;}
+</style>
+</head>
+<body>
+<script>try{var t=localStorage.getItem('guide-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<div class="wrap">
+  <div class="top">
+    <h1>🗺️ Incrusta el mapa en vivo de tu zona</h1>
+    <button class="theme-btn" id="themeBtn" type="button">🌙 Oscuro</button>
+  </div>
+  <div class="meta">NearMe OSINT · Fuentes oficiales (NASA FIRMS, AEMET, DGT, MITECO) · Gratis para webs locales</div>
+  <div class="fresh">● MAPA EN VIVO · FUENTES OFICIALES</div>
+
+  <p>¿Tienes una web de <b>casas rurales, un camping, un ayuntamiento o una asociación local</b>? Puedes mostrar a tus visitantes <b>qué está pasando en tu zona en tiempo real</b> (incendios, avisos meteorológicos, tráfico, calidad del aire, embalses…) con un mapa que se actualiza solo.</p>
+
+  <h2>1 · Elige tu zona</h2>
+  <div class="card">
+    <div class="geo">
+      <input id="place" type="text" placeholder="Escribe tu pueblo, comarca o ciudad… ej. Riaño (León)" value="Riaño, León">
+      <button class="btn" type="button" onclick="geocode()">Generar mi código</button>
+    </div>
+    <p style="font-size:12px;color:var(--faint);margin-top:8px;">Se usa OpenStreetMap (gratis) para localizar la zona. Ajusta el radio si quieres más o menos área.</p>
+  </div>
+
+  <h2>2 · Copia este código</h2>
+  <div class="card">
+    <pre id="code"><code>&lt;iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=43.00&amp;lon=-4.86&amp;radius=30"
+        width="100%" height="500" style="border:0;border-radius:12px;"
+        loading="lazy" title="Mapa en vivo de mi zona"&gt;&lt;/iframe&gt;</code></pre>
+    <button class="copy" type="button" onclick="copyCode()">📋 Copiar código</button>
+  </div>
+
+  <h2>3 · Pégalo en tu web</h2>
+  <p>Inserta el código en la página que quieras (normalmente en la sección de <b>cómo llegar</b>, <b>entorno</b> o <b>qué ver</b>). El mapa se adapta al ancho de tu web y funciona en móvil.</p>
+
+  <h2>Vista previa</h2>
+  <div class="preview" id="preview">
+    <iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=43.00&lon=-4.86&radius=30" title="Vista previa mapa NearMe"></iframe>
+  </div>
+
+  <div class="foot">
+    Datos de fuentes oficiales y públicas (NASA FIRMS, AEMET, DGT, MITECO, REE, RENFE, Open-Meteo). Compilación independiente y verificable.
+    <br>Solo pedimos a cambio un pequeño <b>enlace a <a href="https://nearme.viajeinteligencia.com">nearme.viajeinteligencia.com</a></b> en la misma página donde incrustes el mapa.
+    <br>Si te resulta útil, apóyalo con un ☕ <a class="kofi" href="https://ko-fi.com/m_castillo">Ko-fi</a>
+    <br><a href="https://www.viajeinteligencia.com/ecosistema.html">🌐 Conoce el ecosistema</a>
+  </div>
+</div>
+<script>
+  var root = document.documentElement, btn = document.getElementById('themeBtn');
+  function sync(){ if (btn) btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀️ Claro' : '🌙 Oscuro'; }
+  sync();
+  if (btn) btn.addEventListener('click', function(){
+    if (root.getAttribute('data-theme') === 'dark'){ root.removeAttribute('data-theme'); try{localStorage.setItem('guide-theme','light');}catch(e){} }
+    else { root.setAttribute('data-theme','dark'); try{localStorage.setItem('guide-theme','dark');}catch(e){} }
+    sync();
+  });
+
+  var LAT=43.00, LON=-4.86;
+  function makeCode(lat, lon){
+    return '<iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=' + lat.toFixed(4) +
+      '&lon=' + lon.toFixed(4) + '&radius=30"\n        width="100%" height="500" style="border:0;border-radius:12px;"\n        loading="lazy" title="Mapa en vivo de mi zona"></iframe>';
+  }
+  function geocode(){
+    var q = document.getElementById('place').value.trim();
+    if (!q) return;
+    fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), { headers: { 'User-Agent': 'NearMe-embed/1.0' } })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.length) { alert('No encontré la zona. Prueba con otro nombre.'); return; }
+        LAT = parseFloat(d[0].lat); LON = parseFloat(d[0].lon);
+        var html = makeCode(LAT, LON).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        document.getElementById('code').innerHTML = '<code>' + html + '</code>';
+        document.getElementById('preview').innerHTML =
+          '<iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=' + LAT + '&lon=' + LON + '&radius=30" title="Vista previa mapa NearMe"></iframe>';
+      }).catch(function(){ alert('No se pudo localizar la zona.'); });
+  }
+  function copyCode(){
+    var txt = document.getElementById('code').textContent;
+    if (navigator.clipboard) { navigator.clipboard.writeText(txt); }
+    var b = document.querySelector('.copy'); b.textContent = '✓ Copiado'; setTimeout(function(){ b.textContent = '📋 Copiar código'; }, 1500);
+  }
+</script>
+</body>
+</html>

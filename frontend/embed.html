@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa en vivo de tu zona · NearMe</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  html,body{margin:0;padding:0;height:100%;font-family:-apple-system,system-ui,sans-serif;}
+  #map{height:calc(100% - 30px);width:100%;}
+  .credit{height:30px;background:#0B0F17;color:#9aa7b8;display:flex;align-items:center;justify-content:center;font-size:11px;gap:4px;}
+  .credit a{color:#67E8F9;text-decoration:none;font-weight:600;}
+  .credit a:hover{text-decoration:underline;}
+  .pop-title{font-weight:700;font-size:13px;margin-bottom:2px;}
+  .pop-src{font-size:11px;color:#555;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="credit">
+  <span>Datos en vivo de tu zona ·</span>
+  <a href="https://nearme.viajeinteligencia.com" target="_blank" rel="noopener">NearMe · viajeinteligencia.com</a>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var lat = parseFloat(q.get('lat')) || 40.42;
+  var lon = parseFloat(q.get('lon')) || -3.70;
+  var radius = parseFloat(q.get('radius')) || 30;  // km
+  var map = L.map('map', { zoomControl: false }).setView([lat, lon], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  var LEVEL_COLOR = { info: '#0891b2', ok: '#059669', warning: '#d97706', critical: '#dc2626' };
+  function colorOf(lvl){ return LEVEL_COLOR[lvl] || '#6366f1'; }
+
+  fetch('/api/nearby?lat=' + lat + '&lon=' + lon + '&radius_km=' + radius)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var evs = (d && d.events) || [];
+      var layer = L.layerGroup().addTo(map);
+      evs.forEach(function(e){
+        var c = colorOf(e.level);
+        L.circleMarker([e.lat, e.lon], {
+          radius: 6, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: 0.85
+        }).bindPopup(
+          '<div class="pop-title">' + (e.title || e.event_type || '') + '</div>' +
+          '<div class="pop-src">' + (e.source || '') + ' · ' + (e.level || '') + '</div>'
+        ).addTo(layer);
+      });
+      if (evs.length) {
+        var b = L.latLngBounds(evs.map(function(e){ return [e.lat, e.lon]; }));
+        map.fitBounds(b.pad(0.15));
+      }
+    }).catch(function(){});
+})();
+</script>
+</body>
+</html>
