@@ -67,40 +67,64 @@
     return '#475569';                                                                                             // gris
   }
 
-  fetch('/api/nearby?lat=' + lat + '&lon=' + lon + '&radius_km=' + radius)
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      var evs = (d && d.events) || [];
-      var legend = {}, seen = {};
-      var layer = L.layerGroup().addTo(map);
-      evs.forEach(function(e){
-        var t = e.event_type || 'evento';
-        var color = typeColor(t);
-        var label = typeLabel(t);
-        if (!seen[t]) { seen[t] = 1; legend[label] = color; }
-        // offset solapados (mismos lat/lon) para que se vean todos
-        var dx = (Math.random() - 0.5) * 0.0012;
-        var dy = (Math.random() - 0.5) * 0.0012;
-        L.circleMarker([e.lat + dy, e.lon + dx], {
-          radius: 7, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85
-        }).bindPopup(
-          '<div class="pop-title">' + (e.title || label || '') + '</div>' +
-          '<div class="pop-src">' + (e.source || '') + ' · ' + (e.level || '') + '</div>'
-        ).addTo(layer);
-      });
-      // leyenda
-      var legKeys = Object.keys(legend);
-      if (legKeys.length) {
+  // Carga según el área visible: al hacer zoom/pan recalcula el radio y recarga
+  var layer = L.layerGroup().addTo(map);
+  var currentRadius = radius;
+  var loading = false;
+  var pending = false;
+  var tmr = null;
+
+  function viewRadiusKm(){
+    var b = map.getBounds();
+    var c = map.getCenter();
+    return Math.max(Math.min(c.distanceTo(b.getNorthEast()) / 1000 * 1.2, 200), radius);
+  }
+
+  function loadEvents(){
+    if (loading) { pending = true; return; }
+    loading = true;
+    var c = map.getCenter();
+    var r = Math.round(currentRadius);
+    fetch('/api/nearby?lat=' + c.lat.toFixed(5) + '&lon=' + c.lng.toFixed(5) + '&radius_km=' + r)
+      .then(function(res){ return res.json(); })
+      .then(function(d){
+        layer.clearLayers();
+        var evs = (d && d.events) || [];
+        var legend = {}, seen = {};
+        evs.forEach(function(e){
+          var t = e.event_type || 'evento';
+          var color = typeColor(t);
+          var label = typeLabel(t);
+          if (!seen[t]) { seen[t] = 1; legend[label] = color; }
+          var dx = (Math.random() - 0.5) * 0.0012;
+          var dy = (Math.random() - 0.5) * 0.0012;
+          L.circleMarker([e.lat + dy, e.lon + dx], {
+            radius: 7, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85
+          }).bindPopup(
+            '<div class="pop-title">' + (e.title || label || '') + '</div>' +
+            '<div class="pop-src">' + (e.source || '') + ' · ' + (e.level || '') + '</div>'
+          ).addTo(layer);
+        });
+        var legKeys = Object.keys(legend);
         var lg = document.getElementById('legend');
-        lg.innerHTML = '<div class="lg-title">Eventos</div>' +
-          legKeys.map(function(k){ return '<div class="lg-row"><span class="lg-dot" style="background:' + legend[k] + '"></span>' + k + '</div>'; }).join('');
-        lg.hidden = false;
-      }
-      if (evs.length) {
-        var b = L.latLngBounds(evs.map(function(e){ return [e.lat, e.lon]; }));
-        map.fitBounds(b.pad(0.2));
-      }
-    }).catch(function(){});
+        if (legKeys.length) {
+          lg.innerHTML = '<div class="lg-title">Eventos (' + evs.length + ')</div>' +
+            legKeys.map(function(k){ return '<div class="lg-row"><span class="lg-dot" style="background:' + legend[k] + '"></span>' + k + '</div>'; }).join('');
+          lg.hidden = false;
+        } else { lg.hidden = true; }
+        loading = false;
+        if (pending) { pending = false; loadEvents(); }
+      }).catch(function(){ loading = false; });
+  }
+
+  map.on('moveend zoomend', function(){
+    var nr = viewRadiusKm();
+    if (Math.abs(nr - currentRadius) > 3) { currentRadius = nr; }
+    clearTimeout(tmr);
+    tmr = setTimeout(loadEvents, 400);
+  });
+
+  loadEvents();
 })();
 </script>
 </body>
