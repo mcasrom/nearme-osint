@@ -17,7 +17,7 @@
   .legend{position:absolute;top:10px;left:10px;z-index:1000;background:rgba(255,255,255,.92);border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.15);max-width:190px;}
   .legend .lg-title{font-weight:700;margin-bottom:4px;}
   .legend .lg-row{display:flex;align-items:center;gap:6px;margin:2px 0;color:#333;}
-  .legend .lg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid #fff;}
+  .legend .lg-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #fff;}
 </style>
 </head>
 <body>
@@ -56,15 +56,15 @@
   }
   function typeColor(t){
     var k = (t || '').toLowerCase();
-    if (k.indexOf('road') !== -1 || k.indexOf('traffic') !== -1 || k.indexOf('accident') !== -1) return '#2563eb';
-    if (k.indexOf('fire') !== -1 || k.indexOf('incendio') !== -1) return '#dc2626';
-    if (k.indexOf('heat') !== -1 || k.indexOf('warning') !== -1 || k.indexOf('avis') !== -1) return '#d97706';
-    if (k.indexOf('weather') !== -1 || k.indexOf('rain') !== -1 || k.indexOf('uv') !== -1) return '#0891b2';
-    if (k.indexOf('reservoir') !== -1 || k.indexOf('embalse') !== -1) return '#0d9488';
-    if (k.indexOf('air') !== -1) return '#7c3aed';
-    if (k.indexOf('quake') !== -1 || k.indexOf('seismic') !== -1) return '#92400e';
-    if (k.indexOf('beach') !== -1 || k.indexOf('playa') !== -1) return '#14b8a6';
-    return '#6366f1';
+    if (k.indexOf('road') !== -1 || k.indexOf('traffic') !== -1 || k.indexOf('accident') !== -1) return '#2563eb';  // azul
+    if (k.indexOf('fire') !== -1 || k.indexOf('incendio') !== -1) return '#dc2626';                                // rojo
+    if (k.indexOf('heat') !== -1 || k.indexOf('warning') !== -1 || k.indexOf('avis') !== -1) return '#ea580c';    // naranja
+    if (k.indexOf('weather') !== -1 || k.indexOf('rain') !== -1 || k.indexOf('uv') !== -1) return '#06b6d4';      // cian
+    if (k.indexOf('reservoir') !== -1 || k.indexOf('embalse') !== -1) return '#16a34a';                           // verde
+    if (k.indexOf('air') !== -1) return '#9333ea';                                                                // morado
+    if (k.indexOf('quake') !== -1 || k.indexOf('seismic') !== -1) return '#92400e';                               // marrón
+    if (k.indexOf('beach') !== -1 || k.indexOf('playa') !== -1) return '#0d9488';                                 // teal
+    return '#475569';                                                                                             // gris
   }
 
   fetch('/api/nearby?lat=' + lat + '&lon=' + lon + '&radius_km=' + radius)
