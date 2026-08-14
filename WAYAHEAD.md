@@ -659,3 +659,10 @@ Largo plazo / estrategico:
   geocoder OpenStreetMap, vista previa en vivo, SEO + Ko-fi + enlace ecosistema.
 - Verificado: CDN integridad OK, API OK, iframe-able (sin X-Frame-Options), geocoder OK.
 - Para acuerdos de backlink: se manda /incrustar; el enlace va dentro del iframe.
+
+## Embed widget — mejoras finales (14/Ago)
+- Colores por tipo con tonos diferenciados + leyenda con nº de eventos + offset de
+  solapados (1496301, 6df9a23).
+- **Carga por área visible**: recálcula el radio al hacer zoom/pan (moveend) con
+  throttle — el mapa cubre todo lo visible, no solo el radio fijo (895609b).
+- Widget completo listo para acuerdos de backlink con webs locales.
