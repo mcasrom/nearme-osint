@@ -666,3 +666,9 @@ Largo plazo / estrategico:
 - **Carga por área visible**: recálcula el radio al hacer zoom/pan (moveend) con
   throttle — el mapa cubre todo lo visible, no solo el radio fijo (895609b).
 - Widget completo listo para acuerdos de backlink con webs locales.
+
+## Incrustar — guía completa para el usuario final (14/Ago)
+- Añadidas secciones "¿Dónde colocarlo?" (cuerpo/cómo llegar, antes de Google Maps,
+  no en footer) y "Ajustes opcionales" (alto, radio, requisito de crédito) — commit `63bf863`.
+- La página /incrustar ya cubre: zona → código → colocación → ajustes. Lista para
+  entregarse al acuerdo de backlinks sin acompañamiento.

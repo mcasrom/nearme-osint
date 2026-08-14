@@ -222,3 +222,9 @@ Hecho por un desarrollador independiente en España. Si te resulta útil:
 ## 📄 Licencia
 
 [MIT](https://github.com/mcasrom/nearme-osint/blob/main/LICENSE) — libre de usar, auditar y modificar. Las fuentes de datos conservan sus propias licencias.
+
+## Widget embebible (para acuerdos de backlink)
+- `/embed.html` — mapa en vivo embebible (solo mapa + crédito fijo).
+- `/incrustar` — página howto para el usuario final (zona → código → colocación → ajustes).
+- Uso: `<iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=..&lon=..&radius=30" width="100%" height="500"></iframe>`
+- Requisito: mantener el enlace de crédito a nearme.viajeinteligencia.com (backlink).
