@@ -672,3 +672,10 @@ Largo plazo / estrategico:
   no en footer) y "Ajustes opcionales" (alto, radio, requisito de crédito) — commit `63bf863`.
 - La página /incrustar ya cubre: zona → código → colocación → ajustes. Lista para
   entregarse al acuerdo de backlinks sin acompañamiento.
+
+## Embalses "presencia sin datos" (14/Ago)
+- Candoncillo y Embalse de Beas (Huelva, cuenca Tinto-Odiel-Piedras) no están en SAIH
+  (fuente estadoembalses.es/MITECO no los publica). Se muestran como PRESENCIA informativa
+  con nivel "nodata" (gris) + descripción "Datos no disponibles: no monitorizado por SAIH".
+- Mecanismo ampliable: STATIC_RESERVOIRS en src/collectors/embalses para futuros embalses
+  sin datos. Frontend: LEVEL_COLORS/LEVEL_EMOJI con nodata (#9e9e9e, ➖).
