@@ -102,4 +102,35 @@ class EmbalsesCollector(BaseCollector):
             ))
 
         logger.info("%d embalses recolectados", len(events))
+
+        # Embalses sin dato de nivel publicado (no monitorizados por SAIH):
+        # se muestran como PRESENCIA informativa con nivel "nodata" (gris) y aviso.
+        # Ampliable: añadir más embalses que vayan apareciendo sin datos en el futuro.
+        STATIC_RESERVOIRS = [
+            ("Embalse de Candoncillo", 37.3989, -6.7313, "Huelva", "Tinto, Odiel y Piedras"),
+            ("Embalse de Beas", 37.4694, -6.7636, "Huelva", "Tinto, Odiel y Piedras"),
+        ]
+        existing_titles = {e.title for e in events}
+        for nombre, lat, lon, prov, cuenca in STATIC_RESERVOIRS:
+            if nombre in existing_titles:
+                continue
+            events.append(Event(
+                source="embalses",
+                source_id="emb_static_" + nombre.lower().replace(" ", "_").replace("ñ", "n"),
+                event_type="reservoir",
+                subtype="dam",
+                lat=lat,
+                lon=lon,
+                radius_m=20000,
+                level="nodata",
+                title=nombre[:100],
+                description=("Datos no disponibles: embalse en " + prov + " (" + cuenca +
+                             ") no monitorizado por SAIH. Presencia informativa."),
+                country="España",
+                region=prov,
+                municipality="",
+                expires_at=(now + timedelta(days=7)).isoformat(),
+            ))
+
+        logger.info("%d embalses totales (incl. presencia sin datos)", len(events))
         return events
