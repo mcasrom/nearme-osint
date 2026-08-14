@@ -650,3 +650,12 @@ Largo plazo / estrategico:
 - **Verificado**: 6 URLs de NearMe 200, ecosistema intacto.
 - **Commit**: `aaff80c`. Coste ~0.
 
+
+## Widget mapa en vivo embebible + howto (14/Ago) — commit `866ce8c`
+- `/embed.html`: widget solo-mapa embebible (Leaflet 1.9.4 CDN con hashes verificados,
+  /api/nearby, params lat/lon/radius). Crédito/backlink FIJO dentro del widget
+  ("NearMe · viajeinteligencia.com") — no se puede quitar sin quitar el widget.
+- `/incrustar`: página howto sencilla (elige zona → genera código → copia → pega),
+  geocoder OpenStreetMap, vista previa en vivo, SEO + Ko-fi + enlace ecosistema.
+- Verificado: CDN integridad OK, API OK, iframe-able (sin X-Frame-Options), geocoder OK.
+- Para acuerdos de backlink: se manda /incrustar; el enlace va dentro del iframe.
