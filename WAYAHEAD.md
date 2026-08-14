@@ -679,3 +679,12 @@ Largo plazo / estrategico:
   con nivel "nodata" (gris) + descripción "Datos no disponibles: no monitorizado por SAIH".
 - Mecanismo ampliable: STATIC_RESERVOIRS en src/collectors/embalses para futuros embalses
   sin datos. Frontend: LEVEL_COLORS/LEVEL_EMOJI con nodata (#9e9e9e, ➖).
+
+## PROCEDIMIENTO: eventos "presencia sin datos" (para el futuro)
+Cuando una fuente no publique un evento/embalse pero deba mostrarse como presencia:
+1. Añadir la entrada en la lista STATIC_* del collector correspondiente (ej.
+   STATIC_RESERVOIRS en embalses): (nombre, lat, lon, región, cuenca/nota).
+2. Emitirlo con level="nodata" y descripción "Datos no disponibles: ...".
+3. El frontend ya lo pinta gris (LEVEL_COLORS.nodata #9e9e9e) + icono ➖.
+4. Aplicable a otros tipos futuros (sismógrafos sin dato, estaciones, etc.).
+Referencia: embalses Candoncillo + Beas (commit de48617).
