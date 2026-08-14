@@ -14,10 +14,15 @@
   .credit a:hover{text-decoration:underline;}
   .pop-title{font-weight:700;font-size:13px;margin-bottom:2px;}
   .pop-src{font-size:11px;color:#555;}
+  .legend{position:absolute;top:10px;left:10px;z-index:1000;background:rgba(255,255,255,.92);border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.15);max-width:190px;}
+  .legend .lg-title{font-weight:700;margin-bottom:4px;}
+  .legend .lg-row{display:flex;align-items:center;gap:6px;margin:2px 0;color:#333;}
+  .legend .lg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid #fff;}
 </style>
 </head>
 <body>
 <div id="map"></div>
+<div class="legend" id="legend" hidden></div>
 <div class="credit">
   <span>Datos en vivo de tu zona ·</span>
   <a href="https://nearme.viajeinteligencia.com" target="_blank" rel="noopener">NearMe · viajeinteligencia.com</a>
@@ -34,26 +39,66 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  var LEVEL_COLOR = { info: '#0891b2', ok: '#059669', warning: '#d97706', critical: '#dc2626' };
-  function colorOf(lvl){ return LEVEL_COLOR[lvl] || '#6366f1'; }
+  var TYPE_LABEL = {
+    road_incident: 'Tráfico', traffic: 'Tráfico', accident: 'Accidente',
+    weather: 'Meteo', heatwave: 'Ola de calor', rain: 'Lluvia',
+    fire: 'Incendio', incendio: 'Incendio',
+    reservoir: 'Embalse', embalse: 'Embalse',
+    air_quality: 'Calidad del aire', air: 'Calidad del aire',
+    warning: 'Aviso', aviso: 'Aviso', avisos: 'Aviso',
+    earthquake: 'Sismo', quake: 'Sismo', seismic: 'Sismo',
+    beach: 'Playas', uv: 'UV', energy: 'Energía', train: 'Tren', renfe: 'Tren'
+  };
+  function typeLabel(t){
+    var k = (t || '').toLowerCase();
+    for (var key in TYPE_LABEL) { if (k.indexOf(key) !== -1) return TYPE_LABEL[key]; }
+    return t || 'Evento';
+  }
+  function typeColor(t){
+    var k = (t || '').toLowerCase();
+    if (k.indexOf('road') !== -1 || k.indexOf('traffic') !== -1 || k.indexOf('accident') !== -1) return '#2563eb';
+    if (k.indexOf('fire') !== -1 || k.indexOf('incendio') !== -1) return '#dc2626';
+    if (k.indexOf('heat') !== -1 || k.indexOf('warning') !== -1 || k.indexOf('avis') !== -1) return '#d97706';
+    if (k.indexOf('weather') !== -1 || k.indexOf('rain') !== -1 || k.indexOf('uv') !== -1) return '#0891b2';
+    if (k.indexOf('reservoir') !== -1 || k.indexOf('embalse') !== -1) return '#0d9488';
+    if (k.indexOf('air') !== -1) return '#7c3aed';
+    if (k.indexOf('quake') !== -1 || k.indexOf('seismic') !== -1) return '#92400e';
+    if (k.indexOf('beach') !== -1 || k.indexOf('playa') !== -1) return '#14b8a6';
+    return '#6366f1';
+  }
 
   fetch('/api/nearby?lat=' + lat + '&lon=' + lon + '&radius_km=' + radius)
     .then(function(r){ return r.json(); })
     .then(function(d){
       var evs = (d && d.events) || [];
+      var legend = {}, seen = {};
       var layer = L.layerGroup().addTo(map);
       evs.forEach(function(e){
-        var c = colorOf(e.level);
-        L.circleMarker([e.lat, e.lon], {
-          radius: 6, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: 0.85
+        var t = e.event_type || 'evento';
+        var color = typeColor(t);
+        var label = typeLabel(t);
+        if (!seen[t]) { seen[t] = 1; legend[label] = color; }
+        // offset solapados (mismos lat/lon) para que se vean todos
+        var dx = (Math.random() - 0.5) * 0.0012;
+        var dy = (Math.random() - 0.5) * 0.0012;
+        L.circleMarker([e.lat + dy, e.lon + dx], {
+          radius: 7, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85
         }).bindPopup(
-          '<div class="pop-title">' + (e.title || e.event_type || '') + '</div>' +
+          '<div class="pop-title">' + (e.title || label || '') + '</div>' +
           '<div class="pop-src">' + (e.source || '') + ' · ' + (e.level || '') + '</div>'
         ).addTo(layer);
       });
+      // leyenda
+      var legKeys = Object.keys(legend);
+      if (legKeys.length) {
+        var lg = document.getElementById('legend');
+        lg.innerHTML = '<div class="lg-title">Eventos</div>' +
+          legKeys.map(function(k){ return '<div class="lg-row"><span class="lg-dot" style="background:' + legend[k] + '"></span>' + k + '</div>'; }).join('');
+        lg.hidden = false;
+      }
       if (evs.length) {
         var b = L.latLngBounds(evs.map(function(e){ return [e.lat, e.lon]; }));
-        map.fitBounds(b.pad(0.15));
+        map.fitBounds(b.pad(0.2));
       }
     }).catch(function(){});
 })();
