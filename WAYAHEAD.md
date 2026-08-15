@@ -693,3 +693,10 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - IGN_MAG_ALERT bajado de 5.0 a 4.5: el M4.8 de Alhendín (Granada) ya se muestra como
   "alert" en el critical/portada (antes "warning" no entraba en el summary critical).
 - Verificado: /api/summary Granada incluye "Terremoto M4.8 (Mw) — NE ALHENDÍN.G" (alert).
+
+## Páginas SEO por zona+tema (15/Ago) — SEO programático
+- `scripts/gen_zone_pages.py`: genera páginas /{tema}-{zona} con datos reales (IGN, FIRMS,
+  MITECO, DGT, OpenAQ) + SEO + ko-fi + crédito. Solo si hay >=2 eventos.
+- Primer lote: 24 páginas (terremotos-granada, calidad-del-aire en 9 provincias, embalses,
+  tráfico). URLs limpias (regex nginx). Cron `40 */6 * * *` (regenera + --push). Sitemap 30 urls.
+- Commits: `43345ab`, `cd40a54`.
