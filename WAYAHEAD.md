@@ -700,3 +700,8 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - Primer lote: 24 páginas (terremotos-granada, calidad-del-aire en 9 provincias, embalses,
   tráfico). URLs limpias (regex nginx). Cron `40 */6 * * *` (regenera + --push). Sitemap 30 urls.
 - Commits: `43345ab`, `cd40a54`.
+
+## Índice "Datos por zona" + enlace visible (15/Ago)
+- `/datos-por-zona`: índice que enlaza las 24 páginas por zona+tema (terremotos, calidad
+  del aire, embalses, tráfico). Enlazado desde /incrustar y botón flotante en la home.
+- Commits: dae814d (índice+sitemap), 1a364df (enlace home).
