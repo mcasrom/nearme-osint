@@ -688,3 +688,8 @@ Cuando una fuente no publique un evento/embalse pero deba mostrarse como presenc
 3. El frontend ya lo pinta gris (LEVEL_COLORS.nodata #9e9e9e) + icono ➖.
 4. Aplicable a otros tipos futuros (sismógrafos sin dato, estaciones, etc.).
 Referencia: embalses Candoncillo + Beas (commit de48617).
+
+## Terremotos notables en la portada (15/Ago)
+- IGN_MAG_ALERT bajado de 5.0 a 4.5: el M4.8 de Alhendín (Granada) ya se muestra como
+  "alert" en el critical/portada (antes "warning" no entraba en el summary critical).
+- Verificado: /api/summary Granada incluye "Terremoto M4.8 (Mw) — NE ALHENDÍN.G" (alert).
