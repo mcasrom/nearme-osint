@@ -705,3 +705,7 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - `/datos-por-zona`: índice que enlaza las 24 páginas por zona+tema (terremotos, calidad
   del aire, embalses, tráfico). Enlazado desde /incrustar y botón flotante en la home.
 - Commits: dae814d (índice+sitemap), 1a364df (enlace home).
+
+## Hito: cross-links ecosistema (16/Ago)
+- Enlaces en header: 📰 Noticias (news) + 🌐 Ecosistema (landing). Commit 6993a4f.
+- Flotante "📊 Datos por zona" verificado (200, enlazado, zonas OK).
