@@ -12,7 +12,7 @@
   <a href="https://nearme.viajeinteligencia.com"><img src="https://img.shields.io/badge/DEMO_LIVE-nearme.viajeinteligencia.com-00d4ff?style=for-the-badge" alt="Demo en vivo"></a>
   <a href="https://github.com/mcasrom/nearme-osint"><img src="https://img.shields.io/badge/licencia-MIT-blue?style=for-the-badge" alt="Licencia MIT"></a>
   <a href="#fuentes-de-datos"><img src="https://img.shields.io/badge/fuentes-15%20oficiales%20y%20abiertas-brightgreen?style=for-the-badge" alt="15 fuentes"></a>
-  <a href="https://ko-fi.com/elmapayelcodigo"><img src="https://img.shields.io/badge/apoyar-Ko--fi-ff5e5b?style=for-the-badge" alt="Apoyar en Ko-fi"></a>
+  <a href="https://ko-fi.com/m_castillo"><img src="https://img.shields.io/badge/apoyar-Ko--fi-ff5e5b?style=for-the-badge" alt="Apoyar en Ko-fi"></a>
 </p>
 
 <p align="center">
@@ -214,7 +214,7 @@ Sin analytics, sin tracking, sin cookies, sin publicidad. Solo se guardan datos 
 Hecho por un desarrollador independiente en España. Si te resulta útil:
 
 - ⭐ Da una estrella al repositorio
-- ☕ [Invita un café en Ko-fi](https://ko-fi.com/elmapayelcodigo)
+- ☕ [Invita un café en Ko-fi](https://ko-fi.com/m_castillo)
 - 📤 Comparte el mapa con quien pueda necesitarlo
 
 **Contacto**: [nearme@viajeinteligencia.com](mailto:nearme@viajeinteligencia.com)
