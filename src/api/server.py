@@ -343,6 +343,21 @@ def stats_trends(days: int = Query(60, ge=1, le=365)):
         sd = r[0]
         d = sd.isoformat() if hasattr(sd, "isoformat") else str(sd)
         out.setdefault(r[1], {}).setdefault(r[2], []).append({"date": d, "value": r[3]})
+
+    # Hoy en vivo: si el día actual no está en daily_stats (el cron corre a las
+    # 23:00), se computa al vuelo para que las tarjetas "hoy" muestren el dato
+    # del día en curso, no el del último día completo.
+    from datetime import date as _date
+    today_str = _date.today().isoformat()
+    has_today = any(x["date"] == today_str for src in out.values() for series in src.values() for x in series)
+    if not has_today:
+        try:
+            from scripts.compute_daily_stats import compute_day
+            live = compute_day(conn, _date.today())
+            for src, metric, value in live:
+                out.setdefault(src, {}).setdefault(metric, []).append({"date": today_str, "value": value})
+        except Exception as e:
+            print(f"[trends] compute_day hoy fallo: {e}")
     return {"days": days, "stats": out}
 
 
