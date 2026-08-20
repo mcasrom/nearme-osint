@@ -530,6 +530,14 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
             <a href="https://news.viajeinteligencia.com/" target="_blank" rel="noopener" style="color:#4fc3f7;text-decoration:none;">📰 Noticias</a>
             <a href="https://www.viajeinteligencia.com/" target="_blank" rel="noopener" style="color:#4fc3f7;text-decoration:none;">🌐 Ecosistema</a>
             <a href="https://country.viajeinteligencia.com/" target="_blank" rel="noopener" style="color:#4fc3f7;text-decoration:none;">📊 Datos por país</a>
+        <div style="margin:8px 0;padding:8px 10px;background:#0a0e17;border:1px solid #1a2a4a;border-radius:8px;font-size:0.72em;color:#8993a8;">
+          <div>📬 <b style="color:#e7ebf3;">¿Te ha sido útil?</b> Recibe los datos de tu zona por email.</div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <input id="nlEmail" type="email" placeholder="tu@email.com" style="flex:1;background:#111827;border:1px solid #1a2a4a;color:#e7ebf3;border-radius:6px;padding:5px 8px;font-size:0.85em;min-width:0;">
+            <button onclick="subscribeNewsletter()" style="background:#0d9488;border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.85em;white-space:nowrap;">Apuntarme</button>
+          </div>
+          <div id="nlMsg" style="margin-top:4px;"></div>
+        </div>
         </div>
 
         <div class="metrics-strip" id="metricsStrip"></div>
@@ -3018,5 +3026,25 @@ if ('serviceWorker' in navigator) {
 </script>
 <a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer" class="kofi-fixed" id="kofiBtn" title="Apoyar el proyecto"></a>
 <a href="/datos-por-zona" style="position:fixed;bottom:14px;left:14px;z-index:9999;background:#0B0F17;border:1px solid #232B3D;color:#67E8F9;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.4);">📊 Datos por zona</a>
+<script>
+function subscribeNewsletter() {
+  const e = document.getElementById('nlEmail').value.trim();
+  const msg = document.getElementById('nlMsg');
+  const re = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  if (!re.test(e)) { msg.textContent = 'Introduce un email válido.'; msg.style.color = '#f87171'; return; }
+  fetch('https://www.viajeinteligencia.com/api/newsletter', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email: e})
+  }).then(r => {
+    msg.textContent = r.ok ? '✅ ¡Listo! Te avisaremos de los datos de tu zona.' : '⚠️ No se ha podido registrar. Inténtalo luego.';
+    msg.style.color = r.ok ? '#34d399' : '#fbbf24';
+    if (r.ok) document.getElementById('nlEmail').value = '';
+  }).catch(() => {
+    msg.textContent = '⚠️ Error de conexión.';
+    msg.style.color = '#fbbf24';
+  });
+}
+</script>
 </body>
 </html>
