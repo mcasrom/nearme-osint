@@ -633,7 +633,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = 25,
                ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography) as distance_m
         FROM events
         WHERE {where}
-          AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)
+          AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s + COALESCE(radius_m, 0))
         ORDER BY status ASC, distance_m ASC, level DESC, created_at DESC
         LIMIT %s
     """, params)
@@ -747,6 +747,7 @@ def get_collector_status() -> list[dict]:
                COALESCE(s.total_events, 0) AS events_24h
         FROM latest l
         LEFT JOIN stats s ON l.collector = s.collector
+        WHERE l.collector NOT IN ('Copernicus EMS', 'Copernicus + GWIS')  -- retirados 24/Ago: feed sin JSON publico
         ORDER BY l.collector
     """)
     rows = cur.fetchall()

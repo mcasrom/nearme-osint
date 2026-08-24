@@ -20,7 +20,7 @@ PUSH = "/home/deploy/scripts/indexnow_push.py"
 MIN_EVENTS = 2
 
 TOPICS = {
-    "terremotos": ("earthquake", "Terremotos en %s hoy"),
+    "terremotos": ("earthquake", "Terremotos en %s ahora"),
     "incendios": ("fire", "Incendios en %s hoy"),
     "calidad-del-aire": ("air_quality", "Calidad del aire en %s hoy"),
     "embalses": ("reservoir", "Nivel de embalses en %s hoy"),
