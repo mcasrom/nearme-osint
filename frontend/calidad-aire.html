@@ -77,22 +77,25 @@
   <h2>Ver el aire de tu ciudad ahora</h2>
   <p>El mapa de <a href="/">NearMe</a> muestra el ICA por estación junto a incendios, avisos meteorológicos y otros eventos en tu zona.</p>
   <a class="cta" href="/">Abrir mapa de calidad del aire →</a>
-  <div style="text-align:center;">
-    <a class="kofi-guide" href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener">☕ Si te ha sido útil, invítame a un café en Ko-fi</a> <span style="color:#94a3b8">·</span> <a href="https://www.viajeinteligencia.com/ecosistema.html" target="_blank" rel="noopener" style="color:#94a3b8;font-size:12px">🌐 Ecosistema</a>
-    <p style="font-family:ui-monospace,monospace;font-size:12px;color:var(--faint);margin-top:12px;">Los servidores y las fuentes de datos los paga su autor.</p>
+  
+<div style="margin-top:40px;padding:20px;border-top:2px solid #eee;font-family:system-ui,sans-serif;text-align:center">
+  <button id="temaBtn" onclick="toggleTema()" style="cursor:pointer;padding:8px 16px;border-radius:20px;border:1px solid #ccc;background:transparent;color:inherit;font-size:13px;margin-bottom:14px">🌓 Tema claro/oscuro</button>
+  <div style="margin:8px 0;font-size:14px">
+    <a href="https://nearme.viajeinteligencia.com" style="color:#1a73e8;text-decoration:none;margin:0 8px">🗺️ NearMe (en vivo)</a>
+    <a href="https://radar.viajeinteligencia.com" style="color:#1a73e8;text-decoration:none;margin:0 8px">🚨 Radar</a>
+    <a href="https://municipal.viajeinteligencia.com" style="color:#1a73e8;text-decoration:none;margin:0 8px">🏘️ Municipal</a>
+    <a href="https://www.viajeinteligencia.com/ecosistema.html" style="color:#1a73e8;text-decoration:none;margin:0 8px">🌐 Ecosistema</a>
   </div>
+  <div style="margin:12px 0;font-size:13px;color:#666">Si estas guías te son útiles, invítame a un café. El servidor y las fuentes los paga su autor.</div>
+  <a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener" style="display:inline-block;background:#29ABE0;color:#fff;font-weight:700;padding:10px 20px;border-radius:8px;text-decoration:none">☕ Apóyame en Ko-fi</a>
 </div>
 <script>
-  var root = document.documentElement, btn = document.getElementById('themeBtn');
-  function sync(){
-    if (btn) btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀️ Claro' : '🌙 Oscuro';
-  }
-  sync();
-  if (btn) btn.addEventListener('click', function(){
-    if (root.getAttribute('data-theme') === 'dark'){ root.removeAttribute('data-theme'); try{localStorage.setItem('guide-theme','light');}catch(e){} }
-    else { root.setAttribute('data-theme','dark'); try{localStorage.setItem('guide-theme','dark');}catch(e){} }
-    sync();
-  });
+function toggleTema(){
+  var b=document.body;
+  if(b.dataset.tema==='oscuro'){b.dataset.tema='';b.style.filter='';}
+  else{b.dataset.tema='oscuro';b.style.filter='invert(0.88) hue-rotate(180deg)';}
+}
 </script>
+
 </body>
 </html>
