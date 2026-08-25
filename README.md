@@ -228,3 +228,7 @@ Hecho por un desarrollador independiente en España. Si te resulta útil:
 - `/incrustar` — página howto para el usuario final (zona → código → colocación → ajustes).
 - Uso: `<iframe src="https://nearme.viajeinteligencia.com/embed.html?lat=..&lon=..&radius=30" width="100%" height="500"></iframe>`
 - Requisito: mantener el enlace de crédito a nearme.viajeinteligencia.com (backlink).
+
+## Navegación cruzada
+En el footer: enlaces directos a Radar (emergencias), Noticias, Datos por país y
+Ecosistema. Los enlaces siguen los journeys reales de los usuarios.
