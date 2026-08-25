@@ -1892,9 +1892,13 @@ function loadTrends(){
 
 function applyTimelineFilter(idx) {
     var sl = document.getElementById('timelineRange');
-    if (!sl || sl.max === 0) return;
+    if (!sl) return;
     var end = new Date(), start = new Date(end.getTime() - 7 * 86400000);
-    var T = start.getTime() + (idx / sl.max) * (end.getTime() - start.getTime());
+    var maxV = parseFloat(sl.max);
+    if (!maxV || maxV <= 0) maxV = 1;
+    var idxV = parseFloat(idx) || 0;
+    var T = start.getTime() + (idxV / maxV) * (end.getTime() - start.getTime());
+    if (isNaN(T)) T = end.getTime();
     window.clusterGroup.clearLayers();
     var shown = 0;
     (window.allMarkers || []).forEach(function(m){
