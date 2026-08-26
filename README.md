@@ -106,6 +106,19 @@ Cada ciclo de 15 minutos procesa **~6.000+ eventos**:
 ### Frescura
 Cada evento lleva un badge según su `updated_at`: 🟢 `<30 min` · 🟠 `30 min–2 h` · 🔴 `>2 h`. El sidebar muestra un semáforo por fuente (🟢🟡🔴) actualizado cada 60 s desde `/api/status`.
 
+## 📈 Análisis transversal
+
+Además del mapa en vivo, NearMe genera analítica agregada nocturna:
+
+- **`zone_metrics`** — tabla diaria por CCAA: volumen de eventos, niveles de severidad,
+  diversidad de fuentes, persistencia media e índice de convergencia (coincidencias
+  espaciales <50 km y temporales <6 h entre fuentes distintas). Colector:
+  `scripts/compute_zone_metrics.py` (cron 23:40, transacción por día).
+- **Incendios × meteorología** — página editorial estática que cruza detecciones FIRMS
+  con temperatura/viento diarios (Open-Meteo) por CCAA y día, con metodología y límites
+  visibles: https://radar.viajeinteligencia.com/incendios-meteorologia.html
+  (regeneración diaria 07:20).
+
 ## 🛠️ Stack
 
 - **Backend**: FastAPI + uvicorn · async Python (httpx, asyncio.gather)

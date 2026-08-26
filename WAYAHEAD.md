@@ -709,3 +709,21 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 ## Hito: cross-links ecosistema (16/Ago)
 - Enlaces en header: 📰 Noticias (news) + 🌐 Ecosistema (landing). Commit 6993a4f.
 - Flotante "📊 Datos por zona" verificado (200, enlazado, zonas OK).
+
+## Sprint: NearMe Zone Metrics + Incendios×Meteo (26/Ago)
+- **Opción A — colector**: `scripts/compute_zone_metrics.py` crea tabla `zone_metrics`
+  (día × CCAA × fuente): eventos totales/por nivel, diversidad de fuentes,
+  persistencia media h, convergencia (<50km y <6h entre fuentes distintas).
+  Spatial join contra `spain_ccaa` (GIST). Clave INE estable; nombres CCAA en BD
+  están truncados (no usar para matching). Backfill 29 días en 9s (recursos ~0).
+  Cron `40 23 * * *` (agrega el día anterior, transacción por día).
+  NOTA: ingesta histórica irregular — 15/Ago solo tuvo 10 eventos (fuentes se
+  incorporaron escalonadas desde el 28/Jul). Anomalías/Z-scores requieren ≥90d.
+- **Opción B — editorial**: `/incendios-meteorologia.html` en radar (estático SVG,
+  sin JS). Cruza FIRMS×CCAA-día con Open-Meteo forecast past_days (sin retardo
+  de reanálisis; caché 12h). 589 puntos con ceros incluidos (evita sesgo de
+  selección). Resultado 1ª ventana: r_temp=+0.05, r_viento=−0.08 → sin relación
+  lineal simple a este nivel; honesto y documentado en metodología visible.
+  Cron diario 07:20 regenera. Enlazado desde index radar + sitemap + IndexNow.
+- Lección: probar viabilidad de fuente/cruce ANTES de construir (1 curl basta);
+  incluir los ceros en cualquier correlación o la publicas inflada.
