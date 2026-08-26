@@ -121,6 +121,24 @@ def svg_estres(estres):
     return "".join(out)
 
 
+FOOTER = """
+<footer style="border-top:1px solid #e5e5e5;margin-top:28px;padding-top:18px;text-align:center">
+  <div style="font-size:.85rem;color:#666;line-height:1.9">
+    <b>Ecosistema ViajeInteligencia</b><br>
+    <a href="https://www.viajeinteligencia.com" style="color:#c2410c">Principal</a> ·
+    <a href="https://municipal.viajeinteligencia.com" style="color:#c2410c">Municipal</a> ·
+    <a href="https://nearme.viajeinteligencia.com" style="color:#c2410c">NearMe</a> ·
+    <a href="https://country.viajeinteligencia.com" style="color:#c2410c">País a País</a> ·
+    <a href="https://news.viajeinteligencia.com" style="color:#c2410c">Prensa global</a> ·
+    <a href="https://radar.viajeinteligencia.com/estado.html" style="color:#c2410c">Estado de fuentes</a>
+  </div>
+  <a href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer"
+     style="display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;color:#fff;background:#13C3A5;border-radius:7px;padding:11px 18px;margin-top:14px;text-decoration:none">☕ Invítame a un café</a>
+  <p style="font-size:.78rem;color:#888;margin:10px 0 0">Proyecto personal, sin rastreo ni cuentas. Los servidores los paga su autor.</p>
+</footer>
+"""
+
+
 def main():
     matriz, estres = cargar()
     if not matriz:
@@ -169,7 +187,7 @@ los primeros días sobrerrepresentan arranques masivos. Los volúmenes dominados
 carreteras vigiladas, no necesariamente mayor peligrosidad. Sin relación causal implícita: descripción,
 no diagnóstico. Actualizado: {hoy}.
 </div>
-</main></body></html>"""
+{FOOTER}</main></body></html>"""
     out = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else OUT_DEFAULT
     out.write_text(html)
     print(f"OK {out} ({len(html)//1024} KB) · {len(fechas)} días · {tot_global:,} eventos")
