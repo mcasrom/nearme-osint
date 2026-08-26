@@ -87,48 +87,102 @@ def cargar():
 
 
 def svg_timeline(daily):
-    """Barras eventos/día + línea magnitud máxima."""
+    """Barras eventos/día (azul) + línea magnitud máxima (rojo) con doble eje Y."""
     dates = sorted(daily.keys())
     n = len(dates)
     if n < 3:
         return "<p>(datos insuficientes)</p>"
-    W, H, pad = max(700, n * 34 + 80), 340, 50
-    y1 = max(d["count"] for d in daily.values())
-    y2 = max(d["max_mag"] for d in daily.values()) + 0.5
-    bar_w = max(8, (W - pad - 30) // n - 4)
+    # Layout: left axis (events), right axis (magnitude)
+    pad_l, pad_r, pad_top, pad_bot = 52, 52, 40, 48
+    W = max(720, n * 36 + pad_l + pad_r)
+    H = 320
+    plot_w = W - pad_l - pad_r
+    plot_h = H - pad_top - pad_bot
 
-    def X(i): return pad + i * ((W - pad - 30) / n)
-    def Y1(v): return H - 40 - (v / (y1 + 1)) * (H - 80)
-    def Y2(v): return H - 40 - (v / y2) * (H - 80)
+    y1_max = max(d["count"] for d in daily.values())
+    y2_max = max(d["max_mag"] for d in daily.values()) + 0.3
+
+    bar_w = max(10, plot_w // n - 5)
+
+    def X(i): return pad_l + i * (plot_w / n) + bar_w / 2
+    def Y1(v): return pad_top + plot_h - (v / (y1_max + 0.5)) * plot_h
+    def Y2(v): return pad_top + plot_h - (v / y2_max) * plot_h
 
     out = [f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;font-family:system-ui">',
-           f'<rect width="{W}" height="{H}" fill="#fff"/>']
-    # grid
-    for g in range(0, int(y1) + 1, max(1, y1 // 4)):
-        out.append(f'<line x1="{pad}" y1="{Y1(g)}" x2="{W-20}" y2="{Y1(g)}" stroke="#f0f0f0"/>'
-                   f'<text x="{pad-6}" y="{Y1(g)+3}" font-size="9" text-anchor="end" fill="#bbb">{g}</text>')
-    # bars + mag line
+           f'<defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">'
+           f'<stop offset="0%" stop-color="#3b82f6" stop-opacity=".9"/>'
+           f'<stop offset="100%" stop-color="#1d4ed8" stop-opacity=".75"/>'
+           f'</linearGradient></defs>',
+           f'<rect width="{W}" height="{H}" fill="var(--card,#fff)"/>']
+
+    # --- Left axis: events count (blue) ---
+    steps1 = min(5, y1_max + 1)
+    step1 = max(1, round((y1_max + 1) / steps1))
+    for g in range(0, y1_max + step1, step1):
+        yy = Y1(g)
+        out.append(f'<line x1="{pad_l}" y1="{yy}" x2="{W - pad_r}" y2="{yy}" stroke="#e5e7eb" stroke-dasharray="4,3"/>')
+        out.append(f'<text x="{pad_l - 8}" y="{yy + 3}" font-size="10" text-anchor="end" fill="#3b82f6" font-weight="600">{g}</text>')
+    # left axis label
+    out.append(f'<text x="12" y="{pad_top + plot_h / 2}" font-size="10" fill="#3b82f6" font-weight="600" '
+               f'transform="rotate(-90,12,{pad_top + plot_h / 2})" text-anchor="middle">eventos/día</text>')
+    # left axis line
+    out.append(f'<line x1="{pad_l}" y1="{pad_top}" x2="{pad_l}" y2="{pad_top + plot_h}" stroke="#3b82f6" stroke-width="1.5" opacity=".4"/>')
+
+    # --- Right axis: magnitude (red) ---
+    steps2 = 5
+    step2 = round(y2_max / steps2, 1)
+    for gi in range(steps2 + 1):
+        g = round(gi * step2, 1)
+        yy = Y2(g)
+        out.append(f'<text x="{W - pad_r + 8}" y="{yy + 3}" font-size="10" text-anchor="start" fill="#dc2626" font-weight="600">M{g:.1f}</text>')
+    # right axis line
+    out.append(f'<line x1="{W - pad_r}" y1="{pad_top}" x2="{W - pad_r}" y2="{pad_top + plot_h}" stroke="#dc2626" stroke-width="1.5" opacity=".4"/>')
+    # right axis label
+    out.append(f'<text x="{W - 8}" y="{pad_top + plot_h / 2}" font-size="10" fill="#dc2626" font-weight="600" '
+               f'transform="rotate(90,{W - 8},{pad_top + plot_h / 2})" text-anchor="middle">magnitud máx</text>')
+
+    # --- Bars (blue gradient) ---
     mag_pts = []
     for i, d in enumerate(dates):
         x = X(i)
         v = daily[d]["count"]
-        out.append(f'<rect x="{x}" y="{Y1(v)}" width="{bar_w}" height="{H-40-Y1(v)}" rx="2" '
-                   f'fill="#ea580c" opacity=".7">'
+        yy = Y1(v)
+        out.append(f'<rect x="{x - bar_w / 2}" y="{yy}" width="{bar_w}" height="{pad_top + plot_h - yy}" rx="3" '
+                   f'fill="url(#barGrad)">'
                    f'<title>{d}: {v} terremotos, máx M{daily[d]["max_mag"]:.1f}</title></rect>')
-        mx = x + bar_w / 2
-        mag_pts.append(f"{mx:.1f},{Y2(daily[d]['max_mag']):.1f}")
-    out.append(f'<polyline points="{" ".join(mag_pts)}" fill="none" stroke="#dc2626" stroke-width="2"/>')
-    # x labels
+        # value on top of bar
+        if v > 0:
+            out.append(f'<text x="{x}" y="{yy - 4}" font-size="9" text-anchor="middle" fill="#3b82f6" font-weight="600">{v}</text>')
+        mag_pts.append(f"{x:.1f},{Y2(daily[d]['max_mag']):.1f}")
+
+    # --- Magnitude line (red, thick) ---
+    out.append(f'<polyline points="{" ".join(mag_pts)}" fill="none" stroke="#dc2626" stroke-width="2.5" '
+               f'stroke-linecap="round" stroke-linejoin="round"/>')
+    # dots on magnitude line
+    for i, d in enumerate(dates):
+        x = X(i)
+        my = Y2(daily[d]["max_mag"])
+        out.append(f'<circle cx="{x:.1f}" cy="{my:.1f}" r="3.5" fill="#dc2626" stroke="#fff" stroke-width="1.5">'
+                   f'<title>M{daily[d]["max_mag"]:.1f} · {d}</title></circle>')
+
+    # --- X labels ---
     for i, d in enumerate(dates):
         if i % 2 == 0 or i == n - 1:
-            out.append(f'<text x="{X(i)+bar_w//2}" y="{H-20}" font-size="9" text-anchor="middle" fill="#888">'
+            out.append(f'<text x="{X(i)}" y="{H - 18}" font-size="9.5" text-anchor="middle" fill="#6b7280">'
                        f'{d[8:10]}/{d[5:7]}</text>')
-    # legend
-    out.append(f'<rect x="{pad}" y="10" width="12" height="12" rx="2" fill="#ea580c" opacity=".7"/>'
-               f'<text x="{pad+16}" y="20" font-size="10" fill="#555">eventos/día</text>'
-               f'<line x1="{pad+120}" y1="16" x2="{pad+140}" y2="16" stroke="#dc2626" stroke-width="2"/>'
-               f'<text x="{pad+144}" y="20" font-size="10" fill="#555">magnitud máx</text>'
-               f'</svg>')
+    # x-axis label
+    out.append(f'<text x="{pad_l + plot_w / 2}" y="{H - 4}" font-size="9" text-anchor="middle" fill="#9ca3af">fecha</text>')
+
+    # --- Legend ---
+    lx = pad_l + 6
+    ly = 12
+    out.append(f'<rect x="{lx}" y="{ly}" width="14" height="14" rx="3" fill="url(#barGrad)"/>')
+    out.append(f'<text x="{lx + 18}" y="{ly + 11}" font-size="10.5" fill="#3b82f6" font-weight="600">eventos/día</text>')
+    out.append(f'<line x1="{lx + 110}" y1="{ly + 7}" x2="{lx + 132}" y2="{ly + 7}" stroke="#dc2626" stroke-width="2.5"/>')
+    out.append(f'<circle cx="{lx + 121}" cy="{ly + 7}" r="3" fill="#dc2626"/>')
+    out.append(f'<text x="{lx + 138}" y="{ly + 11}" font-size="10.5" fill="#dc2626" font-weight="600">magnitud máx</text>')
+
+    out.append(f'</svg>')
     return "".join(out)
 
 

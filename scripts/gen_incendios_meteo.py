@@ -75,29 +75,71 @@ def pearson(xs, ys):
     sx = math.sqrt(sum((x-mx)**2 for x in xs)); sy = math.sqrt(sum((y-my)**2 for y in ys))
     return sxy/(sx*sy) if sx*sy else None
 
-def svg_scatter(pts, xlabel, ylabel, W=760, H=430, color="#e05520"):
+def svg_scatter(pts, xlabel, ylabel, W=780, H=440, color="#e05520", color_name="naranja"):
+    """Scatter mejorado: ejes con ticks, leyenda, tooltips, grid limpio."""
     if len(pts) < 3: return "<p>(sin datos suficientes)</p>"
     xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
-    x0, x1 = min(xs), max(xs); y1 = max(max(ys), 1)
-    pad = 46
-    def X(v): return pad + (v-x0)/(x1-x0+1e-9)*(W-pad-18)
-    def Y(v): return H-30-(v/y1)*(H-56)
-    grid = "".join(f'<line x1="{pad}" y1="{Y(t):.1f}" x2="{W-14}" y2="{Y(t):.1f}" stroke="#eee"/>'
-                   f'<text x="6" y="{Y(t)+4:.1f}" font-size="11" fill="#888">{t:g}</text>'
-                   for t in [y1*i/4 for i in range(5)])
-    dots = "".join(f'<circle cx="{X(x):.1f}" cy="{Y(y):.1f}" r="{s:.1f}" fill="{color}" fill-opacity="0.55"/>'
-                   for x, y, s in pts)
-    n = len(pts); mx = sum(xs)/n; my = sum(ys)/n
-    b = sum((x-mx)*(y-my) for x, y in zip(xs, ys))/max(sum((x-mx)**2 for x in xs), 1e-9)
-    a = my-b*mx
-    trend = (f'<line x1="{X(x0):.1f}" y1="{Y(a+b*x0):.1f}" x2="{X(x1):.1f}" y2="{Y(a+b*x1):.1f}" '
-             f'stroke="#333" stroke-dasharray="5 4" stroke-width="1.5"/>')
-    return (f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" role="img">{grid}'
-            f'<line x1="{pad}" y1="{H-30}" x2="{W-14}" y2="{H-30}" stroke="#999"/>'
-            f'<line x1="{pad}" y1="16" x2="{pad}" y2="{H-30}" stroke="#999"/>'
-            f'<text x="{W/2}" y="{H-8}" text-anchor="middle" font-size="12" fill="#555">{xlabel}</text>'
-            f'<text x="14" y="{H/2}" transform="rotate(-90 14 {H/2})" text-anchor="middle" font-size="12" fill="#555">{ylabel}</text>'
-            f'{dots}{trend}</svg>')
+    names = [p[3] if len(p) > 3 else "" for p in pts]
+    x0, x1 = min(xs), max(xs)
+    y1 = max(max(ys), 1)
+    pad_l, pad_r, pad_t, pad_b = 56, 20, 32, 52
+
+    def X(v): return pad_l + (v - x0) / (x1 - x0 + 1e-9) * (W - pad_l - pad_r)
+    def Y(v): return H - pad_b - (v / y1) * (H - pad_t - pad_b)
+
+    # --- Grid + Y-axis ticks ---
+    grid = []
+    y_steps = 5
+    for i in range(y_steps + 1):
+        v = y1 * i / y_steps
+        yy = Y(v)
+        grid.append(f'<line x1="{pad_l}" y1="{yy:.1f}" x2="{W - pad_r}" y2="{yy:.1f}" stroke="#f0f0f0" stroke-width="1"/>')
+        grid.append(f'<text x="{pad_l - 8}" y="{yy + 4:.1f}" font-size="10" text-anchor="end" fill="#9ca3af">{v:g}</text>')
+
+    # --- X-axis ticks ---
+    x_steps = 6
+    for i in range(x_steps + 1):
+        v = x0 + (x1 - x0) * i / x_steps
+        xx = X(v)
+        grid.append(f'<line x1="{xx:.1f}" y1="{H - pad_b}" x2="{xx:.1f}" y2="{pad_t}" stroke="#f5f5f5" stroke-width="1"/>')
+        grid.append(f'<text x="{xx:.1f}" y="{H - pad_b + 16}" font-size="10" text-anchor="middle" fill="#9ca3af">{v:.0f}</text>')
+
+    # --- Axes lines ---
+    grid.append(f'<line x1="{pad_l}" y1="{H - pad_b}" x2="{W - pad_r}" y2="{H - pad_b}" stroke="#d1d5db" stroke-width="1.2"/>')
+    grid.append(f'<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{H - pad_b}" stroke="#d1d5db" stroke-width="1.2"/>')
+
+    # --- Dots with tooltips ---
+    dots = []
+    for x, y, s, nm in zip(xs, ys, [p[2] for p in pts], names):
+        dots.append(f'<circle cx="{X(x):.1f}" cy="{Y(y):.1f}" r="{s:.1f}" '
+                     f'fill="{color}" fill-opacity="0.5" stroke="{color}" stroke-width="0.8">'
+                     f'<title>{nm}: {x:.1f} · {y:g} detecciones</title></circle>')
+
+    # --- Trend line ---
+    n = len(xs); mx = sum(xs) / n; my = sum(ys) / n
+    b = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / max(sum((x - mx) ** 2 for x in xs), 1e-9)
+    a = my - b * mx
+    trend = (f'<line x1="{X(x0):.1f}" y1="{Y(a + b * x0):.1f}" x2="{X(x1):.1f}" y2="{Y(a + b * x1):.1f}" '
+             f'stroke="#374151" stroke-dasharray="6 4" stroke-width="1.8" stroke-linecap="round"/>')
+
+    # --- Axis labels ---
+    labels = [
+        f'<text x="{pad_l + (W - pad_l - pad_r) / 2}" y="{H - 6}" text-anchor="middle" font-size="11.5" fill="#6b7280" font-weight="500">{xlabel}</text>',
+        f'<text x="13" y="{pad_t + (H - pad_t - pad_b) / 2}" transform="rotate(-90,13,{pad_t + (H - pad_t - pad_b) / 2})" text-anchor="middle" font-size="11.5" fill="#6b7280" font-weight="500">{ylabel}</text>',
+    ]
+
+    # --- Legend ---
+    lx, ly = pad_l + 8, pad_t + 6
+    legend = [
+        f'<rect x="{lx}" y="{ly}" width="130" height="36" rx="4" fill="#fff" stroke="#e5e7eb"/>',
+        f'<circle cx="{lx + 10}" cy="{ly + 12}" r="4" fill="{color}" fill-opacity="0.5" stroke="{color}"/>',
+        f'<text x="{lx + 18}" y="{ly + 15}" font-size="9.5" fill="#6b7280">CCAA-día ({color_name})</text>',
+        f'<line x1="{lx + 6}" y1="{ly + 28}" x2="{lx + 20}" y2="{ly + 28}" stroke="#374151" stroke-width="1.8" stroke-dasharray="4 3"/>',
+        f'<text x="{lx + 24}" y="{ly + 31}" font-size="9.5" fill="#6b7280">Tendencia lineal</text>',
+    ]
+
+    return (f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" role="img">'
+            f'{" ".join(grid)} {" ".join(dots)} {trend} {" ".join(labels)} {" ".join(legend)}</svg>')
 
 def fmt_r(r):
     return f"r={r:+.2f}" if r is not None else "r n/d"
@@ -142,8 +184,9 @@ def main():
             t = tmax if tmax is not None else 0
             w = wmax if wmax is not None else 0
             nf = fire_map.get((d, cod), 0)   # ceros incluidos: días sin fuego
-            pts_t.append((t, nf, 3+min(w, 60)/12))
-            pts_w.append((w, nf, 3+min(t, 45)/8))
+            nm = NOMBRES.get(cod, cod)
+            pts_t.append((t, nf, 3 + min(w, 60) / 12, f"{nm} {d.strftime('%d/%m')}"))
+            pts_w.append((w, nf, 3 + min(t, 45) / 8, f"{nm} {d.strftime('%d/%m')}"))
             if nf > 0: rows.append((d, cod, nf, t, w))
 
     r_t = pearson([p[0] for p in pts_t], [p[1] for p in pts_t])
@@ -173,8 +216,8 @@ table{{border-collapse:collapse;width:100%;font-size:.92rem}} td,th{{padding:6px
 <div class="kpi">Puntos: {len(pts_t)} CCAA-día</div>
 <div class="kpi">Correlación temp: {fmt_r(r_t)}</div>
 <div class="kpi">Correlación viento: {fmt_r(r_w)}</div>
-<div class="card"><h3>Detecciones vs temperatura máxima</h3>{svg_scatter(pts_t, "T máxima diaria (°C)", "Detecciones FIRMS")}</div>
-<div class="card"><h3>Detecciones vs viento máximo</h3>{svg_scatter(pts_w, "Viento máx diario (km/h)", "Detecciones FIRMS", color="#2563eb")}</div>
+<div class="card"><h3>Detecciones vs temperatura máxima</h3>{svg_scatter(pts_t, "T máxima diaria (°C)", "Detecciones FIRMS", color="#e05520", color_name="fuego×temp")}</div>
+<div class="card"><h3>Detecciones vs viento máximo</h3>{svg_scatter(pts_w, "Viento máx diario (km/h)", "Detecciones FIRMS", color="#2563eb", color_name="fuego×viento")}</div>
 <div class="card"><h3>Días con más detecciones</h3><table><tr><th>Día</th><th>CCAA</th><th>Detecciones</th><th>T máx</th><th>Viento</th></tr>{top}</table></div>
 <div class="card met"><b>Metodología y límites (léelo antes de compartir)</b><br>
 · Fuente de fuego: NASA FIRMS (satélites MODIS/VIIRS) tal como la ingiere NearMe OSINT — son <i>detecciones térmicas puntuales</i>, no superficie quemada ni focos confirmados.<br>

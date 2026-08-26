@@ -213,7 +213,7 @@ IGN_BBOX = {"min_lat": 27.0, "max_lat": 44.5, "min_lon": -19.0, "max_lon": 4.5}
 IGN_MAG_ALERT = 4.5
 IGN_MAG_WARNING = 3.0
 IGN_EARTHQUAKE_RADIUS_M = 15000
-IGN_MAX_AGE_DAYS = 7
+IGN_MAX_AGE_DAYS = 30
 
 
 # ── Open-Meteo (Índice UV) ───────────────────────────────────

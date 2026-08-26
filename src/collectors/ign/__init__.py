@@ -1,5 +1,6 @@
 import json
-import httpx
+import asyncio
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from src.collectors.base import BaseCollector
 from src.config import (
@@ -36,6 +37,15 @@ def _parse_ign_payload(text):
     return {"features": features}
 
 
+def _fetch_ign_sync(url, timeout):
+    """Descarga sincrónica con urllib — funciona siempre con IGN."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (compatible; NearMeBot/1.0; +https://nearme.viajeinteligencia.com)"
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
 class IGNSeismicCollector(BaseCollector):
     name = "IGN (sismología)"
     source = "ign"
@@ -44,11 +54,11 @@ class IGNSeismicCollector(BaseCollector):
     async def collect(self):
         events = []
         try:
-            async with httpx.AsyncClient(timeout=IGN_REQUEST_TIMEOUT) as client:
-                resp = await client.get(IGN_EARTHQUAKE_URL)
-                resp.raise_for_status()
-                text = resp.text
-                data = _parse_ign_payload(text)
+            loop = asyncio.get_event_loop()
+            text = await loop.run_in_executor(
+                None, _fetch_ign_sync, IGN_EARTHQUAKE_URL, IGN_REQUEST_TIMEOUT
+            )
+            data = _parse_ign_payload(text)
         except Exception as e:
             logger.warning("Error fetching IGN sismología: %s", e)
             return events
