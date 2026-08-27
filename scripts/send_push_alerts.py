@@ -135,8 +135,47 @@ def flush_telegram_digests():
             print(f"[{now_iso()}] [SKIP] digest user={d['user_id']} chat={chat_id}")
 
 
+def flush_push_digests():
+    """Envia los resumenes diarios (resumen_24h) tambien por Web Push, no solo Telegram.
+
+    Reutiliza el mismo mecanismo de digest (telegram_digest): cuando la ventana vence,
+    el resumen se envia por push a todas las suscripciones del usuario. Si el usuario
+    no tiene suscripciones push, se marca como enviado igual (para no reintentar).
+    """
+    if not VAPID_PRIVATE_KEY:
+        return
+    for d in get_due_digests():
+        subs = get_push_subscriptions(d["user_id"])
+        if not subs:
+            mark_digest_sent(d["id"])
+            continue
+        items = d["items"][:10]
+        more = len(d["items"]) - len(items)
+        body = "Resumen de tus avisos NearMe:\n" + "\n".join(f"• {it}" for it in items)
+        if more > 0:
+            body += f"\n(+{more} más)"
+        if not items:
+            mark_digest_sent(d["id"])
+            continue
+        ok = 0
+        for sub in subs:
+            try:
+                send_push(sub, {"title": "🔔 Resumen de tus avisos NearMe", "body": body, "url": "/"})
+                ok += 1
+            except WebPushException as e:
+                print(f"[{now_iso()}] [ERR] push user={d['user_id']}: {e}")
+                if getattr(e, "response", None) and e.response.status_code in (404, 410):
+                    delete_push_subscription(d["user_id"], sub["endpoint"])
+            except Exception as e:
+                print(f"[{now_iso()}] [ERR] push user={d['user_id']}: {e}")
+        if ok:
+            mark_digest_sent(d["id"])
+            print(f"[{now_iso()}] [PUSHDIGEST] user={d['user_id']} subs={ok} items={len(d['items'])}")
+
+
 def main():
     flush_telegram_digests()
+    flush_push_digests()
     user_ids = get_push_users()
     total_push = 0
     total_tg = 0
