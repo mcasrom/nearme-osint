@@ -739,3 +739,24 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
   /var/www/html/geofail2ban.html, migrationflow-osint/frontend/index.html (26/Ago).
 - **Lección**: al cambiar tile provider, verificar TODOS los frontends en `/var/www/` y
   `/home/deploy/*/frontend/`. Los `.bak.*` y `venv/` no se sirven.
+
+## Hito: Resumen diario por Web Push — ritual de retención (27/Ago)
+- **Objetivo**: atacar el 87% de visitas de un solo día dando una razón diaria de volver
+  (modelo news/dailynews, que retiene 29% vs el 10% de nearme). El producto que más atrae
+  del ecosistema no retenía; los datos mostraron retención ∝ frescura del dato.
+- **Auditoría previa**: la infra push YA estaba completa y activa — `send_push_alerts.py`
+  (cron */5 min) envía push por-evento + Telegram con dedup vía `push_sent`; VAPID en .env;
+  endpoints `/api/push/{vapid-key,subscribe,unsubscribe}`; pywebpush instalado; tablas
+  `push_subscriptions`/`push_sent`/`saved_locations`/`telegram_digest`. Faltaba el resumen
+  diario por Web Push (el digest 24h solo iba a Telegram).
+- **Implementado**: `flush_push_digests()` en `scripts/send_push_alerts.py` — reutiliza el
+  mecanismo `telegram_digest` (`get_due_digests`/`mark_digest_sent`): cuando vence la ventana
+  del resumen, envía el resumen por push a TODAS las suscripciones del usuario (título
+  "🔔 Resumen de tus avisos NearMe", body items + "+N más", url `/`), limpia suscripciones
+  caducadas (410 Gone → delete), marca digest enviado solo si hubo éxito. Se llama en
+  `main()` tras `flush_telegram_digests()`. Commit `d2d918c` (pusheado).
+- **Diseño elegido (decisión usuario)**: reutilizar el digest 24h existente (no crear un
+  push nuevo a hora fija) → una sola fuente de generación, mínimo cambio sobre lo probado.
+- **Lección**: antes de construir "el push", auditar qué ya existe — el 90% estaba hecho;
+  el valor era el envío del resumen, no la infraestructura.
+- **Pendiente validar en producción**: cuando venza la primera ventana 24h con items.
