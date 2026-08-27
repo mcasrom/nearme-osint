@@ -727,3 +727,15 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
   Cron diario 07:20 regenera. Enlazado desde index radar + sitemap + IndexNow.
 - Lección: probar viabilidad de fuente/cruce ANTES de construir (1 curl basta);
   incluir los ceros en cualquier correlación o la publicas inflada.
+
+## Hito: CartoDB → OpenStreetMap en todo el ecosistema (27/Ago)
+- **Problema**: CartoDB free tier impone watermark "API KEY REQUIRED" como marca de agua
+  al exceder rate limit de tiles. Afectaba a radar, migrationflow, country, eclipse, SIEG.
+- **Fix**: tiles → OpenStreetMap (sin rate limit, sin key). Dark mode via CSS filter
+  `.osm-dark .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.8)... }`.
+  Clave: filter SOLO en `.leaflet-tile`, nunca en el contenedor padre (afecta overlays).
+- **Archivos modificados**: radar/index.html, country-intel/frontend/index.html,
+  eclipse-2026-osint/frontend/index.html, /var/www/html/index.html (SIEG),
+  /var/www/html/geofail2ban.html, migrationflow-osint/frontend/index.html (26/Ago).
+- **Lección**: al cambiar tile provider, verificar TODOS los frontends en `/var/www/` y
+  `/home/deploy/*/frontend/`. Los `.bak.*` y `venv/` no se sirven.
