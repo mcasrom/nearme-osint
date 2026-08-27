@@ -132,7 +132,11 @@ def main():
     elif "--day" in args:
         days = [date.fromisoformat(args[args.index("--day")+1])]
     else:
-        days = [date.today() - timedelta(days=1)]
+        # FIX (27/Ago): modo cron corre a las 23:40. ANTES usaba today()-1, lo que
+        # daba SIEMPRE 2 días de lag (el pulso de las 00:15 siguiente leía datos de
+        # hace 2 días). A las 23:40 el día actual ya está completo, así que process
+        # today() => el pulso de 00:15 muestra datos al día (1 día de lag).
+        days = [date.today()]
 
     t0 = time.time()
     for d in days:
