@@ -783,3 +783,21 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - **Lección**: escribir el post en el draft con TODAS las secciones ya dentro del límite (
   el auto_post corta por delante y rompe frases); redactar contenido honesto (en verano no
   hay nieve → anunciar monitorización anual "todo el año", no "pistas disponibles").
+
+## Hito: Playas Euskadi — cooldown diario 24h (fix contienda + respeto proveedor) — 28/Ago
+- **Problema**: el colector Playas (3 peticiones HTTP: playas.geojson, estado_playas.geojson,
+  Bizkaia CKAN) dispara en CADA ciclo del pipeline (15 min) porque `base.run()` NO aplica
+  `interval_minutes` (solo es declarativo). Resultado: ~96 peticiones/día a opendata.euskadi.eus,
+  con timeouts frecuentes por contienda (endpoints devuelven 200 en 0.2s aislados, pero se
+  cuelgan durante el run paralelo de 16 colectores) → "Error fetching ...: " con error vacío.
+- **Fix**: cooldown interno en `PlayasCollector` (patrón simple, sin tocar base.run()):
+  `COOLDOWN_HOURS=24` + archivo `logs/playas_last_run` (ISO UTC). Si la última ejecución OK
+  fue hace <24h, `collect()` devuelve [] sin hacer peticiones; tras éxito marca el timestamp.
+  Datos de banderas/baño son de frecuencia DIARIA (coherente con `expires_at=hoyT23:59:59Z`
+  que ya usaba el colector para dedup de eventos).
+- **Verificado**: 1ª ejecución 37 eventos + marca run; 2ª ejecución inmediata 0 eventos (skip).
+  Pipeline de 16 colectores corre sin errores (Playas=0 con cooldown activo). Backup
+  `__init__.py.bak.cooldown.20260828`.
+- **Nota**: `interval_minutes` sigue siendo declarativo en TODO el ecosistema (UV/nieve/
+  copernicus/ree/dgt lo definen pero corren cada 15 min). Este fix solo acota Playas.
+  Propuesta future: aplicar intervalo real en base.run() con cuidado (ree/dgt/ign son tiempo real).

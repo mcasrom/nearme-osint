@@ -56,10 +56,35 @@ class PlayasCollector(BaseCollector):
     name = "Playas"
     source = "playas"
     interval_minutes = 60
+    COOLDOWN_HOURS = 24  # datos de banderas/baño son de frecuencia diaria
+    LAST_RUN_FILE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "logs", "playas_last_run"))
+
+    def _last_run(self):
+        try:
+            with open(self.LAST_RUN_FILE) as f:
+                return datetime.fromisoformat(f.read().strip())
+        except Exception:
+            return None
+
+    def _mark_run(self):
+        try:
+            os.makedirs(os.path.dirname(self.LAST_RUN_FILE), exist_ok=True)
+            with open(self.LAST_RUN_FILE, "w") as f:
+                f.write(datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            logger.warning("No se pudo marcar ultima ejecucion playas: %s", e)
 
     async def collect(self):
         from src.collectors.playas import _get_json
         hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        last = self._last_run()
+        if last is not None:
+            elapsed = (datetime.now(timezone.utc) - last).total_seconds() / 3600
+            if elapsed < self.COOLDOWN_HOURS:
+                logger.info("Playas: omitidas (cooldown, hace %.1fh; max cada %dh)", elapsed, self.COOLDOWN_HOURS)
+                return []
+
         events = []
 
         playas = await self._fetch_playas_list()
@@ -79,6 +104,7 @@ class PlayasCollector(BaseCollector):
                 logger.warning("Error con playa %s: %s", nombre, e)
 
         logger.info("%d playas, %d eventos", len(playas), len(events))
+        self._mark_run()
         return events
 
     async def _fetch_playas_list(self) -> dict:
