@@ -663,6 +663,7 @@ body.light .conf-badge { background:#e6f9ee; color:#1f8a4c; border-color:#bfe8d0
                         <tr id="src-ign"><td style="padding:3px 6px;">IGN</td><td style="padding:3px 6px;">🏚️ Sismologia espanola (red 24/7)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-open_meteo"><td style="padding:3px 6px;">Open-Meteo</td><td style="padding:3px 6px;">☀️ Indice UV max (52 capitales)</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                         <tr id="src-energy"><td style="padding:3px 6px;">REE + ESIOS</td><td style="padding:3px 6px;">⚡ Demanda y precio electricidad (PVPC)</td><td style="padding:3px 6px;">15 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
+                        <tr id="src-nieve"><td style="padding:3px 6px;">Nieve / Estaciones de esquí</td><td style="padding:3px 6px;">❄️ Estado nieve y manto (Open-Meteo, 22 estaciones)</td><td style="padding:3px 6px;">60 min</td><td style="text-align:center;padding:3px 6px;" class="src-status">—</td></tr>
                     </table>
                     <div id="staleBanner" style="display:none;background:#2a0a0a;border:1px solid #5a1a1a;border-radius:6px;padding:6px 10px;font-size:0.85em;color:#ef5350;margin:6px 0;"></div>
                     <p style="margin-top:6px;"><strong>Ciclo de vida:</strong> Cada evento se crea cuando la fuente lo reporta y expira segun su TTL (incendios 24h, clima 3h, trafico 12h, terremotos 48h, UV 24h, energia 3h...). Si la fuente deja de reportarlo, se marca como "resuelto" automaticamente en el siguiente ciclo.</p>
@@ -816,6 +817,7 @@ const COLLECTOR_TO_ID = {
     'IGN (sismología)': 'ign',
     'UV (Open-Meteo)': 'open_meteo',
     'Energía (REE + ESIOS)': 'energy',
+    'Nieve / Estaciones de esquí': 'nieve',
 };
 
 function timeAgo(isoStr) {
@@ -1575,7 +1577,7 @@ function renderStats(events) {
     const byType = {};
     const alerts = events.filter(e => e.level === 'critical' || e.level === 'alert');
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
+    const typeOrder = ['fire','earthquake','weather','snow','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     const alertBadge = alerts.length > 0 ? `<div class="stat danger-badge"><span class="n">${alerts.length}</span> 🚨</div>` : '';
     stats.innerHTML = activeTypes.map(t => {
@@ -1592,7 +1594,7 @@ function renderZoneSummary(events) {
     var alerts = events.filter(function(e){ return e.level === 'critical' || e.level === 'alert'; });
     var byType = {};
     events.forEach(function(e){ byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    var labels = { fire:'incendios', earthquake:'terremotos', weather:'avisos meteorol.', air_quality:'avisos de calidad', train_delay:'retrasos de tren', road_incident:'incidencias de tráfico', beach:'playas', blackout:'cortes de luz', energy:'energía', reservoir:'embalses', warning:'avisos', radiation:'radiación', wind:'viento', storm:'tormentas', heatwave:'calor', other:'otros' };
+    var labels = { fire:'incendios', earthquake:'terremotos', weather:'avisos meteorol.', snow:'estaciones de esquí', air_quality:'avisos de calidad', train_delay:'retrasos de tren', road_incident:'incidencias de tráfico', beach:'playas', blackout:'cortes de luz', energy:'energía', reservoir:'embalses', warning:'avisos', radiation:'radiación', wind:'viento', storm:'tormentas', heatwave:'calor', other:'otros' };
     var order = ['fire','earthquake','weather','air_quality','train_delay','road_incident','blackout','warning','storm','heatwave','other'];
     var parts = [];
     order.forEach(function(t){ if (byType[t]) parts.push(byType[t] + ' ' + (labels[t] || t)); });
@@ -1642,7 +1644,7 @@ function renderLegend(events) {
     const legend = document.getElementById('legend');
     const byType = {};
     events.forEach(e => { byType[e.event_type] = (byType[e.event_type] || 0) + 1; });
-    const typeOrder = ['fire','earthquake','weather','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
+    const typeOrder = ['fire','earthquake','weather','snow','heatwave','wind','storm','air_quality','train_delay','beach','blackout','energy','radiation','warning','road_incident','reservoir','other'];
     const activeTypes = typeOrder.filter(t => byType[t]);
     legend.innerHTML = activeTypes.map(t => {
         const color = TYPE_COLORS[t] || '#607d8b';

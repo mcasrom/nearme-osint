@@ -760,3 +760,26 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - **Lección**: antes de construir "el push", auditar qué ya existe — el 90% estaba hecho;
   el valor era el envío del resumen, no la infraestructura.
 - **Pendiente validar en producción**: cuando venza la primera ventana 24h con items.
+
+## Hito: Publicación automática en redes (Bluesky + Mastodon) — 28/Ago
+- **Mecanismo descubierto (aplicable a todo el ecosistema)**: repositorio central
+  `/home/deploy/social-poster/` en el server con credenciales en `.env` (perm 600):
+  `BSKY_USER`+`BSKY_APP_PASS` (Bluesky) y `MASTODON_INSTANCE`+`MASTODON_TOKEN` (Mastodon).
+  - `publish_bluesky.py` — urllib puro, PDS `bsky.social`, login `createSession` →
+    `com.atproto.repo.createRecord` (app.bsky.feed.post). Límite 300 chars. Imagen opcional `-s <url>`.
+  - `publish_mastodon.py` — urllib puro, `POST /api/v1/statuses` con Bearer. Límite 500.
+    Imagen opcional `-s <url>`.
+  - Invocación: `python3 publish_*.py -t "texto"` (o stdin). Sin librerías externas.
+- **X (Twitter): EXCLUIDA de automatización** — API de pago (decisión usuario). Publicación
+  100% MANUAL en la web. Límite actual: **140 caracteres** (anotar en SEGUIMIENTO).
+- **Flujo de publicación (cliente)**: drafts markdown en `~/Desktop/demo/27*_post-*.md` con
+  secciones `## X (≤140)`, `## Mastodon (≤500)`, `## Bluesky (≤300)`. El automatizador local
+  `270826_auto_post.py` extrae las secciones Mastodon/Bluesky, valida límites (len raw), y hace
+  SSH al server lanzando cada publicador con el texto en base64 (no rompe UTF-8/comillas).
+  Si OK renombra a `.posted.md` (el modo `--all` excluye `.posted.md`). X se copia a mano.
+- **Verificado en producción** (27/Ago): toot mastodon.social/status/117166574251293742 y
+  bsky post 3mu2hjxlrlj2q. **28/Ago**: post de estaciones de esquí → Mastodon
+  status/117173028618384721 y Bluesky 3mu5cwjjjns2q.
+- **Lección**: escribir el post en el draft con TODAS las secciones ya dentro del límite (
+  el auto_post corta por delante y rompe frases); redactar contenido honesto (en verano no
+  hay nieve → anunciar monitorización anual "todo el año", no "pistas disponibles").
