@@ -102,6 +102,11 @@ def register_collectors():
         COLLECTORS.append(EnergyCollector())
     except Exception as e:
         logger.warning("No se pudo cargar Energía: %s", e)
+    try:
+        from src.collectors.nieve import NieveCollector
+        COLLECTORS.append(NieveCollector())
+    except Exception as e:
+        logger.warning("No se pudo cargar Nieve/Estaciones: %s", e)
 
 
 def run_all():

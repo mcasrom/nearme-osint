@@ -227,6 +227,12 @@ OPEN_METEO_UV_WARNING = 6.0
 OPEN_METEO_UV_RADIUS_M = 50000
 
 
+# ── Nieve / Estaciones de esquí (Open-Meteo) ─────────────────
+NIEVE_INTERVAL_MINUTES = 60
+NIEVE_TTL_HOURS = 24
+NIEVE_RADIUS_M = 20000
+
+
 # ── Energía (REE demanda + precios PVPC) ─────────────────────
 ENERGY_PRICE_URL = "https://api.esios.ree.es/archives/70/download_json"
 ENERGY_INTERVAL_MINUTES = 15
