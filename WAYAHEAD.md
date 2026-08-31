@@ -819,3 +819,23 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - **Nota nginx**: `nginx -t` como usuario deploy falla por permisos de
   /etc/letsencrypt/live (drwx------ root, cert aegis.viajeinteligencia.com) — preexistente,
   NO de este cambio; el servicio real (root) sirve todo OK.
+
+## 2026-08-31 — Hardening: análisis de accesos + bloqueo de scanners
+
+**Análisis (98.317 peticiones, última semana):** humano 27.9%, bot monitor 24%
+(healthchecks/Uptime-Kuma legítimos), bot SEO 6.5%, scanners/maliciosos ~14%.
+Dominio más escaneado: municipal (9:1 bot:humano) antes del fix.
+
+**Acciones:**
+- Unificado el mapa `$blocked_bot` (había dos archivos duplicados: bot-block.conf +
+  bot-map.conf que se pisaban). Ahora un solo `/etc/nginx/conf.d/bot-block.conf` con
+  todos los bots: AI/scraping (GPTBot, ClaudeBot, Bytespider...), SEO (Semrush, Ahrefs...)
+  y los scanners detectados (feroxbuster, l9scan, censysinspect, exposurescanner,
+  internetmeasurement) + curl/go-http-client.
+- Rate-limit en `/api/` de municipal (`limit_req zone=emergency_api burst=20`).
+- Verificado: feroxbuster/l9scan/censys/curl → 000 (bloqueados); navegador real → 200;
+  todos los vhosts siguen OK.
+- Backups: bot-block.conf.bak-*, bot-map.conf.bak-*, municipal*.bak-rl-*.
+
+**Nota:** la config de nginx NO está versionada en ningún repo (es config de sistema).
+Este cambio se documenta aquí para trazabilidad.
