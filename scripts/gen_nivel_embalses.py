@@ -336,6 +336,15 @@ def main():
 <title>Nivel de los embalses de España · evolución y lluvia</title>
 <meta name="description" content="Nivel actual de los embalses de España: porcentaje de llenado, volumen, capacidad, estado por cuenca y lluvia reciente (AEMET). Actualizado periódicamente.">
 <link rel="canonical" href="https://radar.viajeinteligencia.com/nivel-embalses.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Nivel de los embalses de España · % medio y por cuenca">
+<meta property="og:description" content="Estado del agua almacenada en los embalses españoles: nivel medio, volumen, situación por cuenca y lluvia reciente (AEMET). Actualizado cada 6h.">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://radar.viajeinteligencia.com/nivel-embalses.html">
+<meta property="og:image" content="https://radar.viajeinteligencia.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root{{color-scheme:light}}
 body{{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f8fafc;color:#0f172a}}
