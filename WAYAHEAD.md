@@ -839,3 +839,21 @@ Dominio más escaneado: municipal (9:1 bot:humano) antes del fix.
 
 **Nota:** la config de nginx NO está versionada en ningún repo (es config de sistema).
 Este cambio se documenta aquí para trazabilidad.
+
+## 2026-08-31 — Consolidación de sesión (radar FIMI + ecosistema)
+
+**Radar FIMI (hybrid-fimi-radar):**
+- MVP completo: pipeline 7 etapas (ingest→features→anomalías→coordinación→clustering→scoring→atribución).
+- Validación sintética ARI 1.000, 0 falsos positivos (escenarios A-F del prompt FIMI).
+- En producción: https://fimi.viajeinteligencia.com (Hetzner, cron 6h, Cloudflare naranja).
+- 19 fuentes (incluye Magreb en francés: Yabiladi, Hespress, TSA, Algerie360, AMI).
+- Detección de narrativas amplificadas + persistencia de hallazgos (findings) + informe diario.
+- Alerta de narrativas sostenidas (misma narrativa amplificada ≥3 días = campaña sostenida).
+- Dashboard con KPIs, historial, y texto completo de narrativas.
+
+**Ecosistema (análisis accesos semana):**
+- 4.235 humanos/día (30.3%) → viable.
+- Sólidos: country (66%), municipal (45%), nearme (28.5%), www (15.4%).
+- Descomisionados: tools, alquimetria (solo 301 al principal).
+- Hardening: unificado bloqueo de bots (feroxbuster, l9scan, censys, curl → 444) + rate-limit municipal.
+- Informe completo: VIABILIDAD_ECOSISTEMA.md.
