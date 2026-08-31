@@ -209,7 +209,16 @@ h1{{font-size:1.5rem}} .card{{background:#fff;border:1px solid #e5e5e5;border-ra
 .kpi{{display:inline-block;background:#f2f2f2;border-radius:8px;padding:8px 14px;margin:4px 6px 4px 0;font-size:.95rem}}
 table{{border-collapse:collapse;width:100%;font-size:.92rem}} td,th{{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}}
 .met{{font-size:.85rem;color:#555;line-height:1.5}} a{{color:#c2410c}}
-</style></head><body><main>
+</style><meta property="og:type" content="website">
+<meta property="og:title" content="Incendios × meteorología · NearMe análisis">
+<meta property="og:description" content="Relación entre detecciones térmicas de incendios (NASA FIRMS) y temperatura/viento por comunidad. Metodología explícita.">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://radar.viajeinteligencia.com/incendios-meteorologia.html">
+<meta property="og:image" content="https://radar.viajeinteligencia.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+</head><body><main>
 <h1>🔥 Incendios × meteorología</h1>
 <p>Cada punto es una <b>comunidad autónoma en un día concreto</b>: eje X = temperatura máxima diaria (media en la capital autonómica), eje Y = detecciones térmicas registradas por NearMe (NASA FIRMS). El tamaño refleja el viento.</p>
 <div class="kpi">Ventana: {d0.strftime('%d/%m')} – {d1.strftime('%d/%m')} 2026</div>

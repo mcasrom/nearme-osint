@@ -154,7 +154,16 @@ def main():
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>El pulso de España · estrés territorial medido día a día</title>
 <meta name="description" content="Mapa de calor de la actividad de emergencias y avisos por comunidad autónoma y día, más el índice de estrés sistémico: cuántas fuentes de datos distintas alarman a la vez. Datos propios NearMe.">
-<link rel="canonical" href="https://radar.viajeinteligencia.com/pulso-espana.html"></head>
+<link rel="canonical" href="https://radar.viajeinteligencia.com/pulso-espana.html"><meta property="og:type" content="website">
+<meta property="og:title" content="El pulso de España · estrés territorial día a día">
+<meta property="og:description" content="Mapa de calor de emergencias y avisos por comunidad y día, más el índice de estrés sistémico.">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://radar.viajeinteligencia.com/pulso-espana.html">
+<meta property="og:image" content="https://radar.viajeinteligencia.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+</head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
 <p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">incendios × meteorología</a></p>

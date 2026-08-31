@@ -290,7 +290,16 @@ def main():
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Enjambre sísmico de Granada · evolución día a día</title>
 <meta name="description" content="Evolución cronológica del enjambre sísmico activo en la Vega de Granada desde el 14 de agosto de 2026. Datos IGN oficiales, actualizado periódicamente.">
-<link rel="canonical" href="https://radar.viajeinteligencia.com/enjambre-granada.html"></head>
+<link rel="canonical" href="https://radar.viajeinteligencia.com/enjambre-granada.html"><meta property="og:type" content="website">
+<meta property="og:title" content="Enjambre sísmico de Granada · evolución día a día">
+<meta property="og:description" content="Evolución cronológica del enjambre sísmico activo en la Vega de Granada. Datos IGN oficiales, actualizado periódicamente.">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://radar.viajeinteligencia.com/enjambre-granada.html">
+<meta property="og:image" content="https://radar.viajeinteligencia.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+</head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
 <p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">🔥 incendios</a></p>
