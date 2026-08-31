@@ -38,8 +38,16 @@ Objetivo: determinar viabilidad por proyecto y decidir dónde concentrar recurso
 | wiki.viajeinteligencia.com | 141 | 12% | privado, esperable |
 | libro-colaborativo | 368 | 50% | bajo volumen |
 | jobs.viajeinteligencia.com | 188 | 28.5% | bajo |
-| alquimetria.viajeinteligencia.com | 5 | 1.4% | sin humanos reales |
-| tools.viajeinteligencia.com | 46 | 33% | descomisionado |
+
+### ⚫ DESCOMISIONADOS (ya no son proyectos)
+| Proyecto | Estado real | Detalle |
+|---|---|---|
+| tools.viajeinteligencia.com | Descomisionado 08-Ago-2026 | Redirige 301 al dominio raíz |
+| alquimetria.viajeinteligencia.com | Descomisionado | Redirige 301 a www.viajeinteligencia.com |
+
+> **Nota:** tools y alquimetria NO son proyectos activos. Su tráfico residual
+> (tools 46, alquimetria 5 humanos/sem) son las redirecciones 301 al principal.
+> No requieren inversión ni mantenimiento; solo deben seguir redirigiendo.
 
 ## Estrategia acordada (31/08/2026)
 **CONSOLIDAR LOS SÓLIDOS:**
@@ -48,8 +56,11 @@ Objetivo: determinar viabilidad por proyecto y decidir dónde concentrar recurso
 3. **nearme** — 28.5%, motor OSINT. Mantener pipeline + visibilidad.
 4. **www (hub)** — 15.4% pero es la puerta de entrada. Mantener como distribuidor de tráfico.
 
-**ZOMBIES (mantenimiento mínimo):** myip, alquimetria, wiki, operacion-puzzle, eclipse.
-No invertir más. Dejar funcionando sin coste; descomisión si dejan de ser mantenibles.
+**ZOMBIES (mantenimiento mínimo):** myip, wiki, operacion-puzzle, eclipse, security,
+jobs, libro-colaborativo. No invertir más. Dejar funcionando sin coste; descomisión
+si dejan de ser mantenibles.
+
+**YA DESCOMISIONADOS (no proyectos):** tools, alquimetria. Solo siguen redirigiendo 301 al principal.
 
 ## Acciones derivadas (relacionadas con este informe)
 - **Hardening accesos (31/08)**: bloqueados scanners (feroxbuster, l9scan, censys, curl)
