@@ -200,6 +200,67 @@ def svg_dots(emb):
     return "".join(parts)
 
 
+def mapa_html(emb):
+    """Mapa Leaflet por cuenca: marcadores de cada embalse coloreados por estado,
+    con clusters por cuenca. Client-side (sin carga al server)."""
+    pts = []
+    for e in emb:
+        lat, lng = e.get("lat"), e.get("lng")
+        if lat is None or lng is None:
+            continue
+        pct = e.get("porcentaje")
+        col, _ = color_pct(pct)
+        pts.append({
+            "lat": round(float(lat), 4), "lng": round(float(lng), 4),
+            "nombre": e.get("nombre", "?"), "prov": e.get("provincia", ""),
+            "cuenca": (e.get("cuenca") or "Desconocida").replace("_", " ").title(),
+            "pct": round(pct, 1) if pct is not None else None,
+            "col": col,
+        })
+    import json as _json
+    data_json = _json.dumps(pts, ensure_ascii=False)
+    return f'''<div id="mapa-embalses" style="height:520px;border-radius:12px;border:1px solid #e2e8f0"></div>
+<div class="leyenda" style="margin-top:10px">
+  <span><span class="dot" style="background:#16a34a"></span>≥70%</span>
+  <span><span class="dot" style="background:#0891b2"></span>50-70%</span>
+  <span><span class="dot" style="background:#eab308"></span>40-50%</span>
+  <span><span class="dot" style="background:#f97316"></span>20-40%</span>
+  <span><span class="dot" style="background:#dc2626"></span>&lt;20%</span>
+  <span style="margin-left:8px;color:#64748b">Doble clic en un marcador para ver el grupo por cuenca.</span>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){{
+  var pts = {data_json};
+  var map = L.map('mapa-embalses', {{scrollWheelZoom:false}}).setView([40.2, -3.7], 6);
+  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }}).addTo(map);
+  var bounds = [];
+  // grupo por cuenca
+  var porCuenca = {{}};
+  pts.forEach(function(p){{
+    (porCuenca[p.cuenca] = porCuenca[p.cuenca] || []).push(p);
+    bounds.push([p.lat, p.lng]);
+  }});
+  Object.keys(porCuenca).forEach(function(c){{
+    var group = L.featureGroup();
+    porCuenca[c].forEach(function(p){{
+      var circle = L.circleMarker([p.lat, p.lng], {{
+        radius: 6, color:'#0f172a', weight:1, fillColor: p.col, fillOpacity: 0.9
+      }}).bindPopup('<b>' + p.nombre + '</b> (' + p.prov + ')<br>Cuenca: ' + p.cuenca +
+        '<br>Nivel: ' + (p.pct === null ? 'sin dato' : p.pct + '%'));
+      circle.on('dblclick', function(){{ map.fitBounds(group.getBounds(), {{padding:[40,40]}}); }});
+      group.addLayer(circle);
+    }});
+    group.addTo(map);
+  }});
+  if (bounds.length) map.fitBounds(bounds, {{padding:[20,20]}});
+}})();
+</script>'''
+
+
 def main():
     emb = fetch_embalses()
     if not emb:
@@ -307,6 +368,14 @@ Fuentes: <strong>MITECO/SAIH</strong> (estadoembalses.es) y <strong>AEMET</stron
       {svg_dots(emb)}
     </div>
   </div>
+</div>
+
+<div class="card">
+  <h3>Mapa de embalses por cuenca</h3>
+  <p class="caption">Cada punto es un embalse, coloreado por su nivel de llenado. Doble clic en un
+  marcador para encuadrar el grupo de su cuenca. Desplazamiento con la rueda desactivado para
+  no interferir al leer la página (usa zoom +/-).</p>
+  {mapa_html(emb)}
 </div>
 
 <div class="card">
