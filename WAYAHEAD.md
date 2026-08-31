@@ -801,3 +801,21 @@ Referencia: embalses Candoncillo + Beas (commit de48617).
 - **Nota**: `interval_minutes` sigue siendo declarativo en TODO el ecosistema (UV/nieve/
   copernicus/ree/dgt lo definen pero corren cada 15 min). Este fix solo acota Playas.
   Propuesta future: aplicar intervalo real en base.run() con cuidado (ree/dgt/ign son tiempo real).
+
+## 2026-08-31 — Página "Nivel de los embalses de España" (radar)
+
+- **Nuevo**: `scripts/gen_nivel_embalses.py` genera `/var/www/radar/nivel-embalses.html`
+  (patrón de enjambre-granada.html: HTML estático + SVG inline, sin tocar nginx).
+- **Fuentes**: estadoembalses.es (MITECO/SAIH, API pública ~493 embalses) para nivel,
+  volumen, capacidad; AEMET OpenData (observaciones convencionales) para lluvia reciente
+  por cuenca (asignación por coordenadas al embalse más cercano).
+- **Contenido**: KPI cards (embalses, nivel medio 59.1%, alerta <40%, críticos <20%,
+  volumen total), donut del nivel medio, distribución por estado (barras por franja),
+  nivel medio por cuenca (14 cuencas), ranking más llenos/vacíos, lluvia por cuenca.
+- **Cron**: `10 8,14,20 * * *` (igual que enjambre, cada 6h).
+- **Integración**: tarjeta `door d8` (💧 Nivel de los embalses) en el hub
+  viajeinteligencia.com justo después de la de Enjambre (d7); enlace en el pie del
+  index de radar y navegación de enjambre.
+- **Nota nginx**: `nginx -t` como usuario deploy falla por permisos de
+  /etc/letsencrypt/live (drwx------ root, cert aegis.viajeinteligencia.com) — preexistente,
+  NO de este cambio; el servicio real (root) sirve todo OK.
