@@ -857,3 +857,7 @@ Este cambio se documenta aquí para trazabilidad.
 - Descomisionados: tools, alquimetria (solo 301 al principal).
 - Hardening: unificado bloqueo de bots (feroxbuster, l9scan, censys, curl → 444) + rate-limit municipal.
 - Informe completo: VIABILIDAD_ECOSISTEMA.md.
+
+## 2026-09-01 — Hito D (complemento): Alquimetria + viabilidad
+- Alquimetria.viajeinteligencia.com (descomisionado, nombre con tirón) redirigido a https://municipal.viajeinteligencia.com/mapa-alquiler.html — LetsEncrypt + Cloudflare naranja. Reaprovecha marca Alquimetria para trafico cualificado hacia el mapa.
+- Viabilidad municipal confirmada: 41,3% humano (5.405), pico 30/08 por editorial alquiler.
