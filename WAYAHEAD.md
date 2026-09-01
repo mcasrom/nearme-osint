@@ -861,3 +861,11 @@ Este cambio se documenta aquí para trazabilidad.
 ## 2026-09-01 — Hito D (complemento): Alquimetria + viabilidad
 - Alquimetria.viajeinteligencia.com (descomisionado, nombre con tirón) redirigido a https://municipal.viajeinteligencia.com/mapa-alquiler.html — LetsEncrypt + Cloudflare naranja. Reaprovecha marca Alquimetria para trafico cualificado hacia el mapa.
 - Viabilidad municipal confirmada: 41,3% humano (5.405), pico 30/08 por editorial alquiler.
+
+## Política de retención (2026-09-01)
+
+Ver `RETENCION.md` (documento central del ecosistema).
+
+- **`event_history`** (snapshots de eventos): retención **30 días** (cron `0 3 * * * cleanup_history_retention(30)`). No alimenta gráficos.
+- **`events`**: **NO se borra**. Datos de sismos (Granada), incendios, embalses, lluvia/nieve → intactos.
+- Incidente 2026-09-01: `event_history` llegó a 24.3M filas (4.4G) por cron heredado a 365 días. Corregido a 30 días + VACUUM. Disco 65%→58%.
