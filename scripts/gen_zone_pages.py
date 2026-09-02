@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 BASE = "/home/deploy/nearme-osint"
 FRONT = os.path.join(BASE, "frontend")
-API = "https://nearme.viajeinteligencia.com/api/nearby"
+API = "http://127.0.0.1:8100/api/nearby"
 SITE = "https://nearme.viajeinteligencia.com"
 PUSH = "/home/deploy/scripts/indexnow_push.py"
 MIN_EVENTS = 2
@@ -29,18 +29,58 @@ TOPICS = {
 
 # zonas: slug, nombre, lat, lon
 ZONES = [
-    ("granada", "Granada", "37.17", "-3.60"),
     ("madrid", "Madrid", "40.42", "-3.70"),
+    ("barcelona", "Barcelona", "41.39", "2.17"),
     ("valencia", "Valencia", "39.47", "-0.38"),
     ("sevilla", "Sevilla", "37.39", "-5.98"),
-    ("huelva", "Huelva", "37.26", "-6.95"),
-    ("avila", "Ávila", "40.66", "-4.70"),
-    ("salamanca", "Salamanca", "40.97", "-5.66"),
-    ("zamora", "Zamora", "41.50", "-5.75"),
-    ("albacete", "Albacete", "38.99", "-1.86"),
-    ("soria", "Soria", "41.77", "-2.47"),
-    ("cuenca", "Cuenca", "40.07", "-2.13"),
+    ("bilbao", "Bilbao", "43.26", "-2.94"),
+    ("oviedo", "Oviedo", "43.36", "-5.85"),
+    ("granada", "Granada", "37.17", "-3.60"),
+    ("toledo", "Toledo", "39.86", "-4.03"),
+    ("valladolid", "Valladolid", "41.65", "-4.72"),
+    ("leon", "León", "42.61", "-5.57"),
+    ("santander", "Santander", "43.46", "-3.81"),
+    ("malaga", "Málaga", "36.72", "-4.42"),
+    ("alicante", "Alicante", "38.35", "-0.48"),
+    ("zaragoza", "Zaragoza", "41.65", "-0.89"),
+    ("santiago", "Santiago", "42.88", "-8.54"),
     ("teruel", "Teruel", "40.34", "-1.11"),
+    ("pamplona", "Pamplona", "42.82", "-1.64"),
+    ("tarragona", "Tarragona", "41.12", "1.24"),
+    ("cadiz", "Cádiz", "36.53", "-6.29"),
+    ("almeria", "Almería", "36.83", "-2.46"),
+    ("murcia", "Murcia", "37.98", "-1.13"),
+    ("salamanca", "Salamanca", "40.96", "-5.66"),
+    ("vitoria", "Vitoria", "42.86", "-2.72"),
+    ("lleida", "Lleida", "41.62", "0.61"),
+    ("caceres", "Cáceres", "39.49", "-6.37"),
+    ("badajoz", "Badajoz", "38.88", "-6.97"),
+    ("albacete", "Albacete", "38.98", "-1.86"),
+    ("huelva", "Huelva", "37.26", "-6.95"),
+    ("jaen", "Jaén", "37.77", "-3.79"),
+    ("segovia", "Segovia", "40.94", "-4.12"),
+    ("soria", "Soria", "41.81", "-3.74"),
+    ("burgos", "Burgos", "42.33", "-3.70"),
+    ("cuenca", "Cuenca", "40.32", "-1.94"),
+    ("zamora", "Zamora", "41.53", "-5.99"),
+    ("palma", "Palma", "39.57", "2.66"),
+    ("santa-cruz", "Santa Cruz de Tenerife", "28.29", "-16.63"),
+    ("las-palmas", "Las Palmas de Gran Canaria", "28.12", "-15.44"),
+    ("avila", "Ávila", "40.66", "-4.70"),
+    ("guadalajara", "Guadalajara", "40.63", "-3.17"),
+    ("ciudad-real", "Ciudad Real", "38.99", "-3.93"),
+    ("cordoba", "Córdoba", "37.89", "-4.78"),
+    ("castellon", "Castellón", "39.99", "-0.05"),
+    ("girona", "Girona", "41.98", "2.82"),
+    ("huesca", "Huesca", "42.14", "-0.41"),
+    ("san-sebastian", "San Sebastián", "43.32", "-1.98"),
+    ("logrono", "Logroño", "42.47", "-2.45"),
+    ("lugo", "Lugo", "43.01", "-7.56"),
+    ("ourense", "Ourense", "42.34", "-7.86"),
+    ("palencia", "Palencia", "42.01", "-4.53"),
+    ("pontevedra", "Pontevedra", "42.43", "-8.64"),
+    ("ceuta", "Ceuta", "35.89", "-5.32"),
+    ("melilla", "Melilla", "35.29", "-2.94"),
 ]
 
 EMOJI = {"terremotos": "🌍", "incendios": "🔥", "calidad-del-aire": "💨", "embalses": "💧", "trafico": "🚗"}
@@ -148,9 +188,38 @@ def build_html(topic, zone, name, events, now):
 </html>""" % (title, desc, url, title, desc, url, title, iso, url, e_emoji, title, url, intro, n, iso, intro, items)
 
 
+def build_sitemap(zone_urls):
+    """Regenera sitemap.xml con las paginas de zona generadas + paginas estaticas."""
+    static = [
+        ("https://nearme.viajeinteligencia.com/", "daily", "1.0"),
+        ("https://nearme.viajeinteligencia.com/firms", "monthly", "0.8"),
+        ("https://nearme.viajeinteligencia.com/calidad-aire", "monthly", "0.8"),
+        ("https://nearme.viajeinteligencia.com/precio-luz", "monthly", "0.8"),
+        ("https://nearme.viajeinteligencia.com/incendios", "monthly", "0.8"),
+        ("https://nearme.viajeinteligencia.com/trafico", "monthly", "0.8"),
+    ]
+    seen = set()
+    urls = []
+    for u, cf, pr in static:
+        seen.add(u)
+        urls.append((u, cf, pr))
+    for u in sorted(zone_urls):
+        if u in seen:
+            continue
+        seen.add(u)
+        urls.append((u, "hourly", "0.8"))
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for u, cf, pr in urls:
+        xml += '  <url><loc>%s</loc><changefreq>%s</changefreq><priority>%s</priority></url>\n' % (u, cf, pr)
+    xml += '</urlset>\n'
+    open(os.path.join(FRONT, "sitemap.xml"), "w", encoding="utf-8").write(xml)
+    return len(urls)
+
+
 def main():
     now = datetime.now(timezone.utc)
     generated = []
+    zone_urls = set()
     for topic, (etype, label) in TOPICS.items():
         for zslug, zname, lat, lon in ZONES:
             try:
@@ -163,9 +232,13 @@ def main():
             evs.sort(key=lambda e: (e.get("level") or "info"), reverse=True)
             out = os.path.join(FRONT, "%s-%s.html" % (topic, zslug))
             open(out, "w", encoding="utf-8").write(build_html(topic, zslug, zname, evs, now))
+            url = "%s/%s-%s.html" % (SITE, topic, zslug)
             generated.append("%s/%s-%s" % (SITE, topic, zslug))
+            zone_urls.add(url)
             print("OK:", topic, zname, "(%d eventos)" % len(evs))
     print("total generadas:", len(generated))
+    n_sitemap = build_sitemap(zone_urls)
+    print("sitemap.xml regenerado: %d urls" % n_sitemap)
     if "--push" in sys.argv and generated:
         subprocess.run([sys.executable, PUSH] + generated, check=False)
 
