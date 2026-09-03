@@ -49,7 +49,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e17; color: #d0dbe8; }
-        #app { display: flex; height: 100vh; }
+        #app { display: flex; height: 100vh; height: 100dvh; }
         #map { flex: 1; }
         #sidebar { width: 420px; overflow-y: auto; padding: 16px; background: #0d1520; border-left: 1px solid #1a2a4a; }
         h1 { color: #00d4ff; font-size: 1.3em; margin-bottom: 4px; }
@@ -173,7 +173,7 @@
         .ob-carousel { position: relative; }
         .ob-slide { display: none; }
         .ob-slide.active { display: block; }
-        .ob-slide img { width: 100%; border-radius: 10px; border: 1px solid #1a2a4a; margin-bottom: 12px; }
+        .ob-slide img { width: 100%; height: auto; aspect-ratio: 1908 / 842; object-fit: cover; border-radius: 10px; border: 1px solid #1a2a4a; margin-bottom: 12px; }
         .ob-text { color: #b0bec5; font-size: 0.85em; line-height: 1.55; }
         .ob-text strong { color: #e0e8f0; }
         .ob-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 8px; }
@@ -470,9 +470,9 @@
 
         @media (max-width: 768px) {
             #app { flex-direction: column; }
-            #map { flex: none; height: 45vh; min-height: 200px; }
+            #map { flex: none; height: 45vh; height: 45dvh; min-height: 200px; }
             #sidebar {
-                width: 100%; flex: none; height: 55vh; min-height: 250px;
+                width: 100%; flex: none; height: 55vh; height: 55dvh; min-height: 250px;
                 border-left: none; border-top: 1px solid #1a2a4a;
                 overflow-y: auto;
             }
@@ -1047,7 +1047,7 @@ function init() {
         document.getElementById('alertBtn').classList.add('alert-btn-pulse');
     }
     map = L.map('map').setView([currentLat, currentLon], EMBED_MODE ? 12 : 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('/tiles/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', maxZoom: 18,
     }).addTo(map);
     marker = L.circleMarker([currentLat, currentLon], { radius: 8, color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.8 }).addTo(map);
