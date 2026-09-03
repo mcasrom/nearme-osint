@@ -189,27 +189,31 @@ def build_html(topic, zone, name, events, now):
 
 
 def build_sitemap(zone_urls):
-    """Regenera sitemap.xml con las paginas de zona generadas + paginas estaticas."""
-    static = [
-        ("https://nearme.viajeinteligencia.com/", "daily", "1.0"),
-        ("https://nearme.viajeinteligencia.com/firms", "monthly", "0.8"),
-        ("https://nearme.viajeinteligencia.com/calidad-aire", "monthly", "0.8"),
-        ("https://nearme.viajeinteligencia.com/precio-luz", "monthly", "0.8"),
-        ("https://nearme.viajeinteligencia.com/incendios", "monthly", "0.8"),
-        ("https://nearme.viajeinteligencia.com/trafico", "monthly", "0.8"),
-    ]
-    seen = set()
-    urls = []
-    for u, cf, pr in static:
-        seen.add(u)
-        urls.append((u, cf, pr))
-    for u in sorted(zone_urls):
+    """Regenera sitemap.xml escaneando todos los .html del frontend (idempotente).
+    Las paginas de zona se marcan como hourly; el resto como monthly."""
+    static_prio = {
+        "https://nearme.viajeinteligencia.com/": ("daily", "1.0"),
+        "https://nearme.viajeinteligencia.com/firms": ("monthly", "0.8"),
+        "https://nearme.viajeinteligencia.com/calidad-aire": ("monthly", "0.8"),
+        "https://nearme.viajeinteligencia.com/precio-luz": ("monthly", "0.8"),
+        "https://nearme.viajeinteligencia.com/incendios": ("monthly", "0.8"),
+        "https://nearme.viajeinteligencia.com/trafico": ("monthly", "0.8"),
+    }
+    urls = list(static_prio.items())
+    seen = {u for u, _ in urls}
+    # escanear todos los .html reales (zone pages, tiempo-*, resto)
+    import os as _os
+    files = sorted(f for f in _os.listdir(FRONT) if f.endswith(".html") and f != "index.html")
+    for f in files:
+        u = "%s/%s" % (SITE, f[:-5])
         if u in seen:
             continue
         seen.add(u)
-        urls.append((u, "hourly", "0.8"))
+        cf = "hourly" if f.startswith(("trafico-", "terremotos-", "incendios-", "embalses-",
+                                       "calidad-del-aire-", "tiempo-")) else "monthly"
+        urls.append((u, (cf, "0.8")))
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    for u, cf, pr in urls:
+    for u, (cf, pr) in urls:
         xml += '  <url><loc>%s</loc><changefreq>%s</changefreq><priority>%s</priority></url>\n' % (u, cf, pr)
     xml += '</urlset>\n'
     open(os.path.join(FRONT, "sitemap.xml"), "w", encoding="utf-8").write(xml)
