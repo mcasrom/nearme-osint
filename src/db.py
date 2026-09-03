@@ -296,6 +296,16 @@ def init_db():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_ccaa_geom ON spain_ccaa USING GIST(geom)")
     _ensure_ccaa_layer(cur)
+
+    # Capa de municipios (límites IGN/INSPIRE) para geolocalizar eventos por municipio
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS spain_municipios (
+            cod_ine TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            geom GEOMETRY(MultiPolygon, 4326) NOT NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_muni_geom ON spain_municipios USING GIST(geom)")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS emergency_resources (
             id SERIAL PRIMARY KEY,
@@ -379,6 +389,62 @@ def get_ccaa_for_point(lat: float, lon: float) -> Optional[dict]:
         r = cur.fetchone()
         cur.close()
         return dict(r) if r else None
+    finally:
+        release_conn(conn)
+
+
+def get_municipio_for_point(lat: float, lon: float) -> Optional[str]:
+    """Devuelve el nombre del municipio que contiene el punto, o None."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT name FROM spain_municipios "
+            "WHERE ST_Within(ST_SetSRID(ST_MakePoint(%s, %s), 4326), geom) LIMIT 1",
+            (lon, lat))
+        r = cur.fetchone()
+        cur.close()
+        return r[0] if r else None
+    except Exception:
+        return None
+    finally:
+        release_conn(conn)
+
+
+def backfill_municipality_events() -> int:
+    """Asigna municipio a los eventos activos con municipality vacío (join espacial).
+    Se llama tras cada ingesta del pipeline para geocodificar las fuentes que no
+    traen municipio (IGN, NASA FIRMS, AEMET, RENFE...). Devuelve nº de actualizados."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM spain_municipios")
+        if cur.fetchone()[0] == 0:
+            cur.close()
+            return 0
+        cur.execute("""
+            WITH candidatos AS (
+                SELECT e.id, m.name
+                FROM events e
+                JOIN spain_municipios m ON ST_Within(e.geom, m.geom)
+                WHERE e.municipality = '' AND e.geom IS NOT NULL
+                  AND e.status IN ('active', 'updated')
+            )
+            UPDATE events e2
+            SET municipality = c.name, updated_at = NOW()
+            FROM candidatos c
+            WHERE e2.id = c.id
+        """)
+        n = cur.rowcount
+        conn.commit()
+        cur.close()
+        if n:
+            logger.info("[backfill] municipality asignado a %d eventos", n)
+        return n
+    except Exception as e:
+        conn.rollback()
+        logger.warning("[backfill] error asignando municipio: %s", e)
+        return 0
     finally:
         release_conn(conn)
 

@@ -126,6 +126,10 @@ def run_all():
 
     total_events = asyncio.run(_run_collectors())
     logger.info("Total eventos recolectados: %d", total_events)
+
+    from src.db import backfill_municipality_events
+    backfilled = backfill_municipality_events()
+    logger.info("Eventos geolocalizados a municipio: %d", backfilled)
     logger.info("Pipeline completado")
 
 
