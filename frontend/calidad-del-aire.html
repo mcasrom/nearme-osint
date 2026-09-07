@@ -47,6 +47,18 @@
   .foot a{color:var(--amber);text-decoration:none;}
   .kofi{display:inline-block;margin-top:12px;background:#29ABE0;color:#fff;font-weight:700;padding:8px 15px;border-radius:9px;text-decoration:none;font-size:12px;}
   #status{font-size:12px;color:var(--dim);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:18px 0;}
+  .card h2{font-size:15px;margin-bottom:8px;}
+  .card .sub{font-size:12px;color:var(--dim);margin-bottom:10px;}
+  .tabs{display:flex;gap:6px;margin:6px 0 12px;}
+  .tab{border:1px solid var(--line);background:var(--panel);color:var(--text2);border-radius:999px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .tab.on{background:#16202E;color:#fff;border-color:#16202E;}
+  .note{background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid var(--amber);border-radius:10px;padding:11px 14px;font-size:13px;color:#7c4a03;margin:14px 0;}
+  .chart-wrap{overflow-x:auto;}
+  .sq{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  table{font-size:12.5px;}
+  table th,table td{padding:6px 9px;border-bottom:1px solid var(--line);}
+  table thead th{background:#f1f5f9;position:sticky;top:0;text-align:left;}
 </style>
 </head>
 <body>
@@ -54,7 +66,7 @@
   <div class="top">
     <h1>💨 Calidad del aire en España · mapa en vivo</h1>
     <div>
-      <a class="back" href="https://nearme.viajeinteligencia.com/calidad-del-aire-historico">📈 Histórico →</a> &nbsp;
+      <a class="back" href="#historico">📈 Histórico ↓</a> &nbsp;
       <a class="back" href="https://nearme.viajeinteligencia.com">← NearMe</a>
     </div>
   </div>
@@ -98,6 +110,47 @@
   </div>
 
   <div id="lista"><h2 style="font-size:15px;margin:10px 0">Zonas con peor calidad ahora</h2><div class="list" id="peores"></div></div>
+
+  <div id="historico" class="card" style="scroll-margin-top:10px">
+    <h2>📈 Histórico · evolución de la calidad del aire</h2>
+    <div class="sub">Evolución diaria por estaciones MITECO. El histórico empieza a acumularse desde el 7/sep/2026 (snapshot diario 23:50).</div>
+    <div class="tabs">
+      <button class="tab" data-d="30" onclick="cargarHist(30)">1 mes</button>
+      <button class="tab on" data-d="90" onclick="cargarHist(90)">3 meses</button>
+      <button class="tab" data-d="180" onclick="cargarHist(180)">6 meses</button>
+    </div>
+    <div class="note" id="notaHist"></div>
+    <div class="kpis" id="kpisHist" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+    <h2 style="font-size:14px;margin:14px 0 4px">Estaciones en cada nivel por día</h2>
+    <div class="legend">
+      <span class="lg"><span class="sq" style="background:#0E9F6E"></span> Buena</span>
+      <span class="lg"><span class="sq" style="background:#FFB454"></span> Regular</span>
+      <span class="lg"><span class="sq" style="background:#ff9800"></span> Desfavorable o peor</span>
+    </div>
+    <div class="chart-wrap" id="chartBarras"></div>
+    <h2 style="font-size:14px;margin:16px 0 4px">Porcentaje de estaciones con aire no bueno</h2>
+    <div class="chart-wrap" id="chartLinea"></div>
+    <h2 style="font-size:14px;margin:18px 0 4px">Tabla cronológica diaria</h2>
+    <div style="overflow-x:auto;max-height:260px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr><th>Fecha</th><th style="text-align:right">Total</th><th style="text-align:right">Buena</th><th style="text-align:right">Regular</th><th style="text-align:right">Desfavorable+</th><th style="text-align:right">% no bueno</th></tr></thead>
+        <tbody id="tablaDias"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Detalle del último día por municipio</h2>
+    <div class="sub">Todas las estaciones con su nivel y contaminante principal. Busca tu municipio.</div>
+    <input id="busca" type="text" placeholder="Buscar municipio o estación…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;" oninput="filtrarTabla()">
+    <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr><th>Municipio / Estación</th><th>Nivel</th><th>Contaminante</th></tr></thead>
+        <tbody id="tablaDetalleBody"></tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:8px">Mostrando <span id="nDetalle">0</span> de <span id="nTotalDetalle">0</span> estaciones.</p>
+  </div>
 
   <div class="foot">
     Fuente: estaciones oficiales MITECO (ica.miteco.es). Compilación independiente NearMe OSINT.
@@ -216,10 +269,105 @@ fetch('/api/air-quality')
     datos = d.estaciones;
     document.getElementById('status').textContent = d.total+' estaciones oficiales MITECO · actualizado '+(d.server_ts||'');
     aplicarFiltro();
+    if (typeof pintarTabla === 'function') pintarTabla(datos);
   })
   .catch(function(e){
     document.getElementById('status').textContent='Error de red cargando datos: '+e.message;
   });
+
+// ============ HISTÓRICO (integrado) ============
+var serie = [];
+function fmtFecha(iso){ var p=iso.split('-'); return p[2]+'/'+p[1]; }
+function renderKPIsHist(){
+  if(!serie.length){ document.getElementById('kpisHist').innerHTML='<div class="kpi"><div class="n">—</div><div class="l">Sin datos aún</div></div>'; return; }
+  var last=serie[serie.length-1], total=last.total, buenas=last.buenas, reg=last.regulares, malas=last.malas, pct=last.pct_no_bueno;
+  var h='';
+  h+='<div class="kpi"><div class="n">'+total+'</div><div class="l">Estaciones (últ. día)</div><div class="s">'+fmtFecha(last.fecha)+'</div></div>';
+  h+='<div class="kpi"><div class="n" style="color:#0E9F6E">'+buenas+'</div><div class="l">Aire bueno</div><div class="s">'+Math.round(100*buenas/total)+'%</div></div>';
+  h+='<div class="kpi"><div class="n" style="color:#FFB454">'+reg+'</div><div class="l">Regular</div><div class="s">aceptable</div></div>';
+  h+='<div class="kpi"><div class="n" style="color:#ff9800">'+malas+'</div><div class="l">Desfavorable+</div><div class="s">grupos sensibles</div></div>';
+  h+='<div class="kpi"><div class="n" style="color:'+(pct>20?'#ff9800':pct>10?'#D9820A':'#0E9F6E')+'">'+pct+'%</div><div class="l">Aire no bueno</div><div class="s">últ. día</div></div>';
+  document.getElementById('kpisHist').innerHTML=h;
+}
+function renderBarras(){
+  var W=900,H=290,padL=40,padB=34,padT=12, i;
+  var n=serie.length; if(!n) return;
+  var maxEst=0; serie.forEach(function(d){ if(d.total>maxEst)maxEst=d.total; }); maxEst=Math.ceil(maxEst/100)*100;
+  var iw=W-padL-8, ih=H-padT-padB, bw=Math.max(6, iw/Math.max(n,1)-3);
+  var y=function(v){return padT+ih*(1-v/maxEst);};
+  var html='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">';
+  for(var g=0;g<=4;g++){ var gy=padT+ih*g/4, gv=maxEst*(1-g/4);
+    html+='<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-6)+'" y2="'+gy+'" stroke="#eee"/>';
+    html+='<text x="'+padL-6+'" y="'+(gy+4)+'" font-size="10" fill="#999" text-anchor="end">'+Math.round(gv)+'</text>'; }
+  for(i=0;i<n;i++){ var d=serie[i], x=padL+i*bw+i*3+2;
+    var hB=d.buenas/maxEst*ih,hR=d.regulares/maxEst*ih,hM=d.malas/maxEst*ih;
+    html+='<rect x="'+x+'" y="'+y(d.buenas)+'" width="'+bw+'" height="'+hB+'" fill="#0E9F6E"/>';
+    html+='<rect x="'+x+'" y="'+y(d.buenas+d.regulares)+'" width="'+bw+'" height="'+hR+'" fill="#FFB454"/>';
+    html+='<rect x="'+x+'" y="'+y(d.total)+'" width="'+bw+'" height="'+hM+'" fill="#ff9800"/>';
+    if(n<=45 && i%Math.max(1,Math.ceil(n/20))===0) html+='<text x="'+(x+bw/2)+'" y="'+(H-14)+'" font-size="9" fill="#999" text-anchor="middle">'+fmtFecha(d.fecha)+'</text>'; }
+  html+='</svg>'; document.getElementById('chartBarras').innerHTML=html;
+}
+function renderLinea(){
+  var W=900,H=240,padL=40,padB=30,padT=12,i;
+  var n=serie.length; if(!n) return;
+  var maxP=30; serie.forEach(function(d){ if(d.pct_no_bueno>maxP)maxP=d.pct_no_bueno; }); maxP=Math.ceil(maxP/10)*10; if(maxP<10)maxP=10;
+  var iw=W-padL-8, ih=H-padT-padB;
+  var px=function(i){return padL+iw*i/Math.max(n-1,1);}, py=function(v){return padT+ih*(1-v/maxP);};
+  var pts=serie.map(function(d,i){return px(i).toFixed(1)+','+py(d.pct_no_bueno).toFixed(1);}).join(' ');
+  var html='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">';
+  for(var g=0;g<=4;g++){ var gy=padT+ih*g/4, gv=maxP*(1-g/4);
+    html+='<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-6)+'" y2="'+gy+'" stroke="#eee"/>';
+    html+='<text x="'+padL-6+'" y="'+(gy+4)+'" font-size="10" fill="#999" text-anchor="end">'+Math.round(gv)+'%</text>'; }
+  var area=padL+','+py(0)+' '+pts+' '+(W-6)+','+py(0);
+  html+='<polygon points="'+area+'" fill="#D9820A" opacity="0.15"/>';
+  html+='<polyline points="'+pts+'" fill="none" stroke="#D9820A" stroke-width="2.5" stroke-linejoin="round"/>';
+  html+='<circle cx="'+px(n-1)+'" cy="'+py(serie[n-1].pct_no_bueno)+'" r="4" fill="#D9820A"/>';
+  if(n<=45) for(i=0;i<n;i++) if(i%Math.max(1,Math.ceil(n/18))===0) html+='<text x="'+px(i)+'" y="'+(H-10)+'" font-size="9" fill="#999" text-anchor="middle">'+fmtFecha(serie[i].fecha)+'</text>';
+  html+='</svg>'; document.getElementById('chartLinea').innerHTML=html;
+}
+function renderTablaDias(){
+  var tb=document.getElementById('tablaDias'); if(!tb) return;
+  var rows=serie.slice().reverse();
+  tb.innerHTML=rows.map(function(d){
+    var p=d.pct_no_bueno, col=p>20?'#ff9800':(p>10?'#D9820A':'#0E9F6E');
+    return '<tr><td>'+d.fecha+'</td><td style="text-align:right">'+d.total+'</td><td style="text-align:right;color:#0E9F6E">'+d.buenas+'</td><td style="text-align:right;color:#D9820A">'+d.regulares+'</td><td style="text-align:right;color:#ff9800">'+d.malas+'</td><td style="text-align:right"><b style="color:'+col+'">'+p+'%</b></td></tr>';
+  }).join('') || '<tr><td colspan="6" style="color:#888;padding:12px">Sin datos aún.</td></tr>';
+}
+function cargarHist(dias){
+  document.querySelectorAll('.tabs .tab').forEach(function(b){ b.classList.toggle('on', b.dataset.d==String(dias)); });
+  fetch('/api/air-quality/history?days='+dias)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||!d.serie){ return; }
+      serie=d.serie;
+      var dr=serie.length;
+      document.getElementById('notaHist').innerHTML='📌 <b>El histórico empieza a acumularse desde hoy (7/sep/2026).</b> Snapshot diario (23:50) de ~558 estaciones. Ahora hay <b>'+dr+' día'+(dr!==1?'s':'')+'</b> de los '+dias+' solicitados; en 1/3/6 meses mostrará la tendencia real.';
+      renderKPIsHist(); renderBarras(); renderLinea(); renderTablaDias();
+    })
+    .catch(function(){});
+}
+
+// ============ Detalle por municipio (reutiliza datos del mapa) ============
+var COLORES_TAB = {info:'#0E9F6E',warning:'#FFB454',alert:'#ff9800',critical:'#f44336'};
+function pintarTabla(lista){
+  var tb=document.getElementById('tablaDetalleBody'); if(!tb) return;
+  document.getElementById('nTotalDetalle').textContent=datos.length;
+  document.getElementById('nDetalle').textContent=lista.length;
+  if(!lista.length){ tb.innerHTML='<tr><td colspan="3" style="color:#888;padding:12px">Sin resultados.</td></tr>'; return; }
+  var peso={critical:4,alert:3,warning:2,info:1};
+  lista.sort(function(a,b){ return (peso[b.level]||0)-(peso[a.level]||0); });
+  tb.innerHTML=lista.map(function(e){
+    var col=COLORES_TAB[e.level]||'#9e9e9e';
+    var nom=e.municipality? (e.municipality+' — '+e.nombre):e.nombre;
+    return '<tr><td>'+nom+'</td><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+col+';margin-right:6px"></span><b style="color:'+col+'">'+nivelTexto(e)+'</b></td><td>'+e.contaminante+'</td></tr>';
+  }).join('');
+}
+function filtrarTabla(){
+  var q=document.getElementById('busca').value.trim().toLowerCase();
+  if(!q){ pintarTabla(datos); return; }
+  pintarTabla(datos.filter(function(e){ var nom=(e.municipality||'')+' '+e.nombre+' '+e.contaminante; return nom.toLowerCase().indexOf(q)>=0; }));
+}
+cargarHist(90);
 </script>
 </body>
 </html>
