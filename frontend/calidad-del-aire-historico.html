@@ -73,6 +73,41 @@
     <div class="chart-wrap" id="chartLinea"></div>
   </div>
 
+  <div class="card">
+    <h2>Tabla cronológica diaria</h2>
+    <div class="sub">Resumen numérico día a día: cuántas estaciones había en cada nivel ese día.</div>
+    <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+          <th style="padding:7px 9px;text-align:left">Fecha</th>
+          <th style="padding:7px 9px;text-align:right">Total</th>
+          <th style="padding:7px 9px;text-align:right">Buena</th>
+          <th style="padding:7px 9px;text-align:right">Regular</th>
+          <th style="padding:7px 9px;text-align:right">Desfavorable+</th>
+          <th style="padding:7px 9px;text-align:right">% no bueno</th>
+        </tr></thead>
+        <tbody id="tablaDias"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Detalle del último día por municipio</h2>
+    <div class="sub">Todas las estaciones con datos del día más reciente, con su nivel y contaminante principal. Busca tu municipio.</div>
+    <input id="busca" type="text" placeholder="Buscar municipio o estación…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;" oninput="filtrarTabla()">
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table id="tablaDetalle" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+          <th style="padding:7px 9px;text-align:left">Municipio / Estación</th>
+          <th style="padding:7px 9px;text-align:left">Nivel</th>
+          <th style="padding:7px 9px;text-align:left">Contaminante</th>
+        </tr></thead>
+        <tbody id="tablaDetalleBody"></tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:8px">Mostrando <span id="nDetalle">0</span> de <span id="nTotalDetalle">0</span> estaciones.</p>
+  </div>
+
   <div class="foot">
     Fuente: estaciones oficiales MITECO (ica.miteco.es). Snapshot diario NearMe OSINT.
     <br><a href="https://nearme.viajeinteligencia.com">nearme.viajeinteligencia.com</a> · <a href="https://www.viajeinteligencia.com/ecosistema.html">🌐 ecosistema</a>
@@ -175,11 +210,84 @@ function cargar(dias){
       renderKPIs(dias);
       renderBarras();
       renderLinea();
+      renderTablaDias();
     })
     .catch(function(e){ document.getElementById('status').textContent='Error de red: '+e.message; });
 }
 
+function renderTablaDias(){
+  var tb=document.getElementById('tablaDias');
+  if(!tb) return;
+  var rows=serie.slice().reverse(); // mas reciente arriba
+  var html=rows.map(function(d){
+    var p=d.pct_no_bueno;
+    var col=p>20?'#ff9800':(p>10?'#D9820A':'#0E9F6E');
+    return '<tr style="border-bottom:1px solid var(--line)">'+
+      '<td style="padding:6px 9px">'+d.fecha+'</td>'+
+      '<td style="padding:6px 9px;text-align:right">'+d.total+'</td>'+
+      '<td style="padding:6px 9px;text-align:right;color:#0E9F6E">'+d.buenas+'</td>'+
+      '<td style="padding:6px 9px;text-align:right;color:#D9820A">'+d.regulares+'</td>'+
+      '<td style="padding:6px 9px;text-align:right;color:#ff9800">'+d.malas+'</td>'+
+      '<td style="padding:6px 9px;text-align:right"><b style="color:'+col+'">'+p+'%</b></td>'+
+      '</tr>';
+  }).join('');
+  tb.innerHTML=html || '<tr><td colspan="6" style="color:#888;padding:12px">Sin datos aún.</td></tr>';
+}
+
+// ---- Tabla detalle del último día por municipio ----
+var detalle = [];
+var COLORES = { 'info':'#0E9F6E', 'warning':'#FFB454', 'alert':'#ff9800', 'critical':'#f44336' };
+function nivelTxt(level, title){
+  var t = title || '';
+  if (t.indexOf('Muy desfavorable')>=0) return 'Muy desfavorable';
+  if (t.indexOf('Desfavorable')>=0) return 'Desfavorable';
+  if (t.indexOf('Regular')>=0) return 'Regular';
+  if (t.indexOf('Razonablemente buena')>=0) return 'Razonablemente buena';
+  if (t.indexOf('Buena')>=0) return 'Buena';
+  return {info:'Buena', warning:'Regular', alert:'Desfavorable', critical:'Muy desfavorable'}[level]||level;
+}
+function cargarDetalle(){
+  fetch('/api/air-quality')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d || !d.estaciones){ return; }
+      detalle = d.estaciones;
+      pintarTabla(detalle);
+    })
+    .catch(function(){});
+}
+function pintarTabla(lista){
+  var tb=document.getElementById('tablaDetalleBody');
+  var n=lista.length;
+  document.getElementById('nTotalDetalle').textContent = detalle.length;
+  document.getElementById('nDetalle').textContent = n;
+  if(!n){ tb.innerHTML='<tr><td colspan="3" style="color:#888;padding:12px">Sin resultados.</td></tr>'; return; }
+  var html='';
+  // ordenar: peores primero
+  var peso={critical:4,alert:3,warning:2,info:1};
+  lista.sort(function(a,b){ return (peso[b.level]||0)-(peso[a.level]||0); });
+  lista.forEach(function(e){
+    var col=COLORES[e.level]||'#9e9e9e';
+    var nombre=e.municipality ? (e.municipality+' — '+e.nombre) : e.nombre;
+    html+='<tr style="border-bottom:1px solid var(--line)">'+
+      '<td style="padding:6px 9px">'+nombre+'</td>'+
+      '<td style="padding:6px 9px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+col+';margin-right:6px"></span><b style="color:'+col+'">'+nivelTxt(e.level, e.title)+'</b></td>'+
+      '<td style="padding:6px 9px">'+e.contaminante+'</td>'+
+      '</tr>';
+  });
+  tb.innerHTML=html;
+}
+function filtrarTabla(){
+  var q=document.getElementById('busca').value.trim().toLowerCase();
+  if(!q){ pintarTabla(detalle); return; }
+  var f=detalle.filter(function(e){
+    var nom=(e.municipality||'')+' '+e.nombre+' '+e.contaminante;
+    return nom.toLowerCase().indexOf(q)>=0;
+  });
+  pintarTabla(f);
+}
 cargar(90);
+cargarDetalle();
 </script>
 </body>
 </html>
