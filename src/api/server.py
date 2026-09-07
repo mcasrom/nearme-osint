@@ -370,6 +370,51 @@ def air_quality_nacional():
         release_conn(conn)
 
 
+@app.get("/api/air-quality/history")
+def air_quality_history(days: int = Query(90, ge=1, le=200)):
+    """Cronologia de la calidad del aire a nivel nacional desde air_quality_daily.
+
+    Cada fila = estado diario de una estacion (snapshot ~23:50). Devuelve, por
+    dia, cuantas estaciones estaban en cada nivel y el % de 'aire no bueno'.
+    Nota honesta: el historico empieza a acumularse el 07/Sep/2026 (antes no se
+    guardaba). Con pocos dias el grafico sera corto; gana profundidad con el tiempo.
+    """
+    from src.db import get_conn, release_conn
+    import psycopg2.extras
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT fecha,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE level='info') AS buenas,
+                   COUNT(*) FILTER (WHERE level='warning') AS regulares,
+                   COUNT(*) FILTER (WHERE level IN ('alert','critical')) AS malas,
+                   COUNT(DISTINCT region) AS estaciones
+            FROM air_quality_daily
+            WHERE fecha >= (CURRENT_DATE - %s::int)
+            GROUP BY fecha ORDER BY fecha ASC
+        """, (days - 1,))
+        rows = cur.fetchall()
+        serie = []
+        for r in rows:
+            t = int(r["total"] or 0)
+            serie.append({
+                "fecha": r["fecha"].isoformat(),
+                "total": t,
+                "buenas": int(r["buenas"] or 0),
+                "regulares": int(r["regulares"] or 0),
+                "malas": int(r["malas"] or 0),
+                "pct_no_bueno": round(100.0 * (t - int(r["buenas"] or 0)) / t, 1) if t else 0,
+            })
+        return {"dias": len(serie), "serie": serie,
+                "server_ts": datetime.now(timezone.utc).isoformat()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        release_conn(conn)
+
+
 @app.get("/api/stats/trends")
 def stats_trends(days: int = Query(60, ge=1, le=365)):
     """Estadísticas diarias por fuente (tabla daily_stats, pre-agregada por cron 23:00)."""
