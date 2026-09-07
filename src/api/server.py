@@ -324,6 +324,52 @@ def rankings(
     }
 
 
+@app.get("/api/air-quality")
+def air_quality_nacional():
+    """Foto actual de TODAS las estaciones MITECO de España (una por estación,
+    la más reciente). Para el mapa de calor de calidad del aire a nivel nacional.
+    Devuelve por estación: region(nombre), municipality, level, contaminante,
+    lat, lon, ica numérico (extraído del description) y updated_at."""
+    from src.db import get_conn, release_conn
+    import psycopg2.extras
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT DISTINCT ON (region)
+                region AS nombre, municipality, level, title,
+                lat, lon, updated_at
+            FROM events
+            WHERE source='miteco' AND status='active'
+            ORDER BY region, updated_at DESC
+        """)
+        rows = cur.fetchall()
+        # extraer el contaminante y el indice ICA del title ("Calidad del aire: X (CONT)")
+        import re
+        out = []
+        for r in rows:
+            m = re.search(r"\(([^)]+)\)\s*$", r["title"] or "")
+            cont = m.group(1) if m else ""
+            nivel_ica = {"info": "Buena/Razonable", "warning": "Regular",
+                         "alert": "Desfavorable", "critical": "Muy desfavorable"}.get(
+                             r["level"], r["level"])
+            out.append({
+                "nombre": r["nombre"],
+                "municipality": r["municipality"],
+                "level": r["level"],
+                "contaminante": cont,
+                "nivel_ica": nivel_ica,
+                "lat": r["lat"], "lon": r["lon"],
+                "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None,
+            })
+        return {"total": len(out), "estaciones": out,
+                "server_ts": datetime.now(timezone.utc).isoformat()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        release_conn(conn)
+
+
 @app.get("/api/stats/trends")
 def stats_trends(days: int = Query(60, ge=1, le=365)):
     """Estadísticas diarias por fuente (tabla daily_stats, pre-agregada por cron 23:00)."""

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de la calidad del aire en España en vivo · 558 estaciones | NearMe OSINT</title>
+<meta name="description" content="Mapa de calor de la calidad del aire en España: 558 estaciones oficiales MITECO en vivo. Índice ICA por estación, contaminante principal (PM2.5, PM10, O3, NO2) y evolución. Datos oficiales, sin registro.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://nearme.viajeinteligencia.com/calidad-del-aire">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mapa de la calidad del aire en España en vivo">
+<meta property="og:description" content="558 estaciones oficiales MITECO en un mapa de calor: índice ICA, contaminante y nivel por zona.">
+<meta property="og:url" content="https://nearme.viajeinteligencia.com/calidad-del-aire">
+<meta property="og:locale" content="es_ES">
+<meta property="og:image" content="https://nearme.viajeinteligencia.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css">
+<style>
+  :root{--bg:#F4F6FB;--panel:#FFFFFF;--line:#D6DDEA;--text:#16202E;--text2:#33415C;--dim:#5B6B84;--faint:#8A97AC;--amber:#D9820A;--green:#0E9F6E;--cyan:#0E9FAE;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 50px;}
+  .top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;}
+  h1{font-size:22px;font-weight:800;letter-spacing:-0.02em;}
+  .back{color:var(--dim);font-size:12px;text-decoration:none;}
+  .meta{font-size:11px;color:var(--faint);font-family:ui-monospace,monospace;margin-bottom:14px;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0;}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .kpi .n{font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.1;}
+  .kpi .l{font-size:11px;color:var(--dim);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .kpi .s{font-size:11px;color:var(--faint);margin-top:3px;font-family:ui-monospace,monospace;}
+  #map{width:100%;height:66vh;border-radius:14px;border:1px solid var(--line);z-index:1;}
+  .bar{height:12px;border-radius:6px;overflow:hidden;display:flex;margin-top:6px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 4px;font-size:12px;color:var(--text2);}
+  .lg{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:13px;height:13px;border-radius:50%;display:inline-block;}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+  select{font-family:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);}
+  .explain{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--cyan);border-radius:10px;padding:12px 16px;margin:16px 0;font-size:13px;color:var(--text2);}
+  .explain b{color:var(--text);}
+  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:8px;}
+  .item{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12.5px;}
+  .item .nm{font-weight:700;}
+  .tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px;color:#fff;}
+  .foot{margin-top:30px;font-size:11px;color:var(--faint);text-align:center;font-family:ui-monospace,monospace;line-height:1.8;}
+  .foot a{color:var(--amber);text-decoration:none;}
+  .kofi{display:inline-block;margin-top:12px;background:#29ABE0;color:#fff;font-weight:700;padding:8px 15px;border-radius:9px;text-decoration:none;font-size:12px;}
+  #status{font-size:12px;color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>💨 Calidad del aire en España · mapa en vivo</h1>
+    <a class="back" href="https://nearme.viajeinteligencia.com">← NearMe</a>
+  </div>
+  <div class="meta" id="status">Cargando datos…</div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="filters">
+    <select id="fCont" onchange="aplicarFiltro()">
+      <option value="">Todos los contaminantes</option>
+      <option value="PM2.5">PM2.5 (partículas finas)</option>
+      <option value="PM10">PM10 (polvo)</option>
+      <option value="O3">Ozono (O3)</option>
+      <option value="NO2">Dióxido de nitrógeno (NO2)</option>
+      <option value="SO2">Dióxido de azufre (SO2)</option>
+    </select>
+    <select id="fNivel" onchange="aplicarFiltro()">
+      <option value="">Todos los niveles</option>
+      <option value="alert">Solo Desfavorable/Muy desfavorable</option>
+      <option value="warning">Solo Regular y peor</option>
+    </select>
+  </div>
+
+  <div class="legend">
+    <span class="lg"><span class="dot" style="background:#0E9F6E"></span> Buena</span>
+    <span class="lg"><span class="dot" style="background:#7bc86b"></span> Razonablemente buena</span>
+    <span class="lg"><span class="dot" style="background:#FFB454"></span> Regular</span>
+    <span class="lg"><span class="dot" style="background:#ff9800"></span> Desfavorable</span>
+    <span class="lg"><span class="dot" style="background:#f44336"></span> Muy desfavorable</span>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="explain">
+    <b>¿Qué estás viendo?</b> Cada punto es una <b>estación de medición oficial del MITECO</b>
+    (Ministerio para la Transición Ecológica). El color indica el <b>Índice de Calidad del Aire (ICA)</b>
+    de la última hora: verde = aire bueno, ámbar = regular, naranja = desfavorable, rojo = muy desfavorable.
+    Al hacer clic en un punto ves la estación, su municipio y el <b>contaminante principal</b>
+    (PM2.5, PM10, ozono o NO2) que eleva el índice. Datos oficiales, actualizados cada ~30 min,
+    sin registro ni rastreo.
+  </div>
+
+  <div id="lista"><h2 style="font-size:15px;margin:10px 0">Zonas con peor calidad ahora</h2><div class="list" id="peores"></div></div>
+
+  <div class="foot">
+    Fuente: estaciones oficiales MITECO (ica.miteco.es). Compilación independiente NearMe OSINT.
+    <br><a href="https://nearme.viajeinteligencia.com">nearme.viajeinteligencia.com</a> · <a href="https://www.viajeinteligencia.com/ecosistema.html">🌐 ecosistema</a>
+    <br>Si te resulta útil, apóyalo con un ☕ <a class="kofi" href="https://ko-fi.com/m_castillo">Ko-fi</a>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+<script>
+var datos = [];
+var mapa = null;
+
+var NOMBRE_NIVEL = {
+  'info': {txt:'Buena/Razonablemente buena', color:'#0E9F6E'},
+  'warning': {txt:'Regular', color:'#FFB454'},
+  'alert': {txt:'Desfavorable', color:'#ff9800'},
+  'critical': {txt:'Muy desfavorable', color:'#f44336'}
+};
+// color fino por titulo (buena vs razonablemente buena)
+function colorEstacion(e){
+  var t = (e.title || '');
+  if (t.indexOf('Buena')>=0) return '#0E9F6E';
+  if (t.indexOf('Razonablemente buena')>=0) return '#7bc86b';
+  if (t.indexOf('Regular')>=0) return '#FFB454';
+  if (t.indexOf('Desfavorable')>=0) return '#ff9800';
+  if (t.indexOf('Muy desfavorable')>=0) return '#f44336';
+  return NOMBRE_NIVEL[e.level] ? NOMBRE_NIVEL[e.level].color : '#9e9e9e';
+}
+function nivelTexto(e){
+  var t=(e.title||'');
+  if(t.indexOf('Buena')>=0) return 'Buena';
+  if(t.indexOf('Razonablemente buena')>=0) return 'Razonablemente buena';
+  if(t.indexOf('Regular')>=0) return 'Regular';
+  if(t.indexOf('Desfavorable')>=0) return 'Desfavorable';
+  if(t.indexOf('Muy desfavorable')>=0) return 'Muy desfavorable';
+  return e.nivel_ica || e.level;
+}
+
+function renderKPIs(est){
+  var n=est.length;
+  var byLv={info:0,warning:0,alert:0,critical:0};
+  var byCont={}; var peores=[];
+  est.forEach(function(e){
+    byLv[e.level]=(byLv[e.level]||0)+1;
+    if(e.contaminante) byCont[e.contaminante]=(byCont[e.contaminante]||0)+1;
+    if(e.level==='alert'||e.level==='critical') peores.push(e);
+  });
+  var malas=(byLv.alert||0)+(byLv.critical||0);
+  var reg=(byLv.warning||0);
+  var pctBuenas=Math.round(100*byLv.info/n);
+  var contDominante=Object.keys(byCont).sort(function(a,b){return byCont[b]-byCont[a];})[0]||'—';
+  var pctCont=byCont[contDominante]?Math.round(100*byCont[contDominante]/n):0;
+
+  var html='';
+  html+=kpi('<span style="color:#0E9F6E">'+byLv.info+'</span>', 'Estaciones con aire bueno', pctBuenas+'% del total');
+  html+=kpi('<span style="color:#FFB454">'+reg+'</span>', 'En nivel Regular', 'aire aceptable con precaución');
+  html+=kpi('<span style="color:#ff9800">'+malas+'</span>', 'Desfavorable o peor', 'grupos sensibles: limita esfuerzo');
+  html+=kpi(contDominante, 'Contaminante dominante', pctCont+'% de estaciones lo señalan');
+  html+=kpi(n, 'Estaciones activas', 'red oficial MITECO');
+  document.getElementById('kpis').innerHTML=html;
+
+  // peores
+  peores.sort(function(a,b){return a.nombre<b.nombre?-1:1;});
+  var ph=peores.slice(0,20).map(function(e){
+    var col=colorEstacion(e);
+    return '<div class="item"><span class="nm">'+e.nombre+'</span><span class="tag" style="background:'+col+'">'+nivelTexto(e)+'</span><br><span style="color:var(--dim)">'+(e.municipality||'')+' · '+e.contaminante+'</span></div>';
+  }).join('');
+  document.getElementById('peores').innerHTML = ph || '<p style="color:var(--dim);font-size:13px">Ninguna estación en nivel desfavorable ahora mismo. 🎉</p>';
+}
+function kpi(n,l,s){return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+l+'</div><div class="s">'+s+'</div></div>';}
+
+function aplicarFiltro(){
+  var fc=document.getElementById('fCont').value;
+  var fn=document.getElementById('fNivel').value;
+  var filt = datos.filter(function(e){
+    if(fc && e.contaminante!==fc) return false;
+    if(fn==='alert' && e.level!=='alert' && e.level!=='critical') return false;
+    if(fn==='warning' && e.level!=='warning' && e.level!=='alert' && e.level!=='critical') return false;
+    return true;
+  });
+  renderMapa(filt);
+  renderKPIs(filt);
+  document.getElementById('status').textContent = filt.length+' estaciones mostradas · actualizado '+(new Date()).toLocaleTimeString('es-ES');
+}
+
+function renderMapa(est){
+  if(mapa){ mapa.remove(); }
+  mapa = L.map('map').setView([40.2,-3.5], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:18
+  }).addTo(mapa);
+  var capas=[];
+  est.forEach(function(e){
+    var col=colorEstacion(e);
+    var m = L.circleMarker([e.lat,e.lon],{
+      radius: 8, fillColor:col, fillOpacity:0.85,
+      color:'#fff', weight:1.5
+    }).addTo(mapa);
+    m.bindPopup('<b>'+e.nombre+'</b><br>'+(e.municipality||'')+'<br>Nivel: <b style="color:'+col+'">'+nivelTexto(e)+'</b><br>Contaminante: '+e.contaminante);
+    capas.push(m);
+  });
+  if(capas.length>50 && typeof L.markerClusterGroup!=='undefined'){
+    // si el cluster no esta cargado, no agrupar
+  }
+  // ajustar vista a los datos
+  var bounds=[];
+  est.forEach(function(e){ bounds.push([e.lat,e.lon]); });
+  if(bounds.length) mapa.fitBounds(bounds,{padding:[20,20]});
+}
+
+fetch('/api/air-quality')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(!d || !d.estaciones){ document.getElementById('status').textContent='Error: no se pudieron cargar los datos.'; return; }
+    datos = d.estaciones;
+    document.getElementById('status').textContent = d.total+' estaciones oficiales MITECO · actualizado '+(d.server_ts||'');
+    aplicarFiltro();
+  })
+  .catch(function(e){
+    document.getElementById('status').textContent='Error de red cargando datos: '+e.message;
+  });
+</script>
+</body>
+</html>

@@ -6,17 +6,19 @@ from src.logging import get_logger
 from src.models import Event
 
 ICA_URL = "https://ica.miteco.es/datos/ica-ultima-hora.csv"
+# Escala ICA real de MITECO (0-5). El CSV tambien trae 10/20/30/40/50 (misma
+# escala x10 de otra codificacion): se normaliza dividiendo por 10 cuando >5.
 ICA_LABELS = {
     0: "Sin datos", 1: "Buena", 2: "Razonablemente buena",
     3: "Regular", 4: "Desfavorable", 5: "Muy desfavorable",
-    10: "Buena", 20: "Regular", 30: "Desfavorable",
-    40: "Muy desfavorable", 50: "Extremadamente desfavorable"
 }
+# Nivel del sistema NearMe para cada ICA (coherente con LEVEL_COLORS del mapa:
+# info=azul/verde, warning=amarillo, alert=naranja, critical=rojo). Se guardan
+# TODAS las estaciones activas (no solo >=Regular) para poder mostrar el mapa
+# completo de mejor/peor calidad en verde/naranja/rojo.
 ICA_LEVELS = {
     0: "info", 1: "info", 2: "info",
-    3: "warning", 4: "warning",
-    5: "alert", 10: "info", 20: "warning",
-    30: "warning", 40: "alert", 50: "alert"
+    3: "warning", 4: "alert", 5: "critical",
 }
 
 
@@ -47,8 +49,9 @@ class AirQualityCollector(BaseCollector):
                     if not indice:
                         continue
                     indice = int(indice)
-                    if indice < 3:
-                        continue
+                    # normalizar: el CSV mezcla escala 0-5 con 10-50 (x10)
+                    if indice > 5 and indice % 10 == 0:
+                        indice = indice // 10
 
                     level = ICA_LEVELS.get(indice, "info")
 
@@ -69,7 +72,7 @@ class AirQualityCollector(BaseCollector):
                         radius_m=5000,
                         level=level,
                         title=f"Calidad del aire: {ica_label} ({contaminante})",
-                        description=f"Estacion: {nombre}. Indice ICA: {indice}/6 ({ica_label}). Contaminante principal: {contaminante}. Tipo: {tipo}. Fecha: {fecha}",
+                        description=f"Estacion: {nombre}. Indice ICA: {indice}/5 ({ica_label}). Contaminante principal: {contaminante}. Tipo: {tipo}. Fecha: {fecha}",
                         country="ES",
                         region=nombre,
                     ))
@@ -77,7 +80,7 @@ class AirQualityCollector(BaseCollector):
                 except (ValueError, TypeError, KeyError):
                     pass
 
-            logger.info("MITECO: %d estaciones con calidad aire >= Regular", active_stations)
+            logger.info("MITECO: %d estaciones de calidad del aire (escala completa 0-5)", active_stations)
         except Exception as e:
             logger.warning("MITECO calidad aire: %s", e)
         return events
