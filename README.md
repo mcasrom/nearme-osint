@@ -118,6 +118,12 @@ Además del mapa en vivo, NearMe genera analítica agregada nocturna:
   con temperatura/viento diarios (Open-Meteo) por CCAA y día, con metodología y límites
   visibles: https://radar.viajeinteligencia.com/incendios-meteorologia.html
   (regeneración diaria 07:20).
+- **Retrasos del tren en España hoy** — foto del día en curso de la red RENFE (AVE/larga
+  distancia + cercanías, GTFS-RT vía NearMe, retrasos ≥10 min):
+  https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html — KPIs, gráfico horario de
+  **barras apiladas por gravedad** (10–15 / 15–30 / 30–60 / >60 min), top de estaciones y
+  nota metodológica (no es histórico). Generado 3×/día por `scripts/gen_retrasos_renfe.py`
+  (+ og-preview por `scripts/gen_retrasos_og.py`).
 
 ## 🛠️ Stack
 

@@ -869,3 +869,28 @@ Ver `RETENCION.md` (documento central del ecosistema).
 - **`event_history`** (snapshots de eventos): retención **30 días** (cron `0 3 * * * cleanup_history_retention(30)`). No alimenta gráficos.
 - **`events`**: **NO se borra**. Datos de sismos (Granada), incendios, embalses, lluvia/nieve → intactos.
 - Incidente 2026-09-01: `event_history` llegó a 24.3M filas (4.4G) por cron heredado a 365 días. Corregido a 30 días + VACUUM. Disco 65%→58%.
+
+## 2026-09-05 — Página "Retrasos del tren en España hoy" (radar) + gráfico de gravedad apilada (2026-09-08)
+
+- **Nuevo**: `scripts/gen_retrasos_renfe.py` genera `/var/www/radar/retrasos-renfe-hoy.html`
+  (patrón enjambre-granada: HTML estático + SVG inline, sin tocar nginx) + `scripts/gen_retrasos_og.py`
+  genera el og-preview 1200×630 → `retrasos-renfe-og.png`.
+- **Fuente**: retrasos detectados por NearMe del feed GTFS-RT oficial de RENFE
+  (cercanías + larga distancia/AVE), solo retrasos significativos (≥10 min) del **día en curso**.
+  Foto del día, NO histórico (la fuente no acumula).
+- **Contenido**: KPIs (retrasos hoy, AVE/larga distancia vs cercanías, media +min, estación con
+  más, hora pico), **gráfico horario de barras apiladas por gravedad** (10–15, 15–30, 30–60,
+  >60 min: verde/ámbar/naranja/rojo, tooltip de desglose por hora), estaciones con más retrasos,
+  y nota "cómo se lee" (un tren puede aparecer en varias paradas).
+- **Cron**: `25 8,14,20 * * *` (gen_retrasos_renfe, venv nearme) y `30 8,14,20 * * *`
+  (gen_retrasos_og, /usr/bin/python3 con PIL), log `logs/renfe_retrasos.log`.
+- **Fix de mojibake**: acentos de estaciones del feed latin-1 (GRÀCIA/IRUÑA) normalizados
+  (`fix_estacion`).
+- **Evolución visual (08/Sep, opción A elegida por el usuario)**: el gráfico horario pasó de
+  barras simples (total por hora) a **barras apiladas por banda de gravedad** con rangos
+  contiguos/excluyentes (`sev_of()`), leyenda propia dentro del SVG y total al pie de cada hora.
+  Verificado con datos reales (1551 retrasos): segmentos apilados contiguos sin huecos/solapes
+  por hora. Análisis de decisión: rangos excluyentes para apilar (no ">15, >30, >60" acumulados
+  que duplicarían) y copy mantiene "detecciones" (no trenes únicos).
+- **Integración**: tarjeta `door` (🚆) en el hub viajeinteligencia.com; enlace en la navegación
+  del radar.
