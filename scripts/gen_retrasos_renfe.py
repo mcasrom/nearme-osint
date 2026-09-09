@@ -8,15 +8,21 @@ distancia/AVE). Formato tipo enjambre-granada: KPIs + SVG inline, sin JS.
 - KPIs: retrasos totales hoy, AVE/larga distancia vs cercanías, retraso medio,
   estación con más incidencias, franja horaria pico.
 - Gráfico: evolución horaria del día (barras por hora).
+- Dona "Hoy por gravedad": retrasos de hoy por bandas contiguas (10-14, 15-29,
+  30-44, 45-59, >=60) separados por cercanías y larga distancia/AVE.
+- Resumen semanal: donas acumuladas desde `renfe_daily` (últimos 7 días o todos
+  los disponibles). Al ser un histórico que arranca cuando se despliega el
+  acumulador, el primer resumen completo de 7 días estará tras una semana.
 - Top: estaciones con más retrasos acumulados hoy.
 
-Datos: tabla events (source=renfe) del día en curso.
+Datos: tabla events (source=renfe) del día en curso + renfe_daily (agregados diarios).
 Salida: /var/www/radar/retrasos-renfe-hoy.html
 Uso: PYTHONPATH=. venv/bin/python scripts/gen_retrasos_renfe.py [--out RUTA]
 """
+import math
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 
@@ -69,8 +75,121 @@ def cargar():
     return eventos
 
 
-# Severidad: rangos contiguos/excluyentes (un retraso cae en una sola banda).
-# El feed ya captura desde >=10 min. Orden de apilado (de abajo a arriba).
+def cargar_semanal(dias=7):
+    """Agregados diarios acumulados (renfe_daily): últimos `dias` días.
+
+    Devuelve (por_tipo, dias_disp) donde por_tipo = {subtipo: {banda: n}}
+    y dias_disp = nº de fechas distintas presentes en la ventana.
+    Si la tabla no existe aún (primer día antes del primer snapshot) -> (None, 0).
+    """
+    try:
+        cur = get_conn().cursor()
+        cur.execute("""
+            SELECT subtipo, banda, SUM(n)
+            FROM renfe_daily
+            WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
+            GROUP BY subtipo, banda
+        """, (dias,))
+        filas = cur.fetchall()
+    except Exception:
+        return None, 0
+    por_tipo = defaultdict(lambda: defaultdict(int))
+    fechas = set()
+    try:
+        cur.execute("""
+            SELECT DISTINCT fecha FROM renfe_daily
+            WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
+        """, (dias,))
+        fechas = {r[0] for r in cur.fetchall()}
+    except Exception:
+        pass
+    for subtipo, banda, n in filas:
+        if n:
+            por_tipo[subtipo or "desconocido"][banda] += n
+    return dict(por_tipo), len(fechas)
+
+
+# ----- bandas del pie (contiguas/excluyentes) -----
+PIE_ORDER = ["10-14", "15-29", "30-44", "45-59", ">=60"]
+PIE_COLORS = {
+    "10-14": "#22c55e",   # verde: leve
+    "15-29": "#f59e0b",   # ámbar
+    "30-44": "#f97316",   # naranja
+    "45-59": "#ea580c",   # naranja oscuro
+    ">=60":  "#dc2626",   # rojo: grave
+}
+PIE_LABEL = {
+    "10-14": "10–14 min",
+    "15-29": "15–29 min",
+    "30-44": "30–44 min",
+    "45-59": "45–59 min",
+    ">=60":  "≥ 60 min",
+}
+
+
+def banda_pie(delay):
+    """Banda contigua para la dona (>=10 min capturados por el feed)."""
+    if delay >= 60:
+        return ">=60"
+    if delay >= 45:
+        return "45-59"
+    if delay >= 30:
+        return "30-44"
+    if delay >= 15:
+        return "15-29"
+    return "10-14"
+
+
+def svg_dona(por_banda, titulo, subtotal_txt):
+    """Dona SVG inline (sin librería): círculo base + arcos stroked.
+
+    Cada banda es un <circle> con stroke-dasharray proporcional a su fracción.
+    El centro muestra el total como <text> en dos líneas.
+    """
+    total = sum(por_banda.values())
+    if total <= 0:
+        return f'<p style="font-size:.9rem;color:#888">(sin datos en {titulo})</p>'
+    CX, CY, R, SW = 105, 105, 78, 46
+    C = 2 * math.pi * R
+    gap = 3.0
+    out = [
+        f'<svg viewBox="0 0 {CX*2} {CY*2}" style="width:230px;height:230px;display:block;margin:0 auto;font-family:system-ui">',
+        f'<circle cx="{CX}" cy="{CY}" r="{R}" fill="none" stroke="#f1f5f9" stroke-width="{SW}"/>',
+    ]
+    acum = 0.0
+    for banda in PIE_ORDER:
+        n = por_banda.get(banda, 0)
+        if n <= 0:
+            continue
+        frac = n / total
+        dash = max(0.0, frac * C - gap)
+        offset = -acum * C
+        out.append(
+            f'<circle cx="{CX}" cy="{CY}" r="{R}" fill="none" stroke="{PIE_COLORS[banda]}" '
+            f'stroke-width="{SW}" stroke-dasharray="{dash:.2f} {C - dash:.2f}" '
+            f'stroke-dashoffset="{offset:.2f}" transform="rotate(-90 {CX} {CY})">'
+            f'<title>{n} retrasos · {PIE_LABEL[banda]}</title></circle>'
+        )
+        acum += frac
+    out.append(f'<text x="{CX}" y="{CY-4}" text-anchor="middle" font-size="26" font-weight="800" fill="#0f172a">{total}</text>')
+    out.append(f'<text x="{CX}" y="{CY+16}" text-anchor="middle" font-size="10" fill="#64748b">{subtotal_txt}</text>')
+    out.append('</svg>')
+    # leyenda HTML (bajo la dona)
+    chips = []
+    for banda in PIE_ORDER:
+        n = por_banda.get(banda, 0)
+        pct = (n / total * 100) if total else 0
+        chips.append(
+            f'<span style="display:inline-flex;align-items:center;gap:6px;background:#f2f2f2;'
+            f'border-radius:8px;padding:4px 9px;font-size:.82rem;margin:2px">'
+            f'<span style="width:10px;height:10px;border-radius:2px;background:{PIE_COLORS[banda]}"></span>'
+            f'{PIE_LABEL[banda]}: {n} ({pct:.0f}%)</span>'
+        )
+    leyenda = f'<div style="text-align:center;margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center">{chr(10).join(chips)}</div>'
+    return "".join(out) + leyenda
+
+
+# Severidad para el gráfico horario (bandas del feed, se mantiene)
 SEV_ORDER = ["10-15", "15-30", "30-60", ">60"]
 SEV_COLORS = {
     "10-15": "#22c55e",   # verde: retraso leve
@@ -205,11 +324,13 @@ def main():
     delays = [e["delay"] for e in eventos]
     por_tipo = defaultdict(int)
     por_hora = defaultdict(lambda: defaultdict(int))  # hora -> {severidad: n}
+    pie_hoy = defaultdict(lambda: defaultdict(int))   # subtipo -> {banda: n} (hoy)
     est_n = defaultdict(int)
     est_delay = defaultdict(int)
     for e in eventos:
         por_tipo[e["tipo"]] += 1
         por_hora[e["hora"]][sev_of(e["delay"])] += 1
+        pie_hoy[e["tipo"]][banda_pie(e["delay"])] += 1
         est_n[e["est"]] += 1
         est_delay[e["est"]] += e["delay"]
 
@@ -221,6 +342,36 @@ def main():
     top_est = max(est_n, key=lambda s: est_n[s])
     hoy = date.today().strftime("%d/%m/%Y")
     ahora = datetime.now().strftime("%H:%M")
+
+    # Dona "Hoy por gravedad": una por tipo (si hay datos del tipo)
+    dona_cerc = svg_dona(pie_hoy.get("cercanias", {}), "cercanías",
+                         f"{pie_hoy.get('cercanias', {}).get(chr(10), 0) or sum(pie_hoy.get('cercanias', {}).values())} retrasos de cercanías")
+    dona_av = svg_dona(pie_hoy.get("alta_velocidad", {}), "larga distancia/AVE",
+                       f"{av} retrasos de larga distancia")
+    donas_hoy_html = (
+        f'<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-around">'
+        f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Cercanías</h4>{dona_cerc}</div>'
+        f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Larga distancia / AVE</h4>{dona_av}</div>'
+        f'</div>'
+    )
+
+    # Resumen semanal desde renfe_daily (acumulador)
+    semanal, dias_disp = cargar_semanal(7)
+    if semanal:
+        dona_sem_cer = svg_dona(semanal.get("cercanias", {}), "cercanías", f"{sum(semanal.get('cercanias', {}).values())} en {dias_disp} días")
+        dona_sem_av = svg_dona(semanal.get("alta_velocidad", {}), "larga distancia/AVE", f"{sum(semanal.get('alta_velocidad', {}).values())} en {dias_disp} días")
+        sem_html = (
+            f'<p style="font-size:.9rem;color:#555;margin-top:0">Agregados diarios acumulados en los últimos 7 días '
+            f'({dias_disp} día(s) registrados). El acumulador arranca hoy, así que el primer resumen completo de 7 días '
+            f'estará disponible en torno a la próxima semana.</p>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-around">'
+            f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Cercanías</h4>{dona_sem_cer}</div>'
+            f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Larga distancia / AVE</h4>{dona_sem_av}</div>'
+            f'</div>'
+        )
+    else:
+        sem_html = ('<p style="font-size:.9rem;color:#888">Este bloque se activa cuando el acumulador diario registre datos '
+                    '(primera carga al cierre de hoy; resumen completo de 7 días en una semana).</p>')
 
     # pildoras KPI
     kpis = (
@@ -257,6 +408,17 @@ y <strong>cercanías</strong> con retraso significativo (≥10 minutos).</p>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0">{kpis}</div>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
+<h3 style="margin-top:0">Hoy por gravedad</h3>
+<p style="font-size:.9rem;color:#555;margin-top:0">Distribución de los retrasos de hoy por franja de retraso, separada por tipo de servicio (cercanías y larga distancia/AVE).</p>
+{donas_hoy_html}
+</div>
+
+<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
+<h3 style="margin-top:0">Resumen semanal (<small>se acumula</small>)</h3>
+{sem_html}
+</div>
+
+<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
 <p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: retrasos detectados en cada hora por gravedad (10–15, 15–30, 30–60 y &gt;60 min). AVE/larga distancia {av} · cercanías {cer}.</p>
 {svg_horas(por_hora)}
@@ -272,7 +434,9 @@ y <strong>cercanías</strong> con retraso significativo (≥10 minutos).</p>
 <p style="font-size:.9rem;color:#444;line-height:1.6">Cada punto es un tren que ha registrado un retraso de
 <b>10 minutos o más</b> en una parada durante el día. Un mismo tren puede aparecer varias veces si su
 retraso se confirma en varias estaciones de su recorrido. <b>Esto es una foto del día, no un histórico</b>:
-los datos se recogen en tiempo real y no se acumulan de un día para otro. Si un trayecto te interesa
+los datos se recogen en tiempo real y no se acumulan de un día para otro. El <b>resumen semanal</b> sí acumula
+una vez al día (agregados por franja de retraso y tipo de servicio) desde el día en que se activó, por lo que
+su primer valor completo de 7 días estará disponible al cabo de una semana. Si un trayecto te interesa
 (p. ej. Madrid-Murcia), revisa el mapa de incidencias en <a href="https://nearme.viajeinteligencia.com"
 style="color:#c2410c">NearMe</a> para ver la posición de los trenes afectados.</p>
 </div>
@@ -282,7 +446,7 @@ style="color:#c2410c">NearMe</a> para ver la posición de los trenes afectados.<
 </body></html>"""
 
     Path(args.out).write_text(html, encoding="utf-8")
-    print(f"OK: {args.out} — {total} retrasos RENFE hoy (AV {av}, cercanías {cer})")
+    print(f"OK: {args.out} — {total} retrasos RENFE hoy (AV {av}, cercanías {cer}, semanal {dias_disp} días)")
 
 
 if __name__ == "__main__":
