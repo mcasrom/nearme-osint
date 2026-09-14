@@ -43,17 +43,21 @@ _FIX_ACC = {
 def fix_estacion(s):
     if not s:
         return s
-    s = re.sub(r"[ŔÁÉÍÓÚŃÜÇ]", lambda m: _FIX_ACC.get(m.group(0), m.group(0)), s)
-    # mojibake doble: À como Ã€ etc no esperado aqui; baste lo anterior
+    # El feed llega con bytes latin-1 interpretados como ISO-8859-2
+    # (GRÀCIA -> GRŔCIA, VALÈNCIA -> VALČNCIA, IRUÑA -> IRUŃA). Se revierte.
+    try:
+        s = s.encode("iso-8859-2").decode("iso-8859-1")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
     s = re.sub(r"\s+", " ", s).strip()
     return s.title()  # 'Madrid-Puerta De Atocha'
 
 
 def cargar():
-    """Carga retrasos RENFE del día en curso."""
+    """Carga retrasos RENFE del día en curso (un evento por tren×parada)."""
     cur = get_conn().cursor()
     cur.execute("""
-        SELECT title, subtype, level, lat, lon, created_at
+        SELECT title, subtype, level, lat, lon, created_at, description
         FROM events
         WHERE source='renfe' AND event_type='train_delay'
           AND created_at >= date_trunc('day', now())
@@ -61,16 +65,18 @@ def cargar():
     """)
     rows = cur.fetchall()
     eventos = []
-    for title, subtype, level, lat, lon, created_at in rows:
+    for title, subtype, level, lat, lon, created_at, desc in rows:
         m = re.search(r": \+(\d+)min \((.*)\)", title or "")
         if not m:
             continue
         delay = int(m.group(1))
         est = fix_estacion(m.group(2))
+        tm = re.search(r"Trip: (\S+)", desc or "")
+        trip = tm.group(1) if tm else None
         hora = created_at.hour if created_at else 0
         eventos.append({
             "tipo": subtype or "desconocido", "est": est, "delay": delay,
-            "hora": hora, "lat": lat, "lon": lon, "level": level,
+            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip,
         })
     return eventos
 
@@ -86,7 +92,7 @@ def cargar_semanal(dias=7):
         cur = get_conn().cursor()
         cur.execute("""
             SELECT subtipo, banda, SUM(n)
-            FROM renfe_daily
+            FROM renfe_daily_trenes
             WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
             GROUP BY subtipo, banda
         """, (dias,))
@@ -97,7 +103,7 @@ def cargar_semanal(dias=7):
     fechas = set()
     try:
         cur.execute("""
-            SELECT DISTINCT fecha FROM renfe_daily
+            SELECT DISTINCT fecha FROM renfe_daily_trenes
             WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
         """, (dias,))
         fechas = {r[0] for r in cur.fetchall()}
@@ -319,35 +325,63 @@ def main():
     eventos = cargar()
     if not eventos:
         print("sin datos RENFE hoy"); sys.exit(1)
-
-    total = len(eventos)
+    total_eventos = len(eventos)
     delays = [e["delay"] for e in eventos]
-    por_tipo = defaultdict(int)
-    por_hora = defaultdict(lambda: defaultdict(int))  # hora -> {severidad: n}
-    pie_hoy = defaultdict(lambda: defaultdict(int))   # subtipo -> {banda: n} (hoy)
+
+    # Agregación por TREN (un tren = un trip_id): interesa el retraso MÁXIMO del
+    # tren, no cada parada. Los eventos son tren×parada; aquí se colapsan a tren.
+    max_trip = {}          # (tipo, trip) -> retraso máx
+    for e in eventos:
+        k = (e["tipo"], e["trip"] or "_?")
+        if e["delay"] > max_trip.get(k, 0):
+            max_trip[k] = e["delay"]
+    trenes_tipo = defaultdict(int)
+    for (tipo, _t) in max_trip:
+        trenes_tipo[tipo] += 1
+    trenes_total = sum(trenes_tipo.values())
+
+    por_tipo = defaultdict(int)                        # eventos (tren×parada)
+    por_hora = defaultdict(lambda: defaultdict(int))   # hora -> {severidad: n}
+    pie_hoy = defaultdict(lambda: defaultdict(int))    # subtipo -> {banda: n} (TRENES)
     est_n = defaultdict(int)
-    est_delay = defaultdict(int)
     for e in eventos:
         por_tipo[e["tipo"]] += 1
         por_hora[e["hora"]][sev_of(e["delay"])] += 1
-        pie_hoy[e["tipo"]][banda_pie(e["delay"])] += 1
         est_n[e["est"]] += 1
-        est_delay[e["est"]] += e["delay"]
+    for (tipo, _t), d in max_trip.items():
+        pie_hoy[tipo][banda_pie(d)] += 1   # dona por TREN (banda del retraso máximo)
 
-    tipo_txt = {k: (v, k) for k, v in por_tipo.items()}
-    av = por_tipo.get("alta_velocidad", 0)
-    cer = por_tipo.get("cercanias", 0)
-    media = sum(delays) / len(delays)
+    av = trenes_tipo.get("alta_velocidad", 0)          # trenes
+    cer = trenes_tipo.get("cercanias", 0)
+    av_ev = por_tipo.get("alta_velocidad", 0)          # incidencias (tren×parada)
+    cer_ev = por_tipo.get("cercanias", 0)
+    media_tren = (sum(max_trip.values()) / len(max_trip)) if max_trip else 0
+    media = (sum(delays) / len(delays)) if delays else 0
     pico_hora = max(por_hora, key=lambda h: sum(por_hora[h].values()))
     top_est = max(est_n, key=lambda s: est_n[s])
     hoy = date.today().strftime("%d/%m/%Y")
     ahora = datetime.now().strftime("%H:%M")
 
+    # Denominador: trenes vistos en el feed hoy (con o sin retraso) → % afectado.
+    try:
+        from src.db import count_trips_seen
+        den = count_trips_seen(date.today()) or {}
+    except Exception:
+        den = {}
+    den_cer = den.get("cercanias", 0)
+    den_av = den.get("alta_velocidad", 0)
+
+    def _pct(n, d):
+        # Denominador incompleto (arranca a mitad de día): evita un % engañoso >100%.
+        if not d or n > d:
+            return "s/d"
+        return f"{round(n * 100 / d)}%"
+
     # Dona "Hoy por gravedad": una por tipo (si hay datos del tipo)
     dona_cerc = svg_dona(pie_hoy.get("cercanias", {}), "cercanías",
-                         f"{pie_hoy.get('cercanias', {}).get(chr(10), 0) or sum(pie_hoy.get('cercanias', {}).values())} retrasos de cercanías")
+                         f"{cer} trenes · {cer_ev} incidencias")
     dona_av = svg_dona(pie_hoy.get("alta_velocidad", {}), "larga distancia/AVE",
-                       f"{av} retrasos de larga distancia")
+                       f"{av} trenes · {av_ev} incidencias")
     donas_hoy_html = (
         f'<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-around">'
         f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Cercanías</h4>{dona_cerc}</div>'
@@ -358,12 +392,12 @@ def main():
     # Resumen semanal desde renfe_daily (acumulador)
     semanal, dias_disp = cargar_semanal(7)
     if semanal:
-        dona_sem_cer = svg_dona(semanal.get("cercanias", {}), "cercanías", f"{sum(semanal.get('cercanias', {}).values())} en {dias_disp} días")
-        dona_sem_av = svg_dona(semanal.get("alta_velocidad", {}), "larga distancia/AVE", f"{sum(semanal.get('alta_velocidad', {}).values())} en {dias_disp} días")
+        dona_sem_cer = svg_dona(semanal.get("cercanias", {}), "cercanías", f"{sum(semanal.get('cercanias', {}).values())} trenes en {dias_disp} días")
+        dona_sem_av = svg_dona(semanal.get("alta_velocidad", {}), "larga distancia/AVE", f"{sum(semanal.get('alta_velocidad', {}).values())} trenes en {dias_disp} días")
         sem_html = (
-            f'<p style="font-size:.9rem;color:#555;margin-top:0">Agregados diarios acumulados en los últimos 7 días '
-            f'({dias_disp} día(s) registrados). El acumulador arranca hoy, así que el primer resumen completo de 7 días '
-            f'estará disponible en torno a la próxima semana.</p>'
+            f'<p style="font-size:.9rem;color:#555;margin-top:0"><b>Trenes</b> acumulados por día (cada tren en la franja de su retraso máximo) '
+            f'en los últimos 7 días ({dias_disp} día(s) registrados). El acumulador arranca el día de su activación, así que el primer '
+            f'resumen completo de 7 días estará disponible en torno a la próxima semana.</p>'
             f'<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-around">'
             f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Cercanías</h4>{dona_sem_cer}</div>'
             f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Larga distancia / AVE</h4>{dona_sem_av}</div>'
@@ -376,8 +410,9 @@ def main():
     # pildoras KPI
     kpis = (
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📅 {hoy} · {ahora}</span>'
-        f'<span style="background:#fef2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 {total} retrasos detectados hoy</span>'
-        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⚡ media +{media:.0f} min</span>'
+        f'<span style="background:#fef2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 <b>{trenes_total}</b> trenes con retraso ≥10 min hoy</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📊 {total_eventos} incidencias por parada</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⚡ media +{media_tren:.0f} min por tren</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🏆 estación con más: {top_est} ({est_n[top_est]})</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🕐 pico: {pico_hora}:00</span>'
     )
@@ -386,10 +421,10 @@ def main():
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Retrasos del tren en España hoy · RENFE en vivo</title>
-<meta name="description" content="Retrasos de trenes en España hoy: {total} incidencias detectadas en tiempo real (AVE/larga distancia y cercanías), media de +{media:.0f} min, estaciones con más retrasos. Datos GTFS-RT oficiales de RENFE vía NearMe.">
+<meta name="description" content="Retrasos de trenes en España hoy: {trenes_total} trenes afectados ({total_eventos} incidencias por parada) en tiempo real (AVE/larga distancia y cercanías), media de +{media_tren:.0f} min por tren. Datos GTFS-RT oficiales de RENFE vía NearMe.">
 <link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html"><meta property="og:type" content="website">
-<meta property="og:title" content="Retrasos del tren en España hoy · {total} incidencias">
-<meta property="og:description" content="{total} retrasos detectados hoy en la red (AVE + cercanías), media +{media:.0f} min. Estación con más: {top_est}. Datos oficiales RENFE en tiempo real.">
+<meta property="og:title" content="Retrasos del tren en España hoy · {trenes_total} trenes afectados">
+<meta property="og:description" content="{trenes_total} trenes con retraso ≥10 min hoy ({total_eventos} incidencias por parada) en la red (AVE + cercanías), media +{media_tren:.0f} min. Estación con más: {top_est}. Datos oficiales RENFE en tiempo real.">
 <meta property="og:locale" content="es_ES">
 <meta property="og:url" content="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html">
 <meta property="og:image" content="https://radar.viajeinteligencia.com/retrasos-renfe-og.png">
@@ -402,14 +437,16 @@ def main():
 <p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/enjambre-granada.html" style="color:#c2410c">🌋 enjambre</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a></p>
 <h1 style="font-size:1.55rem;margin:.2em 0">Retrasos del tren en España hoy</h1>
 <p>Estado del día en curso de la red ferroviaria, a partir de los retrasos que NearMe detecta
-en el feed oficial de RENFE (GTFS-RT). Se muestran incidencias de <strong>AVE/larga distancia</strong>
-y <strong>cercanías</strong> con retraso significativo (≥10 minutos).</p>
+en el feed oficial de RENFE (GTFS-RT). Se muestran <strong>trenes con retraso significativo (≥10 minutos)</strong>
+en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo tren puede generar varias
+<em>incidencias</em> (una por parada); el titular cuenta <strong>trenes</strong>, no incidencias.</p>
 
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0">{kpis}</div>
+<p style="font-size:.85rem;color:#555;margin:6px 0 0">Cobertura del feed hoy: cercanías <b>{cer}</b>/{den_cer or 's/d'} trenes ({_pct(cer, den_cer)}) · AVE/larga distancia <b>{av}</b>/{den_av or 's/d'} ({_pct(av, den_av)}). Denominador = trenes vistos en el feed (con o sin retraso); se acumula por día y muestra <em>s/d</em> hasta que el día esté completo.</p>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
-<h3 style="margin-top:0">Hoy por gravedad</h3>
-<p style="font-size:.9rem;color:#555;margin-top:0">Distribución de los retrasos de hoy por franja de retraso, separada por tipo de servicio (cercanías y larga distancia/AVE).</p>
+<h3 style="margin-top:0">Hoy por gravedad (por tren)</h3>
+<p style="font-size:.9rem;color:#555;margin-top:0">Cada tren cuenta una vez, en la franja de su <b>retraso máximo</b> del día, separado por tipo de servicio (cercanías y larga distancia/AVE).</p>
 {donas_hoy_html}
 </div>
 
@@ -420,7 +457,7 @@ y <strong>cercanías</strong> con retraso significativo (≥10 minutos).</p>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
-<p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: retrasos detectados en cada hora por gravedad (10–15, 15–30, 30–60 y &gt;60 min). AVE/larga distancia {av} · cercanías {cer}.</p>
+<p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>incidencias</b> (tren×parada) por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min). Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
 {svg_horas(por_hora)}
 </div>
 
@@ -431,14 +468,13 @@ y <strong>cercanías</strong> con retraso significativo (≥10 minutos).</p>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Cómo se lee esto</h3>
-<p style="font-size:.9rem;color:#444;line-height:1.6">Cada punto es un tren que ha registrado un retraso de
-<b>10 minutos o más</b> en una parada durante el día. Un mismo tren puede aparecer varias veces si su
-retraso se confirma en varias estaciones de su recorrido. <b>Esto es una foto del día, no un histórico</b>:
-los datos se recogen en tiempo real y no se acumulan de un día para otro. El <b>resumen semanal</b> sí acumula
-una vez al día (agregados por franja de retraso y tipo de servicio) desde el día en que se activó, por lo que
-su primer valor completo de 7 días estará disponible al cabo de una semana. Si un trayecto te interesa
-(p. ej. Madrid-Murcia), revisa el mapa de incidencias en <a href="https://nearme.viajeinteligencia.com"
-style="color:#c2410c">NearMe</a> para ver la posición de los trenes afectados.</p>
+<p style="font-size:.9rem;color:#444;line-height:1.6"><b>Titular = trenes</b> con retraso ≥10 min (un tren = un servicio, contado una vez).
+Un mismo tren puede generar varias <em>incidencias</em> (una por cada parada con ≥10 min de retraso), que es el segundo KPI.
+La <b>cobertura</b> compara los trenes afectados con los trenes vistos en el feed ese día (denominador, orden de magnitud),
+no con la puntualidad oficial de RENFE (que mide otra cosa: % por servicio y umbral). <b>Esto es una foto del día</b>: los
+eventos caducan (TTL 6 h) y no se acumulan de un día a otro; el <b>resumen semanal</b> sí acumula por día (por tren y franja de
+retraso) desde que se activó. Si un trayecto te interesa (p. ej. Madrid-Murcia), revisa el mapa de incidencias en
+<a href="https://nearme.viajeinteligencia.com" style="color:#c2410c">NearMe</a> para ver la posición de los trenes afectados.</p>
 </div>
 
 {FOOTER}
@@ -446,7 +482,8 @@ style="color:#c2410c">NearMe</a> para ver la posición de los trenes afectados.<
 </body></html>"""
 
     Path(args.out).write_text(html, encoding="utf-8")
-    print(f"OK: {args.out} — {total} retrasos RENFE hoy (AV {av}, cercanías {cer}, semanal {dias_disp} días)")
+    print(f"OK: {args.out} — {trenes_total} trenes / {total_eventos} incidencias RENFE hoy "
+          f"(AV {av}, cercanías {cer}, semanal {dias_disp} días)")
 
 
 if __name__ == "__main__":

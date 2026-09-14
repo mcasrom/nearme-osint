@@ -63,6 +63,19 @@ def asegurar_tabla(cur):
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_rd_fecha ON renfe_daily(fecha)")
+    # Por TREN (coherente con el titular de la página): nº de trenes por banda de
+    # su retraso MÁXIMO del día (los eventos son tren×parada; aquí se agrega a tren).
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS renfe_daily_trenes (
+            id SERIAL PRIMARY KEY,
+            fecha DATE NOT NULL,
+            subtipo TEXT NOT NULL,
+            banda TEXT NOT NULL,
+            n INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(fecha, subtipo, banda)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rdt_fecha ON renfe_daily_trenes(fecha)")
 
 
 def main():
@@ -73,7 +86,7 @@ def main():
 
         # solo eventos del dia en curso (created_at real, no estado actual)
         cur.execute("""
-            SELECT subtype, title
+            SELECT subtype, title, description
             FROM events
             WHERE source='renfe' AND event_type='train_delay'
               AND created_at >= date_trunc('day', now())
@@ -82,8 +95,9 @@ def main():
         filas = cur.fetchall()
 
         import re
-        conteo = {}  # (subtipo, banda) -> n
-        for subtype, title in filas:
+        conteo = {}       # (subtipo, banda) -> n  (eventos tren×parada)
+        max_trip = {}     # (subtipo, trip) -> retraso máximo
+        for subtype, title, desc in filas:
             m = re.search(r": \+(\d+)min", title or "")
             if not m:
                 continue
@@ -91,6 +105,17 @@ def main():
             st = subtype or "desconocido"
             key = (st, bandas(delay))
             conteo[key] = conteo.get(key, 0) + 1
+            tm = re.search(r"Trip: (\S+)", desc or "")
+            trip = tm.group(1) if tm else (title or "")[:40]
+            k2 = (st, trip)
+            if delay > max_trip.get(k2, 0):
+                max_trip[k2] = delay
+
+        # Agregado por TREN: banda del retraso máximo de cada tren
+        conteo_tren = {}
+        for (st, _trip), d in max_trip.items():
+            key = (st, bandas(d))
+            conteo_tren[key] = conteo_tren.get(key, 0) + 1
 
         fecha = datetime.now(timezone.utc).date().isoformat()
         for (st, banda), n in sorted(conteo.items()):
@@ -100,9 +125,18 @@ def main():
                 ON CONFLICT (fecha, subtipo, banda)
                 DO UPDATE SET n = GREATEST(renfe_daily.n, EXCLUDED.n)
             """, (fecha, st, banda, n))
+        for (st, banda), n in sorted(conteo_tren.items()):
+            cur.execute("""
+                INSERT INTO renfe_daily_trenes (fecha, subtipo, banda, n)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (fecha, subtipo, banda)
+                DO UPDATE SET n = GREATEST(renfe_daily_trenes.n, EXCLUDED.n)
+            """, (fecha, st, banda, n))
         conn.commit()
         total = sum(conteo.values())
-        print(f"snapshot {fecha}: {len(conteo)} claves, {total} retrasos (maximo progresivo)")
+        total_tr = sum(conteo_tren.values())
+        print(f"snapshot {fecha}: {len(conteo)} claves, {total} incidencias · "
+              f"{total_tr} trenes (maximo progresivo)")
     finally:
         release_conn(conn)
 

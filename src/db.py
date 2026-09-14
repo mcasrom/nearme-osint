@@ -109,6 +109,17 @@ def init_db():
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date)")
+    # Denominador RENFE: trip_id vistos en el feed GTFS-RT por (fecha, subtipo),
+    # con o sin retraso. Permite calcular "% de trenes con retraso" (contexto).
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS renfe_trips_seen (
+            fecha DATE NOT NULL,
+            subtipo TEXT NOT NULL,
+            trip_id TEXT NOT NULL,
+            PRIMARY KEY (fecha, subtipo, trip_id)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_renfe_trips_seen_fecha ON renfe_trips_seen(fecha)")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS event_history (
             id BIGSERIAL PRIMARY KEY,
@@ -774,6 +785,44 @@ def resolve_all_before(source: str, cutoff: str) -> int:
 
 
 # ----- Collector Runs -----
+
+def record_trips_seen(fecha, subtipo: str, trip_ids) -> int:
+    """Registra los trip_id vistos en el feed RENFE (con o sin retraso) para una
+    fecha y subtipo. Base del DENOMINADOR (% de trenes con retraso). Idempotente."""
+    trip_ids = [t for t in set(trip_ids or []) if t]
+    if not trip_ids:
+        return 0
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.executemany(
+            "INSERT INTO renfe_trips_seen (fecha, subtipo, trip_id) VALUES (%s, %s, %s)"
+            " ON CONFLICT (fecha, subtipo, trip_id) DO NOTHING",
+            [(fecha, subtipo, t) for t in trip_ids])
+        conn.commit()
+        return len(trip_ids)
+    finally:
+        cur.close()
+        release_conn(conn)
+
+
+def count_trips_seen(fecha, subtipo: str = None):
+    """Nº de trenes (trip_id) vistos en el feed RENFE para `fecha`.
+    Con `subtipo` devuelve un entero; sin él, dict {subtipo: n}."""
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if subtipo:
+            cur.execute("SELECT COUNT(DISTINCT trip_id) FROM renfe_trips_seen WHERE fecha=%s AND subtipo=%s",
+                        (fecha, subtipo))
+            return cur.fetchone()[0] or 0
+        cur.execute("SELECT subtipo, COUNT(DISTINCT trip_id) FROM renfe_trips_seen WHERE fecha=%s GROUP BY subtipo",
+                    (fecha,))
+        return {r[0]: r[1] for r in cur.fetchall()}
+    finally:
+        cur.close()
+        release_conn(conn)
+
 
 def save_collector_run(collector: str, success: bool, latency_s: float, events: int):
     conn = get_conn()

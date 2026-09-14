@@ -73,6 +73,7 @@ class RENFEDelaysCollector(BaseCollector):
             feed.ParseFromString(resp.content)
 
             seen = set()
+            trips_all = set()
             for entity in feed.entity:
                 if not entity.HasField('trip_update'):
                     continue
@@ -85,6 +86,8 @@ class RENFEDelaysCollector(BaseCollector):
                     today = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
                     if sd != today:
                         continue
+
+                trips_all.add(trip_id)
 
                 for stu in tu.stop_time_update:
                     if not stu.HasField('arrival') or stu.arrival.delay <= 300:
@@ -119,6 +122,15 @@ class RENFEDelaysCollector(BaseCollector):
                     ))
 
             logger.info("RENFE %s: %d retrasos significativos", feed_type, len(events))
+            # Denominador: registrar TODOS los trip_id vistos hoy (con o sin
+            # retraso) para poder calcular el % de trenes con retraso.
+            try:
+                from src.db import record_trips_seen
+                hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+                record_trips_seen(hoy, feed_type, trips_all)
+                logger.info("RENFE %s: %d trenes vistos (denominador)", feed_type, len(trips_all))
+            except Exception as e:
+                logger.warning("RENFE %s: record_trips_seen %s", feed_type, e)
         except Exception as e:
             logger.warning("RENFE %s: %s", feed_type, e)
         return events
