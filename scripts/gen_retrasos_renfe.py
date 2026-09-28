@@ -146,7 +146,7 @@ def banda_pie(delay):
     return "10-14"
 
 
-def svg_dona(por_banda, titulo, subtotal_txt):
+def svg_dona(por_banda, titulo, subtotal_txt, vistos=None):
     """Dona SVG inline (sin librería): círculo base + arcos stroked.
 
     Cada banda es un <circle> con stroke-dasharray proporcional a su fracción.
@@ -154,6 +154,11 @@ def svg_dona(por_banda, titulo, subtotal_txt):
     """
     total = sum(por_banda.values())
     if total <= 0:
+        # Distinguir "no hay datos" de "hay trenes pero ninguno >=10 min".
+        # Con el feed funcionando, un 0 aqui NO es ausencia de informacion.
+        if vistos:
+            return (f'<p style="font-size:.9rem;color:#888">(sin retrasos de 10 min o mas; '
+                    f'{vistos} trenes vistos en el feed)</p>')
         return f'<p style="font-size:.9rem;color:#888">(sin datos en {titulo})</p>'
     CX, CY, R, SW = 105, 105, 78, 46
     C = 2 * math.pi * R
@@ -379,9 +384,9 @@ def main():
 
     # Dona "Hoy por gravedad": una por tipo (si hay datos del tipo)
     dona_cerc = svg_dona(pie_hoy.get("cercanias", {}), "cercanías",
-                         f"{cer} trenes · {cer_ev} incidencias")
+                         f"{cer} trenes · {cer_ev} incidencias", vistos=den_cer)
     dona_av = svg_dona(pie_hoy.get("alta_velocidad", {}), "larga distancia/AVE",
-                       f"{av} trenes · {av_ev} incidencias")
+                       f"{av} trenes · {av_ev} incidencias", vistos=den_av)
     donas_hoy_html = (
         f'<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-around">'
         f'<div style="flex:1 1 280px;min-width:260px"><h4 style="margin:.2em 0 .2em;font-size:.95rem;text-align:center">Cercanías</h4>{dona_cerc}</div>'
