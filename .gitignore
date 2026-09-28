@@ -8,3 +8,7 @@ logs/
 data/
 analytics/
 *.bak*
+
+# BD local de preferencias de Telegram (no versionar)
+telegram_prefs.db
+*.db
