@@ -39,6 +39,16 @@ def _in_spain(lat, lon):
 logger = get_logger("src.collectors.dgt")
 
 
+def _usgs_hora(props):
+    """Hora del evento (USGS `time` en epoch ms) → 'YYYY-MM-DD HH:MM:SS' UTC.
+    El radar guardaba solo created_at (ingesta); esto da la hora real del sismo."""
+    try:
+        return datetime.fromtimestamp(int(props.get("time")) / 1000,
+                                      tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return ""
+
+
 class EarthquakesCollector(BaseCollector):
     name = "USGS + FIRMS"
     source = ["usgs", "usgs_es", "nasa_firms"]
@@ -48,6 +58,7 @@ class EarthquakesCollector(BaseCollector):
         events = []
         events.extend(await self._earthquakes())
         events.extend(await self._earthquakes_spain())
+        events.extend(await self._earthquakes_significant())
         events.extend(await self._firms_fires())
         return events
 
@@ -75,19 +86,55 @@ class EarthquakesCollector(BaseCollector):
                         level = "warning"
                     events.append(Event(
                         source="usgs",
-                        source_id=f"usgs_{props.get('id', '')}",
+                        source_id=f"usgs_{(feat.get('id') or props.get('ids', '').split(',')[0])}",
                         event_type="earthquake",
                         subtype=f"mag_{mag}",
                         lat=lat, lon=lon,
                         radius_m=max(mag * 10000, 5000),
                         level=level,
                         title=f"Terremoto M{mag} - {place}",
-                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
+                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}. Hora: {_usgs_hora(props)} UTC",
                         country=props.get("net", ""),
                     ))
                 logger.info("%d terremotos USGS (ultimas 24h)", len(events))
         except Exception as e:
             logger.warning("USGS: %s", e)
+        return events
+
+    async def _earthquakes_significant(self):
+        """USGS global M4.5+ de los últimos 7 días (feed fiable para eventos
+        'notables'; el de 24 h se corta a 30 y puede perder un M5)."""
+        events = []
+        try:
+            async with httpx.AsyncClient(timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+                resp = await client.get(
+                    "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson",
+                )
+            if resp.status_code == 200:
+                for feat in resp.json().get("features", []):
+                    props = feat.get("properties", {})
+                    eid = feat.get("id") or props.get("ids", "").split(",")[0]
+                    if not eid:
+                        continue
+                    coords = feat.get("geometry", {}).get("coordinates", [0, 0, 0])
+                    mag = props.get("mag", 0)
+                    depth = coords[2] if len(coords) >= 3 else 0
+                    place = props.get("place", "Desconocido")
+                    events.append(Event(
+                        source="usgs",
+                        source_id=f"usgs_{eid}",
+                        event_type="earthquake",
+                        subtype=f"mag_{mag}",
+                        lat=coords[1], lon=coords[0],
+                        radius_m=max(mag * 10000, 5000),
+                        level="alert" if mag >= 6 else "warning",
+                        title=f"Terremoto M{mag} - {place}",
+                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}. Hora: {_usgs_hora(props)} UTC",
+                        country=props.get("net", ""),
+                    ))
+                logger.info("%d terremotos USGS 4.5+ (7d)", len(events))
+        except Exception as e:
+            logger.warning("USGS 4.5: %s", e)
         return events
 
     async def _earthquakes_spain(self):
@@ -98,8 +145,9 @@ class EarthquakesCollector(BaseCollector):
             ) as client:
                 resp = await client.get(
                     "https://earthquake.usgs.gov/fdsnws/event/1/query"
-                    "?format=geojson&region=Spain&minmagnitude=1.5"
-                    "&orderby=time&limit=15",
+                    "?format=geojson&minmagnitude=3.0"
+                    "&minlatitude=35&maxlatitude=44.5&minlongitude=-10&maxlongitude=5"
+                    "&orderby=time&limit=20",
                 )
                 if resp.status_code != 200:
                     return events
@@ -115,14 +163,14 @@ class EarthquakesCollector(BaseCollector):
                         level = "warning"
                     events.append(Event(
                         source="usgs_es",
-                        source_id=f"usgses_{props.get('id', '')}",
+                        source_id=f"usgses_{(feat.get('id') or props.get('ids', '').split(',')[0])}",
                         event_type="earthquake",
                         subtype=f"mag_{mag}",
                         lat=lat, lon=lon,
                         radius_m=max(mag * 10000, 5000),
                         level=level,
                         title=f"Terremoto M{mag} - {place}",
-                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}",
+                        description=f"Magnitud: {mag}. Profundidad: {depth} km. {place}. Hora: {_usgs_hora(props)} UTC",
                         country="ES",
                     ))
         except Exception as e:
