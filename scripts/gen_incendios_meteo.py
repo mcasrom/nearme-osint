@@ -219,6 +219,7 @@ table{{border-collapse:collapse;width:100%;font-size:.92rem}} td,th{{padding:6px
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 </head><body><main>
+<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/enjambre-granada.html" style="color:#c2410c">🌋 enjambre</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a> · <a href="/nivel-nieve.html" style="color:#c2410c">❄️ nieve</a></p>
 <h1>🔥 Incendios × meteorología</h1>
 <p>Cada punto es una <b>comunidad autónoma en un día concreto</b>: eje X = temperatura máxima diaria (media en la capital autonómica), eje Y = detecciones térmicas registradas por NearMe (NASA FIRMS). El tamaño refleja el viento.</p>
 <div class="kpi">Ventana: {d0.strftime('%d/%m')} – {d1.strftime('%d/%m')} 2026</div>

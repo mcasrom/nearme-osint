@@ -302,7 +302,7 @@ def main():
 </head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
-<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">🔥 incendios</a></p>
+<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">🔥 incendios</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a> · <a href="/nivel-nieve.html" style="color:#c2410c">❄️ nieve</a></p>
 <h1 style="font-size:1.55rem;margin:.2em 0">Enjambre sísmico de Granada</h1>
 <p>Desde el <strong>14 de agosto de 2026</strong>, la Vega de Granada experimenta un enjambre sísmico activo
 con epicentro en los municipios del entorno: Alhendín, La Zubia, Gójar, Ogíjares y Otura.

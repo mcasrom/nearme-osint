@@ -360,7 +360,7 @@ a{{color:#c2410c}}
 </style></head>
 <body>
 <main>
-<p style="font-size:.85rem"><a href="/">← radar</a> · <a href="/enjambre-granada.html">🌍 enjambre</a> · <a href="/pulso-espana.html">💓 pulso</a> · <a href="/incendios-meteorologia.html">🔥 incendios</a></p>
+<p style="font-size:.85rem"><a href="/">← radar</a> · <a href="/enjambre-granada.html">🌍 enjambre</a> · <a href="/pulso-espana.html">💓 pulso</a> · <a href="/incendios-meteorologia.html">🔥 incendios</a> · <a href="/nivel-nieve.html">❄️ nieve</a></p>
 <h1 style="font-size:1.6rem;margin:.2em 0">Nivel de los embalses de España</h1>
 <p style="color:#475569">Estado actual del agua almacenada en los embalses españoles:
 porcentaje de llenado, volumen, situación por cuenca y precipitación reciente.

@@ -166,7 +166,7 @@ def main():
 </head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
-<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">incendios × meteorología</a></p>
+<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/incendios-meteorologia.html" style="color:#c2410c">incendios × meteorología</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a> · <a href="/nivel-nieve.html" style="color:#c2410c">❄️ nieve</a></p>
 <h1 style="font-size:1.55rem;margin:.2em 0">El pulso de España</h1>
 <p>Cada día el ecosistema NearMe captura miles de señales: incendios (NASA FIRMS), tráfico (DGT),
 avisos meteorológicos (AEMET), calidad del aire (MITECO/OpenAQ), ferroviarias (Renfe), energía (REE),
