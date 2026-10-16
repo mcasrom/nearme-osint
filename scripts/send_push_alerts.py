@@ -7,6 +7,7 @@ Cron: */5 * * * * cd /home/deploy/nearme-osint && venv/bin/python scripts/send_p
 import html
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -58,6 +59,24 @@ LEVEL_ORDER = {"info": 1, "warning": 2, "alert": 3, "critical": 4}
 
 def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _push_status_code(exc):
+    """Extrae el status HTTP de un WebPushException.
+
+    pywebpush no siempre expone ``exc.response.status_code`` (a veces es None);
+    el código real suele venir en el cuerpo del error, p.ej.
+    ``{"code":410,...,"error":"Gone"}``. Sin este fallback una suscripción
+    caducada (410) nunca se borraba y el aviso se reintentaba en cada ciclo.
+    """
+    resp = getattr(exc, "response", None)
+    code = getattr(resp, "status_code", None)
+    if isinstance(code, int):
+        return code
+    m = re.search(r'"code"\s*:\s*(\d{3})', str(exc))
+    if m:
+        return int(m.group(1))
+    return None
 
 
 def send_push(sub, payload):
@@ -164,7 +183,7 @@ def flush_push_digests():
                 ok += 1
             except WebPushException as e:
                 print(f"[{now_iso()}] [ERR] push user={d['user_id']}: {e}")
-                if getattr(e, "response", None) and e.response.status_code in (404, 410):
+                if _push_status_code(e) in (404, 410):
                     delete_push_subscription(d["user_id"], sub["endpoint"])
             except Exception as e:
                 print(f"[{now_iso()}] [ERR] push user={d['user_id']}: {e}")
@@ -236,7 +255,7 @@ def main():
                             send_push(sub, payload)
                             ok = True
                         except WebPushException as exc:
-                            code = getattr(exc.response, "status_code", None) if exc.response else None
+                            code = _push_status_code(exc)
                             if code in (404, 410):
                                 print(f"[{now_iso()}] [DROP] push caducada user={user_id}")
                                 delete_push_subscription(user_id, sub["endpoint"])

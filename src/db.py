@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 import psycopg2
 import psycopg2.extras
@@ -639,21 +640,46 @@ def get_timeline_counts(start: str, end: str, step_hours: int = 6):
 
 
 def cleanup_history_retention(days: int = 365) -> dict:
-    """Política de rotación: borra historial y eventos resueltos antiguos (>days)."""
+    """Política de rotación: borra historial y eventos resueltos antiguos (>days).
+
+    Se borra por lotes (commit por lote) para no retener locks largos sobre
+    event_history/events (el colector escribe a la vez) y se reintenta ante
+    deadlock, en vez de abortar la limpieza completa. Sin esto, el DELETE
+    monolítico deadlockeaba con el colector y la retención no se ejecutaba.
+    """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    h_del = 0
+    e_del = 0
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("DELETE FROM event_history WHERE snapshot_at < %s", (cutoff,))
-    h_del = cur.rowcount
-    cur.execute("DELETE FROM events WHERE status=%s AND updated_at < %s",
-                (EVENT_STATUS_RESOLVED, cutoff))
-    e_del = cur.rowcount
-    conn.commit()
-    cur.close()
-    release_conn(conn)
-    logger.info("[retention] limpieza %s dias: %s historial, %s eventos resueltos borrados",
-                days, h_del, e_del)
-    return {"history_deleted": h_del, "events_deleted": e_del}
+    try:
+        for attempt in range(5):
+            try:
+                while True:
+                    cur.execute(
+                        "DELETE FROM event_history WHERE id IN ("
+                        "  SELECT id FROM event_history WHERE snapshot_at < %s LIMIT 20000"
+                        ")", (cutoff,))
+                    n = cur.rowcount
+                    conn.commit()
+                    h_del += n
+                    if n == 0:
+                        break
+                cur.execute("DELETE FROM events WHERE status=%s AND updated_at < %s",
+                            (EVENT_STATUS_RESOLVED, cutoff))
+                e_del = cur.rowcount
+                conn.commit()
+                break
+            except psycopg2.errors.DeadlockDetected:
+                conn.rollback()
+                logger.warning("[retention] deadlock (intento %s/5), reintentando", attempt + 1)
+                time.sleep(2 * (attempt + 1))
+        logger.info("[retention] limpieza %s dias: %s historial, %s eventos resueltos borrados",
+                    days, h_del, e_del)
+        return {"history_deleted": h_del, "events_deleted": e_del}
+    finally:
+        cur.close()
+        release_conn(conn)
 
 
 def get_event_by_id(event_id: int) -> Optional[dict]:
