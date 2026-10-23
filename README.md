@@ -170,6 +170,14 @@ nearme-osint/
 └── WAYAHEAD.md                 # Bitácora de desarrollo y sprints
 ```
 
+## 🔎 SEO y rastreo
+
+- `frontend/sitemap.xml` se regenera desde los `.html` reales en
+  `scripts/gen_zone_pages.py` y `scripts/gen_tiempo_municipios.py`.
+- `admin.html` se excluye del sitemap a propósito; `/admin` y `/api/`
+  están bloqueados en `frontend/robots.txt`.
+- No incluir rutas privadas ni endpoints de API en el sitemap.
+
 ## 🔌 API
 
 | Endpoint | Descripción |

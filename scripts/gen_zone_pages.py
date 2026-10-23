@@ -203,7 +203,7 @@ def build_sitemap(zone_urls):
     seen = {u for u, _ in urls}
     # escanear todos los .html reales (zone pages, tiempo-*, resto)
     import os as _os
-    files = sorted(f for f in _os.listdir(FRONT) if f.endswith(".html") and f != "index.html")
+    files = sorted(f for f in _os.listdir(FRONT) if f.endswith(".html") and f not in ("index.html", "admin.html"))
     for f in files:
         u = "%s/%s" % (SITE, f[:-5])
         if u in seen:

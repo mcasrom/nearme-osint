@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://nearme.viajeinteligencia.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/admin</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/calidad-aire</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/firms</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/calidad-aire</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/precio-luz</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/incendios</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/trafico</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-a-coruna</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-albacete</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-alicante</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
@@ -60,8 +63,8 @@
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-vitoria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-zamora</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire-zaragoza</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/datos-por-zona</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/calidad-del-aire</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/datos-por-zona</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/embalses-a-coruna</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/embalses-alicante</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/embalses-avila</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
@@ -107,8 +110,7 @@
   <url><loc>https://nearme.viajeinteligencia.com/embalses-vitoria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/embalses-zamora</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/embalses-zaragoza</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/embed</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/firms</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/embed</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/incendios-a-coruna</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/incendios-alicante</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/incendios-almeria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
@@ -154,9 +156,7 @@
   <url><loc>https://nearme.viajeinteligencia.com/incendios-vitoria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/incendios-zamora</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/incendios-zaragoza</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/incendios</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/incrustar</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/precio-luz</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nearme.viajeinteligencia.com/incrustar</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/terremotos-alicante</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/terremotos-almeria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/terremotos-girona</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
@@ -1016,5 +1016,4 @@
   <url><loc>https://nearme.viajeinteligencia.com/trafico-vitoria</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/trafico-zamora</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nearme.viajeinteligencia.com/trafico-zaragoza</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://nearme.viajeinteligencia.com/trafico</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
 </urlset>

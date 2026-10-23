@@ -209,7 +209,7 @@ def main():
     if not dry and sitemap_urls:
         # Reconstruir sitemap desde los .html reales (idempotente, evita duplicados)
         smap_path = os.path.join(FRONT, "sitemap.xml")
-        all_files = sorted(f for f in os.listdir(FRONT) if f.endswith(".html") and f != "index.html")
+        all_files = sorted(f for f in os.listdir(FRONT) if f.endswith(".html") and f not in ("index.html", "admin.html"))
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         xml += '  <url><loc>%s/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n' % SITE
         for f in all_files:
