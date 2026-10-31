@@ -98,6 +98,17 @@ def collect(window_min=None):
     }
 
 
+
+def scheduled_today():
+    cur = get_conn().cursor()
+    today = datetime.now(MADRID).date().isoformat()
+    cur.execute(
+        "SELECT route_short_name, COUNT(*) FROM renfe_gtfs_trips "
+        "WHERE feed='alta_velocidad' AND trip_id LIKE %s GROUP BY route_short_name",
+        ("%" + today,),
+    )
+    return {r[0]: int(r[1]) for r in cur.fetchall() if r[0]}
+
 def table_rows(stations):
     return "".join(
         f"<tr><td>{escape(x['station'])}</td><td>{escape(x['lines'])}</td>"
@@ -112,6 +123,9 @@ def main():
     day_view = collect(None)
     now = datetime.now(MADRID)
     gen = now.isoformat(timespec="seconds")
+    scheduled = scheduled_today()
+    expected = {"AVE", "AVLO", "AVANT", "EUROMED", "ALVIA", "Intercity"}
+    missing = sorted(expected - set(scheduled))
     all_stations = now_view["stations"] + day_view["stations"]
     services = sorted({s.strip() for x in all_stations for s in x["lines"].split(",") if s.strip() and s.strip() != "s/d"})
     payload = {
@@ -120,6 +134,8 @@ def main():
         "disclaimer": "Punto = estación con retraso reportado; no es la posición del tren ni una confirmación oficial.",
         "threshold_min": 15,
         "services": services,
+        "scheduled_today": scheduled,
+        "missing_scheduled": missing,
         "views": {
             "now": {"label": "Ahora", "note": "Últimas observaciones de los últimos 30 minutos.", **now_view},
             "day": {"label": "Acumulado de hoy", "note": "Todo lo reportado desde las 00:00 de hoy.", **day_view},
@@ -131,6 +147,11 @@ def main():
     data_js = json.dumps(payload["views"], ensure_ascii=False).replace("</", "<\\/")
     services_html = "".join(f'<option value="{escape(s)}">{escape(s)}</option>' for s in services)
     initial_rows = table_rows(now_view["stations"])
+    if missing:
+        missing_txt = ", ".join(missing)
+        coverage_note = f'<p class="warn"><b>Hoy el GTFS estático no programa: {escape(missing_txt)}.</b> No aparecen en el mapa porque no hay circulaciones de referencia para hoy; no es un fallo de captura.</p>'
+    else:
+        coverage_note = ""
     max_delay = max(now_view["totals"]["max_delay_min"], 0)
     json_ld = json.dumps({
         "@context": "https://schema.org",
@@ -182,6 +203,7 @@ table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bott
 <h1>Retrasos de Renfe AVE y larga distancia en el mapa</h1>
 <p class="lead">Cada punto es una <b>estación</b> donde Renfe ha reportado al menos un tren AVE o de larga distancia con retraso de <b>15 minutos o más</b>. No es la posición del tren.</p>
 <p class="meta">Vista inicial: <b>Ahora</b> (últimos 30 min). <span id="updated">Actualizado: {now.strftime('%d/%m/%Y %H:%M')} Europe/Madrid</span> · datos GTFS-RT de Renfe vía NearMe · no es una web oficial.</p>
+{coverage_note}
 <div class="controls"><div class="seg" role="group" aria-label="Ventana temporal"><button type="button" class="on" data-view="now" aria-pressed="true">Ahora</button><button type="button" data-view="day" aria-pressed="false">Acumulado de hoy</button></div><label>Servicio <select id="service"><option value="all">Todos</option>{services_html}</select></label><span class="refresh" id="refresh-note">Se actualiza cada 15 min al abrir la página.</span></div>
 <div class="stats"><div class="stat"><b id="stat-stations">{now_view['totals']['stations']}</b><span>estaciones con retraso ≥15 min</span></div><div class="stat"><b id="stat-trains">{now_view['totals']['trains']}</b><span id="stat-trains-label">trenes únicos afectados</span></div><div class="stat"><b id="stat-max">+{max_delay} min</b><span>retraso máximo reportado</span></div></div>
 <p class="map-note" id="view-note">Ahora: últimas observaciones de los últimos 30 minutos.</p>
