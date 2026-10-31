@@ -120,6 +120,36 @@ def cargar_obs_trenes(limite=20):
         return []
 
 
+def cargar_obs_horas():
+    """Trenes con retraso por hora, según la última observación de cada hora."""
+    try:
+        cur = get_conn().cursor()
+        cur.execute("""
+            WITH x AS (
+                SELECT date_trunc('hour', observed_at AT TIME ZONE 'Europe/Madrid') AS hora,
+                       trip_id,
+                       MAX(delay_seconds) AS delay,
+                       BOOL_OR(is_forecast) AS forecast,
+                       BOOL_OR(schedule_relationship = 2) AS cancelled
+                FROM renfe_delay_obs
+                WHERE observed_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+                GROUP BY 1, 2
+            )
+            SELECT EXTRACT(HOUR FROM hora)::int AS h, delay, forecast, cancelled
+            FROM x
+            WHERE delay >= 600 OR cancelled
+        """)
+        out = defaultdict(lambda: defaultdict(int))
+        for h, delay, forecast, cancelled in cur.fetchall():
+            if cancelled:
+                out[int(h)][sev_of(60)] += 1
+            else:
+                out[int(h)][sev_of((delay or 0)//60)] += 1
+        return out
+    except Exception:
+        return {}
+
+
 def cargar_semanal(dias=7):
     """Agregados diarios acumulados (renfe_daily): últimos `dias` días.
 
@@ -393,6 +423,9 @@ def main():
         por_tipo[e["tipo"]] += 1
         por_hora[e["hora"]][sev_of(e["delay"])] += 1
         est_n[e["est"]] += 1
+    obs_horas = cargar_obs_horas()
+    if obs_horas:
+        por_hora = obs_horas
     for (tipo, _t), d in max_trip.items():
         pie_hoy[tipo][banda_pie(d)] += 1   # dona por TREN (banda del retraso máximo)
 
@@ -603,7 +636,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 {datos_html}
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
-<p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>incidencias</b> (tren×parada) por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min). Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
+<p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>trenes con retraso</b> por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min), desde la última observación de cada hora. Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
 {svg_horas(por_hora)}
 </div>
 
