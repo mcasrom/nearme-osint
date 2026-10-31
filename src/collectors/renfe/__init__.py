@@ -6,14 +6,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import httpx
-import requests
 from google.transit import gtfs_realtime_pb2
+from src.config import (RENFE_FEED_URLS, RENFE_MIN_DELAY_SECONDS, RENFE_RADIUS_M,
+                        RENFE_STATIONS_CSV_URL, RENFE_USER_AGENT, RENFE_WARNING_DELAY_SECONDS)
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
-
-STATIONS_CSV = "https://ssl.renfe.com/ftransit/Fichero_estaciones/estaciones.csv"
-
 
 logger = get_logger("src.collectors.renfe")
 
@@ -31,12 +29,13 @@ class RENFEDelaysCollector(BaseCollector):
         m = re.search(r"(\d{4}-\d{2}-\d{2})$", trip_id or "")
         return m.group(1) if m else None
 
-    def _load_stations(self):
+    async def _load_stations(self):
         if self._stations is not None and time.monotonic() - self._stations_ts < 6 * 3600:
             return self._stations
         parsed = {}
         try:
-            resp = requests.get(STATIONS_CSV, timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"})
+            async with httpx.AsyncClient(timeout=15, headers={"User-Agent": RENFE_USER_AGENT}) as client:
+                resp = await client.get(RENFE_STATIONS_CSV_URL)
             if resp.status_code != 200:
                 logger.warning("RENFE estaciones: HTTP %s", resp.status_code)
                 return self._stations or {}
@@ -63,15 +62,15 @@ class RENFEDelaysCollector(BaseCollector):
 
     async def collect(self):
         events = []
-        stations = self._load_stations()
-        events.extend(await self._parse_delays("https://gtfsrt.renfe.com/trip_updates.pb", "cercanias", stations))
-        events.extend(await self._parse_delays("https://gtfsrt.renfe.com/trip_updates_LD.pb", "alta_velocidad", stations))
+        stations = await self._load_stations()
+        for url, feed_type in zip(RENFE_FEED_URLS, ("cercanias", "alta_velocidad")):
+            events.extend(await self._parse_delays(url, feed_type, stations))
         return events
 
     async def _parse_delays(self, url, feed_type, stations):
         events = []
         try:
-            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "NearMeOSINT/1.0"}) as client:
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": RENFE_USER_AGENT}) as client:
                 resp = await client.get(url)
             if resp.status_code != 200:
                 logger.warning("RENFE %s: HTTP %s", feed_type, resp.status_code)
@@ -90,41 +89,43 @@ class RENFEDelaysCollector(BaseCollector):
                 trip_id = tu.trip.trip_id
                 route_id = tu.trip.route_id
 
-                if feed_type == "alta_velocidad":
-                    sd = self._service_date(trip_id)
-                    today = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
-                    if sd != today:
-                        continue
+                sd = self._service_date(trip_id)
+                today = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
+                if sd and sd != today:
+                    continue
 
                 trips_all.add(trip_id)
 
                 for stu in tu.stop_time_update:
-                    if not stu.HasField('arrival') or stu.arrival.delay <= 300:
+                    if stu.schedule_relationship in (1, 2):  # SKIPPED, CANCELED
                         continue
-
-                    delay = stu.arrival.delay
+                    if stu.HasField('arrival'):
+                        delay = stu.arrival.delay
+                    elif stu.HasField('departure'):
+                        delay = stu.departure.delay
+                    else:
+                        continue
+                    if delay < RENFE_MIN_DELAY_SECONDS:
+                        continue
                     stop_id = stu.stop_id
                     dedup_key = f"{trip_id}_{stop_id}"
                     if dedup_key in seen:
                         continue
                     seen.add(dedup_key)
 
-                    if delay < 600:
-                        continue
-
                     if stop_id not in stations:
                         unresolved += 1
                         continue
                     lat, lon, station_name = stations[stop_id]
 
-                    level = 'warning' if delay < 1800 else 'alert'
+                    level = 'warning' if delay < RENFE_WARNING_DELAY_SECONDS else 'alert'
                     events.append(Event(
                         source="renfe",
                         source_id=f"renfe_{feed_type}_{trip_id}_{stop_id}",
                         event_type="train_delay",
                         subtype=feed_type,
                         lat=lat, lon=lon,
-                        radius_m=5000,
+                        radius_m=RENFE_RADIUS_M,
                         level=level,
                         title=f"Retraso {feed_type}: +{delay//60}min ({station_name})",
                         description=f"Retraso: {delay//60} minutos. Ruta: {route_id}. Parada: {station_name} ({stop_id}). Trip: {trip_id}",
