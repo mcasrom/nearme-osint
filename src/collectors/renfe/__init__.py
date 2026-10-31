@@ -2,13 +2,14 @@ import csv
 import io
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import httpx
 from google.transit import gtfs_realtime_pb2
 from src.config import (RENFE_FEED_URLS, RENFE_MIN_DELAY_SECONDS, RENFE_RADIUS_M,
                         RENFE_STATIONS_CSV_URL, RENFE_USER_AGENT, RENFE_WARNING_DELAY_SECONDS)
+from src.db import save_renfe_observations
 from src.collectors.base import BaseCollector
 from src.logging import get_logger
 from src.models import Event
@@ -69,6 +70,7 @@ class RENFEDelaysCollector(BaseCollector):
 
     async def _parse_delays(self, url, feed_type, stations):
         events = []
+        observations = []
         try:
             async with httpx.AsyncClient(timeout=20, headers={"User-Agent": RENFE_USER_AGENT}) as client:
                 resp = await client.get(url)
@@ -97,14 +99,17 @@ class RENFEDelaysCollector(BaseCollector):
                 trips_all.add(trip_id)
 
                 for stu in tu.stop_time_update:
-                    if stu.schedule_relationship in (1, 2):  # SKIPPED, CANCELED
+                    sched = stu.schedule_relationship
+                    evt = stu.arrival if stu.HasField('arrival') else (stu.departure if stu.HasField('departure') else None)
+                    if sched in (1, 2):
+                        observations.append((datetime.now(timezone.utc), trip_id, route_id, stu.stop_id, feed_type, 0, sched, False, None, stu.stop_id))
                         continue
-                    if stu.HasField('arrival'):
-                        delay = stu.arrival.delay
-                    elif stu.HasField('departure'):
-                        delay = stu.departure.delay
-                    else:
+                    if evt is None:
                         continue
+                    delay = evt.delay
+                    raw_t = evt.time if evt.time else None
+                    pred = datetime.fromtimestamp(raw_t, timezone.utc) if raw_t else None
+                    is_forecast = bool(pred and pred > datetime.now(timezone.utc) + timedelta(minutes=1))
                     if delay < RENFE_MIN_DELAY_SECONDS:
                         continue
                     stop_id = stu.stop_id
@@ -115,8 +120,10 @@ class RENFEDelaysCollector(BaseCollector):
 
                     if stop_id not in stations:
                         unresolved += 1
+                        observations.append((datetime.now(timezone.utc), trip_id, route_id, stop_id, feed_type, delay, sched, is_forecast, pred, stop_id))
                         continue
                     lat, lon, station_name = stations[stop_id]
+                    observations.append((datetime.now(timezone.utc), trip_id, route_id, stop_id, feed_type, delay, sched, is_forecast, pred, station_name))
 
                     level = 'warning' if delay < RENFE_WARNING_DELAY_SECONDS else 'alert'
                     events.append(Event(
@@ -133,6 +140,10 @@ class RENFEDelaysCollector(BaseCollector):
                     ))
 
             logger.info("RENFE %s: %d retrasos significativos · %d paradas sin geolocalizar", feed_type, len(events), unresolved)
+            try:
+                save_renfe_observations(observations)
+            except Exception as e:
+                logger.warning("RENFE %s: observaciones %s", feed_type, e)
             # Denominador: registrar TODOS los trip_id vistos hoy (con o sin
             # retraso) para poder calcular el % de trenes con retraso.
             try:

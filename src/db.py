@@ -555,6 +555,41 @@ def save_event(event: Event) -> int:
     return event_id
 
 
+def save_renfe_observations(rows: list[tuple]) -> int:
+    """Guarda observaciones Renfe: retraso actual/previsto y cancelaciones."""
+    if not rows:
+        return 0
+    conn = get_conn(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS renfe_delay_obs (
+                id BIGSERIAL PRIMARY KEY,
+                observed_at TIMESTAMPTZ NOT NULL,
+                trip_id TEXT NOT NULL,
+                route_id TEXT,
+                stop_id TEXT,
+                subtype TEXT,
+                delay_seconds INTEGER,
+                schedule_relationship INTEGER,
+                is_forecast BOOLEAN NOT NULL DEFAULT FALSE,
+                predicted_time TIMESTAMPTZ,
+                station_name TEXT,
+                UNIQUE (subtype, trip_id, stop_id, observed_at)
+            )
+        """)
+        psycopg2.extras.execute_values(cur, """
+            INSERT INTO renfe_delay_obs
+            (observed_at, trip_id, route_id, stop_id, subtype, delay_seconds,
+             schedule_relationship, is_forecast, predicted_time, station_name)
+            VALUES %s ON CONFLICT DO NOTHING
+        """, rows, page_size=500)
+        cur.execute("DELETE FROM renfe_delay_obs WHERE observed_at < now() - interval '2 days'")
+        conn.commit()
+        return len(rows)
+    finally:
+        cur.close(); release_conn(conn)
+
+
 def save_events_batch(events: list[Event]) -> int:
     """Batch upsert multiple events in a single connection/transaction."""
     if not events:

@@ -395,6 +395,18 @@ def main():
     den_cer = den.get("cercanias", 0)
     den_av = den.get("alta_velocidad", 0)
 
+    try:
+        cur = get_conn().cursor()
+        cur.execute("""
+            SELECT COUNT(*) FILTER (WHERE NOT is_forecast),
+                   COUNT(*) FILTER (WHERE is_forecast),
+                   COUNT(*) FILTER (WHERE schedule_relationship = 2)
+            FROM renfe_delay_obs
+            WHERE observed_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+        """)
+        obs_actual, obs_prev, obs_cancel = cur.fetchone()
+    except Exception:
+        obs_actual, obs_prev, obs_cancel = 0, 0, 0
     def _pct(n, d):
         # Denominador incompleto (arranca a mitad de día): evita un % engañoso >100%.
         if not d or n > d:
@@ -432,6 +444,7 @@ def main():
                     '(primera carga al cierre de hoy; resumen completo de 7 días en una semana).</p>')
 
     # pildoras KPI
+    # Nota: "observada" = la hora prevista ya se alcanzó; "prevista" = parada futura.
     kpis = (
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📅 {hoy} · {ahora} Europe/Madrid</span>'
         f'<span style="background:#fef2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 <b>{trenes_total}</b> trenes con retraso ≥10 min hoy</span>'
@@ -440,6 +453,7 @@ def main():
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 Cercanías {cer} · AVE/LD {av}</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🏆 estación con más: {top_est} ({est_n[top_est]})</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🕐 pico: {pico_hora}:00</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⏱️ paradas: {obs_actual} observadas · {obs_prev} previstas · {obs_cancel} canceladas</span>'
     )
 
     html = f"""<!DOCTYPE html>
