@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+import json,re,unicodedata,html
+from pathlib import Path
+DATA=Path('/var/www/radar/datos/retrasos-renfe-hoy.json')
+OUT=Path('/var/www/radar')
+def esc(x): return html.escape(str(x or ''))
+def slug(s):
+ s=unicodedata.normalize('NFKD',str(s or '')).encode('ascii','ignore').decode().lower()
+ return re.sub(r'[^a-z0-9]+','-',s).strip('-')[:70] or 'estacion'
+try: d=json.loads(DATA.read_text(encoding='utf-8'))
+except Exception as e: print('sin datos',e); raise SystemExit(0)
+items=d.get('items',[]); date=d.get('date',''); generated=d.get('generated_at','')
+by={}
+for e in items:
+ by.setdefault(e.get('estacion') or 'Sin estación',[]).append(e)
+groups=sorted(by.items(),key=lambda kv:(-len(kv[1]),kv[0]))[:20]
+links=[]
+for est,evs in groups:
+ s=slug(est); f=OUT/f'retrasos-renfe-{s}.html'; n=len(evs)
+ rows=''.join(f'<tr><td>{esc(e.get("trip"))}</td><td>{esc(e.get("ruta") if e.get("ruta") not in (None,".","") else "s/d")}</td><td><b>+{esc(e.get("retraso_min"))} min</b></td><td>{esc(e.get("created_at"))}</td></tr>' for e in sorted(evs,key=lambda x:-(x.get('retraso_min') or 0))[:50])
+ page=f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Retrasos de Renfe en {esc(est)} hoy</title><meta name="description" content="Retrasos de Renfe en {esc(est)}: {n} incidencias. Datos GTFS-RT; no es una web oficial."><link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-{s}.html"><style>body{{font-family:system-ui,sans-serif;max-width:820px;margin:0 auto;padding:24px 16px;color:#222}}table{{width:100%;border-collapse:collapse;font-size:.9rem}}th,td{{border-bottom:1px solid #e5e5e5;padding:7px;text-align:left}}a{{color:#c2410c}}p.small{{font-size:.85rem;color:#666}}</style></head><body><p><a href="/retrasos-renfe-hoy.html">← Retrasos de Renfe hoy</a> · <a href="/retrasos-renfe-estaciones.html">Estaciones</a></p><h1>Retrasos de Renfe en {esc(est)}</h1><p>{n} incidencias · actualizado {esc(date)} · {esc(generated)}</p><p class="small">Datos GTFS-RT de Renfe vía NearMe. No es una web oficial. Ruta y trip proceden del feed; no hay nombre comercial ni origen-destino.</p><table><thead><tr><th>Trip</th><th>Ruta</th><th>Retraso</th><th>Registrado</th></tr></thead><tbody>{rows}</tbody></table></body></html>'''
+ f.write_text(page,encoding='utf-8'); links.append(f'<li><a href="/retrasos-renfe-{s}.html">{esc(est)}</a> ({n})</li>')
+idx=f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Estaciones con retrasos de Renfe hoy</title><meta name="robots" content="index,follow"><link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-estaciones.html"><style>body{{font-family:system-ui,sans-serif;max-width:820px;margin:0 auto;padding:24px 16px;color:#222}}li{{margin:5px 0}}a{{color:#c2410c}}</style></head><body><p><a href="/retrasos-renfe-hoy.html">← Retrasos de Renfe hoy</a></p><h1>Estaciones con retrasos de Renfe</h1><p>Actualizado {esc(generated)}. Datos GTFS-RT; no es una web oficial.</p><ul>{''.join(links)}</ul></body></html>'''
+(OUT/'retrasos-renfe-estaciones.html').write_text(idx,encoding='utf-8')
+print('estaciones',len(groups),'generated',generated)

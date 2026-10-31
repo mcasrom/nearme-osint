@@ -575,6 +575,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Estaciones con más retrasos hoy</h3>
 {svg_top(est_n)}
+<p style="font-size:.85rem"><a href="/retrasos-renfe-estaciones.html">Fichas por estación →</a></p>
 </div>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
