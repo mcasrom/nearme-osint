@@ -29,13 +29,14 @@ if smap.exists():
     txt = re.sub(r'\s*<url><loc>https://radar\.viajeinteligencia\.com/retrasos-renfe-(?:hoy|estaciones|[a-z0-9-]+)\.html</loc>.*?</url>', '', txt, flags=re.S)
     last = (generated or '')[:10]
     entries = [f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html</loc><lastmod>{esc(last)}</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>',
+               f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-mapa.html</loc><lastmod>{esc(last)}</lastmod><changefreq>hourly</changefreq><priority>0.85</priority></url>',
                f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-estaciones.html</loc><lastmod>{esc(last)}</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>']
     for est,_ in groups:
         entries.append(f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-{slug(est)}.html</loc><lastmod>{esc(last)}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>')
     txt = txt.replace('</urlset>', ''.join(entries) + '</urlset>')
     smap.write_text(txt, encoding='utf-8')
 
-keep={'retrasos-renfe-hoy.html','retrasos-renfe-estaciones.html'}|{f'retrasos-renfe-{slug(est)}.html' for est,_ in groups}
+keep={'retrasos-renfe-hoy.html','retrasos-renfe-estaciones.html','retrasos-renfe-mapa.html'}|{f'retrasos-renfe-{slug(est)}.html' for est,_ in groups}
 for old in OUT.glob('retrasos-renfe-*.html'):
     if old.name not in keep:
         old.unlink()

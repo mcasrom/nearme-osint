@@ -11,6 +11,7 @@ CURL_TIMEOUT=10
 MAX_AGE_SECONDS=2700  # 45 min (colectores corren cada 15 min)
 RETRASOS_PAGE="/var/www/radar/retrasos-renfe-hoy.html"
 RETRASOS_ESTACIONES="/var/www/radar/retrasos-renfe-estaciones.html"
+RETRASOS_MAPA="/var/www/radar/retrasos-renfe-mapa.html"
 RETRASOS_MAX_AGE=2700  # 45 min (generador corre a :02,:17,:32,:47)
 GTFS_MAX_AGE=259200  # 72 h (ingesta diaria de referencia)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -84,7 +85,7 @@ PYCODE
 fi
 
 if [ -z "$REASON" ]; then
-    for page in "$RETRASOS_PAGE" "$RETRASOS_ESTACIONES"; do
+    for page in "$RETRASOS_PAGE" "$RETRASOS_ESTACIONES" "$RETRASOS_MAPA"; do
         if [ ! -f "$page" ]; then
             REASON="retrasos no generados: $page no existe"
             break
