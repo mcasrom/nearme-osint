@@ -22,9 +22,12 @@ Uso: PYTHONPATH=. venv/bin/python scripts/gen_retrasos_renfe.py [--out RUTA]
 import math
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from collections import defaultdict
+
+MADRID = ZoneInfo("Europe/Madrid")
 
 BASE = Path.home() / "nearme-osint"
 sys.path.insert(0, str(BASE))
@@ -60,7 +63,7 @@ def cargar():
         SELECT title, subtype, level, lat, lon, created_at, description
         FROM events
         WHERE source='renfe' AND event_type='train_delay'
-          AND created_at >= date_trunc('day', now())
+          AND created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
         ORDER BY created_at
     """)
     rows = cur.fetchall()
@@ -73,7 +76,15 @@ def cargar():
         est = fix_estacion(m.group(2))
         tm = re.search(r"Trip: (\S+)", desc or "")
         trip = tm.group(1) if tm else None
-        hora = created_at.hour if created_at else 0
+        try:
+            if created_at is None:
+                hora = 0
+            elif created_at.tzinfo is None:
+                hora = created_at.replace(tzinfo=timezone.utc).astimezone(MADRID).hour
+            else:
+                hora = created_at.astimezone(MADRID).hour
+        except Exception:
+            hora = 0
         eventos.append({
             "tipo": subtype or "desconocido", "est": est, "delay": delay,
             "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip,
@@ -93,7 +104,7 @@ def cargar_semanal(dias=7):
         cur.execute("""
             SELECT subtipo, banda, SUM(n)
             FROM renfe_daily_trenes
-            WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
+            WHERE fecha >= ((now() AT TIME ZONE 'Europe/Madrid')::date - %s)
             GROUP BY subtipo, banda
         """, (dias,))
         filas = cur.fetchall()
@@ -104,7 +115,7 @@ def cargar_semanal(dias=7):
     try:
         cur.execute("""
             SELECT DISTINCT fecha FROM renfe_daily_trenes
-            WHERE fecha >= date_trunc('day', now()) - (interval '1 day' * %s)
+            WHERE fecha >= ((now() AT TIME ZONE 'Europe/Madrid')::date - %s)
         """, (dias,))
         fechas = {r[0] for r in cur.fetchall()}
     except Exception:
@@ -364,13 +375,13 @@ def main():
     media = (sum(delays) / len(delays)) if delays else 0
     pico_hora = max(por_hora, key=lambda h: sum(por_hora[h].values()))
     top_est = max(est_n, key=lambda s: est_n[s])
-    hoy = date.today().strftime("%d/%m/%Y")
-    ahora = datetime.now().strftime("%H:%M")
+    hoy = datetime.now(MADRID).strftime("%d/%m/%Y")
+    ahora = datetime.now(MADRID).strftime("%H:%M")
 
     # Denominador: trenes vistos en el feed hoy (con o sin retraso) → % afectado.
     try:
         from src.db import count_trips_seen
-        den = count_trips_seen(date.today()) or {}
+        den = count_trips_seen(datetime.now(MADRID).date()) or {}
     except Exception:
         den = {}
     den_cer = den.get("cercanias", 0)
@@ -414,7 +425,7 @@ def main():
 
     # pildoras KPI
     kpis = (
-        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📅 {hoy} · {ahora}</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📅 {hoy} · {ahora} Europe/Madrid</span>'
         f'<span style="background:#fef2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 <b>{trenes_total}</b> trenes con retraso ≥10 min hoy</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📊 {total_eventos} incidencias por parada</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⚡ media +{media_tren:.0f} min por tren</span>'
@@ -425,11 +436,11 @@ def main():
     html = f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Retrasos del tren en España hoy · RENFE en vivo</title>
-<meta name="description" content="Retrasos de trenes en España hoy: {trenes_total} trenes afectados ({total_eventos} incidencias por parada) en tiempo real (AVE/larga distancia y cercanías), media de +{media_tren:.0f} min por tren. Datos GTFS-RT oficiales de RENFE vía NearMe.">
+<title>Retrasos de Renfe hoy · actualización cada 15 min</title>
+<meta name="description" content="Retrasos de trenes en España hoy: {trenes_total} trenes afectados ({total_eventos} incidencias por parada) actualización cada 15 minutos (AVE/larga distancia y cercanías), media de +{media_tren:.0f} min por tren. Datos GTFS-RT de Renfe vía NearMe. No es una web oficial.">
 <link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html"><meta property="og:type" content="website">
 <meta property="og:title" content="Retrasos del tren en España hoy · {trenes_total} trenes afectados">
-<meta property="og:description" content="{trenes_total} trenes con retraso ≥10 min hoy ({total_eventos} incidencias por parada) en la red (AVE + cercanías), media +{media_tren:.0f} min. Estación con más: {top_est}. Datos oficiales RENFE en tiempo real.">
+<meta property="og:description" content="{trenes_total} trenes con retraso ≥10 min hoy ({total_eventos} incidencias por parada) en la red (AVE + cercanías), media +{media_tren:.0f} min. Estación con más: {top_est}. Datos GTFS-RT de Renfe. No es una web oficial.">
 <meta property="og:locale" content="es_ES">
 <meta property="og:url" content="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html">
 <meta property="og:image" content="https://radar.viajeinteligencia.com/retrasos-renfe-og.png">
