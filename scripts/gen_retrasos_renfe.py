@@ -36,6 +36,7 @@ MADRID = ZoneInfo("Europe/Madrid")
 BASE = Path.home() / "nearme-osint"
 sys.path.insert(0, str(BASE))
 from src.db import get_conn  # noqa: E402
+from src.renfe_gtfs import load_refs  # noqa: E402
 
 OUT_DEFAULT = Path("/var/www/radar/retrasos-renfe-hoy.html")
 
@@ -60,8 +61,9 @@ def fix_estacion(s):
     return s.title()  # 'Madrid-Puerta De Atocha'
 
 
-def cargar():
+def cargar(refs=None):
     """Carga retrasos RENFE del día en curso (un evento por tren×parada)."""
+    stops, trips = refs or ({}, {})
     cur = get_conn().cursor()
     cur.execute("""
         SELECT title, subtype, level, lat, lon, created_at, description
@@ -80,7 +82,16 @@ def cargar():
         est = fix_estacion(m.group(2))
         tm = re.search(r"Trip: (\S+)", desc or "")
         rm = re.search(r"Ruta: (\S+)", desc or "")
+        pm = re.search(r"Parada: .*?\(([^()]*)\)\. Trip", desc or "")
+        stop_id = pm.group(1) if pm else None
         trip = tm.group(1) if tm else None
+        feed = subtype or "desconocido"
+        tinfo = trips.get((feed, trip), {})
+        if stop_id and (feed, stop_id) in stops:
+            est = fix_estacion(stops[(feed, stop_id)])
+        service = (tinfo.get("route_short_name") or tinfo.get("route_long_name")
+                   or ("Cercanías" if feed == "cercanias" else "s/d"))
+        route = tinfo.get("route_short_name") or (rm.group(1) if rm else None)
         try:
             if created_at is None:
                 hora = 0
@@ -91,14 +102,20 @@ def cargar():
         except Exception:
             hora = 0
         eventos.append({
-            "tipo": subtype or "desconocido", "est": est, "delay": delay,
-            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip, "route": rm.group(1) if rm else None, "created": created_at.isoformat() if created_at else None,
+            "tipo": feed, "est": est, "delay": delay,
+            "hora": hora, "lat": lat, "lon": lon, "level": level,
+            "trip": trip, "route": route, "stop_id": stop_id,
+            "servicio": service,
+            "origen": tinfo.get("origin_name"),
+            "destino": tinfo.get("dest_name"),
+            "corredor": tinfo.get("route_long_name"),
+            "created": created_at.isoformat() if created_at else None,
         })
     return eventos
 
-
-def cargar_obs_trenes(limite=20):
+def cargar_obs_trenes(limite=20, refs=None):
     """Última observación por tren: estado actual, previsto o cancelado."""
+    stops, trips = refs or ({}, {})
     try:
         cur = get_conn().cursor()
         cur.execute("""
@@ -115,10 +132,26 @@ def cargar_obs_trenes(limite=20):
             ORDER BY delay_seconds DESC
             LIMIT %s
         """, (limite,))
-        return cur.fetchall()
+        rows = cur.fetchall()
     except Exception:
         return []
-
+    out = []
+    for r in rows:
+        trip_id, route_id, subtype, stop_id, station_name, delay, forecast, sched, observed = r
+        feed = subtype or "desconocido"
+        tinfo = trips.get((feed, trip_id), {})
+        station = stops.get((feed, stop_id), station_name or stop_id)
+        service = (tinfo.get("route_short_name") or tinfo.get("route_long_name")
+                   or ("Cercanías" if feed == "cercanias" else "s/d"))
+        out.append({
+            "trip": trip_id, "route": tinfo.get("route_short_name") or route_id,
+            "servicio": service, "station": station,
+            "origen": tinfo.get("origin_name"), "destino": tinfo.get("dest_name"),
+            "corredor": tinfo.get("route_long_name"),
+            "delay": delay or 0, "forecast": forecast, "sched": sched,
+            "status": "cancelado" if sched == 2 else ("previsto" if forecast else "observado"),
+        })
+    return out
 
 def cargar_obs_horas():
     """Trenes con retraso por hora, según la última observación de cada hora."""
@@ -396,7 +429,8 @@ def main():
     ap.add_argument("--out", default=str(OUT_DEFAULT))
     args = ap.parse_args()
 
-    eventos = cargar()
+    refs = load_refs()
+    eventos = cargar(refs)
     if not eventos:
         print("sin datos RENFE hoy"); sys.exit(1)
     total_eventos = len(eventos)
@@ -445,26 +479,30 @@ def main():
     pico_hora = max(por_hora, key=lambda h: sum(por_hora[h].values()))
     top_est = max(est_n, key=lambda s: est_n[s])
     worst = sorted(trip_info.items(), key=lambda kv: kv[1]["delay"], reverse=True)[:15]
+    def _corredor(e):
+        if e.get("origen") and e.get("destino"):
+            return f'{e["origen"]} → {e["destino"]}'
+        return e.get("corredor") or "s/d"
     filas = "".join(
-        f'<tr><td>{escape(str(e["tipo"]))}</td><td>{escape(str(e.get("route") if e.get("route") not in (None, ".", "") else "s/d"))}</td><td>{escape(str(e.get("trip") or "s/d"))}</td><td>{escape(str(e["est"]))}</td><td><b>+{e["delay"]} min</b></td></tr>'
+        f'<tr><td>{escape(str(e.get("servicio") or e["tipo"]))}</td><td>{escape(_corredor(e))}</td><td>{escape(str(e.get("trip") or "s/d"))}</td><td>{escape(str(e["est"]))}</td><td><b>+{e["delay"]} min</b></td></tr>'
         for _k, e in worst
     )
     peores_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
                    '<h3 style="margin-top:0">Peores trenes de hoy</h3>'
-                   '<p style="font-size:.9rem;color:#555;margin-top:0">Tren y ruta identificados por el feed GTFS-RT; no incluye nombre comercial ni origen-destino porque el GTFS estático no está disponible.</p>'
-                   '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th style="text-align:left">Servicio</th><th style="text-align:left">Ruta</th><th style="text-align:left">Trip</th><th style="text-align:left">Estación</th><th style="text-align:left">Retraso</th></tr></thead><tbody>'
+                   '<p style="font-size:.9rem;color:#555;margin-top:0">Servicio y corredor proceden del GTFS estático de Renfe cuando están disponibles.</p>'
+                   '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th style="text-align:left">Servicio</th><th style="text-align:left">Corredor</th><th style="text-align:left">Trip</th><th style="text-align:left">Estación</th><th style="text-align:left">Retraso</th></tr></thead><tbody>'
                    + filas + '</tbody></table></div>')
-    obs_trenes = cargar_obs_trenes()
+    obs_trenes = cargar_obs_trenes(refs=refs)
     obs_tren_html = ""
     if obs_trenes:
         filas_obs = ""
         for r in obs_trenes:
-            estado = "cancelado" if r[7] == 2 else ("previsto" if r[6] else "observado")
-            filas_obs += f'<tr><td>{escape(str(r[0]))}</td><td>{escape(str(r[1] or "s/d"))}</td><td>{escape(str(r[4] or r[3] or "s/d"))}</td><td><b>+{int((r[5] or 0)//60)} min</b></td><td>{estado}</td></tr>'
+            corredor = f'{r["origen"]} → {r["destino"]}' if r.get("origen") and r.get("destino") else (r.get("corredor") or str(r.get("route") or "s/d"))
+            filas_obs += f'<tr><td>{escape(str(r["servicio"]))}</td><td>{escape(corredor)}</td><td>{escape(str(r["station"] or "s/d"))}</td><td><b>+{int(r["delay"]//60)} min</b></td><td>{r["status"]}</td></tr>'
         obs_tren_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
                          '<h3 style="margin-top:0">Estado por tren (última observación)</h3>'
                          '<p style="font-size:.9rem;color:#555;margin-top:0">Observado = la parada ya se alcanzó; previsto = parada futura; cancelado = aviso del feed. No confirma la causa.</p>'
-                         '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th>Trip</th><th>Ruta</th><th>Estación</th><th>Retraso</th><th>Estado</th></tr></thead><tbody>'+filas_obs+'</tbody></table></div>')
+                         '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th>Servicio</th><th>Corredor</th><th>Estación</th><th>Retraso</th><th>Estado</th></tr></thead><tbody>'+filas_obs+'</tbody></table></div>')
     hoy = datetime.now(MADRID).strftime("%d/%m/%Y")
     ahora = datetime.now(MADRID).strftime("%H:%M")
 
@@ -496,15 +534,17 @@ def main():
                     "mediana_min": round(mediana_tren, 1), "p90_min": round(p90_tren, 1),
                     "observadas": obs_actual, "previstas": obs_prev, "canceladas": obs_cancel},
         "items": [{"tipo": e["tipo"], "estacion": e["est"], "retraso_min": e["delay"],
-                   "trip": e["trip"], "ruta": e.get("route"), "nivel": e["level"],
-                   "created_at": e.get("created")} for e in eventos],
+                   "trip": e["trip"], "ruta": e.get("route"), "servicio": e.get("servicio"),
+                   "origen": e.get("origen"), "destino": e.get("destino"),
+                   "corredor": e.get("corredor"),
+                   "nivel": e["level"], "created_at": e.get("created")} for e in eventos],
     }
     (datos_dir / "retrasos-renfe-hoy.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     with (datos_dir / "retrasos-renfe-hoy.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["generated_at", "tipo", "estacion", "retraso_min", "trip", "ruta", "nivel", "created_at"])
+        w.writerow(["generated_at", "tipo", "estacion", "retraso_min", "trip", "ruta", "servicio", "origen", "destino", "corredor", "nivel", "created_at"])
         for e in eventos:
-            w.writerow([gen_iso, e["tipo"], e["est"], e["delay"], e["trip"], e.get("route"), e["level"], e.get("created")])
+            w.writerow([gen_iso, e["tipo"], e["est"], e["delay"], e["trip"], e.get("route"), e.get("servicio"), e.get("origen"), e.get("destino"), e.get("corredor"), e["level"], e.get("created")])
     dataset_ld = json.dumps({
         "@context": "https://schema.org", "@type": "Dataset",
         "name": "Retrasos de Renfe hoy", "dateModified": gen_iso,
