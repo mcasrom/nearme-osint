@@ -29,7 +29,7 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 MADRID = ZoneInfo("Europe/Madrid")
 
@@ -105,7 +105,8 @@ def cargar(refs=None):
             "tipo": feed, "est": est, "delay": delay,
             "hora": hora, "lat": lat, "lon": lon, "level": level,
             "trip": trip, "route": route, "stop_id": stop_id,
-            "servicio": service,
+            "servicio": service, "route_id": tinfo.get("route_id"),
+            "ref": bool(tinfo),
             "origen": tinfo.get("origin_name"),
             "destino": tinfo.get("dest_name"),
             "corredor": tinfo.get("route_long_name"),
@@ -492,6 +493,112 @@ def main():
                    '<p style="font-size:.9rem;color:#555;margin-top:0">Servicio y corredor proceden del GTFS estático de Renfe cuando están disponibles.</p>'
                    '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th style="text-align:left">Servicio</th><th style="text-align:left">Corredor</th><th style="text-align:left">Trip</th><th style="text-align:left">Estación</th><th style="text-align:left">Retraso</th></tr></thead><tbody>'
                    + filas + '</tbody></table></div>')
+    line_stats = {}
+    corr_stats = {}
+    for e in eventos:
+        key = (e["tipo"], e.get("route_id") or e.get("servicio") or "s/d")
+        d = line_stats.setdefault(key, {
+            "servicio": e.get("servicio") or "s/d",
+            "corredor": _corredor(e), "events": 0, "trains": set(), "delays": [], "example": e,
+        })
+        d["events"] += 1
+        d["trains"].add(e.get("trip") or f'{e["tipo"]}:{e["est"]}')
+        ck = _corredor(e)
+        c = corr_stats.setdefault(ck, {"corredor": ck, "events": 0, "trains": set(), "delays": []})
+        c["events"] += 1
+        c["trains"].add(e.get("trip") or f'{e["tipo"]}:{e["est"]}')
+    for (tipo, trip), dmax in max_trip.items():
+        e = trip_info[(tipo, trip)]
+        key = (tipo, e.get("route_id") or e.get("servicio") or "s/d")
+        if key in line_stats:
+            line_stats[key]["delays"].append(dmax)
+        ck = _corredor(e)
+        if ck in corr_stats:
+            corr_stats[ck]["delays"].append(dmax)
+
+    def _stats(d):
+        vals = sorted(d["delays"])
+        return {
+            "servicio": d.get("servicio") or "s/d",
+            "corredor": d.get("corredor") or "s/d",
+            "trenes": len(d["trains"]),
+            "incidencias": d["events"],
+            "mediana": median(vals) if vals else 0,
+            "p90": _pctile(vals, 0.90),
+            "max": max(vals) if vals else 0,
+        }
+
+    line_rows = [_stats(d) for d in line_stats.values()]
+    line_rows = [r for r in line_rows if r["trenes"] >= 3]
+    line_rows.sort(key=lambda r: (-r["p90"], -r["trenes"], -r["incidencias"]))
+    line_rows = line_rows[:12]
+    corr_rows = [_stats(d) for d in corr_stats.values()]
+    corr_rows = [r for r in corr_rows if r["trenes"] >= 3]
+    corr_rows.sort(key=lambda r: (-r["p90"], -r["trenes"], -r["incidencias"]))
+    corr_rows = corr_rows[:8]
+
+    n_ref = sum(1 for e in eventos if e.get("ref"))
+    n_corr = sum(1 for e in eventos if _corredor(e) != "s/d")
+    coverage = {
+        "events": total_eventos,
+        "with_reference": n_ref,
+        "without_reference": total_eventos - n_ref,
+        "with_corridor": n_corr,
+        "pct_reference": round(n_ref * 100 / total_eventos, 1) if total_eventos else 0,
+        "pct_corridor": round(n_corr * 100 / total_eventos, 1) if total_eventos else 0,
+        "unresolved_trips": Counter(e.get("trip") or "s/d" for e in eventos if not e.get("ref")).most_common(5),
+    }
+    line_json = [{
+        "servicio": r["servicio"], "corredor": r["corredor"], "trenes": r["trenes"],
+        "incidencias": r["incidencias"], "mediana_min": round(r["mediana"], 1),
+        "p90_min": round(r["p90"], 1), "max_min": r["max"],
+    } for r in line_rows]
+    corr_json = [{
+        "corredor": r["corredor"], "trenes": r["trenes"], "incidencias": r["incidencias"],
+        "mediana_min": round(r["mediana"], 1), "p90_min": round(r["p90"], 1),
+        "max_min": r["max"],
+    } for r in corr_rows]
+
+    def _tabla_rank(rows):
+        body = "".join(
+            f'<tr><td><b>{escape(r["servicio"])}</b></td><td>{escape(r["corredor"])}</td>'
+            f'<td>{r["trenes"]}</td><td>{r["incidencias"]}</td>'
+            f'<td>{r["mediana"]:.0f}</td><td>{r["p90"]:.0f}</td><td>{r["max"]}</td></tr>'
+            for r in rows
+        )
+        return ('<table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr>'
+                '<th style="text-align:left">Línea / servicio</th><th style="text-align:left">Corredor</th>'
+                '<th>Trenes</th><th>Incid.</th><th>Mediana</th><th>p90</th><th>Máx</th></tr></thead><tbody>'
+                + body + '</tbody></table>')
+
+    def _tabla_corr(rows):
+        body = "".join(
+            f'<tr><td>{escape(r["corredor"])}</td><td>{r["trenes"]}</td>'
+            f'<td>{r["incidencias"]}</td><td>{r["mediana"]:.0f}</td>'
+            f'<td>{r["p90"]:.0f}</td><td>{r["max"]}</td></tr>'
+            for r in rows
+        )
+        return ('<table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr>'
+                '<th style="text-align:left">Corredor</th><th>Trenes</th><th>Incid.</th>'
+                '<th>Mediana</th><th>p90</th><th>Máx</th></tr></thead><tbody>'
+                + body + '</tbody></table>')
+
+    cov_txt = (f'{coverage["pct_reference"]}% de las incidencias tienen viaje estático resuelto; '
+               f'{coverage["pct_corridor"]}% tienen corredor. '
+               f'Sin referencia: {coverage["without_reference"]} incidencias.')
+    unres_txt = ", ".join(f"{t} ({n})" for t, n in coverage["unresolved_trips"]) or "ninguno"
+    ranking_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
+                    '<h3 style="margin-top:0">Líneas y corredores con más retraso</h3>'
+                    '<p style="font-size:.9rem;color:#555;margin-top:0">Ranking por <b>tren único</b> (no por incidencia), ordenado por p90. '
+                    'Solo líneas con ≥3 trenes; cada línea se separa por su recorrido estático. '
+                    f'{cov_txt}</p>'
+                    '<h4 style="font-size:.95rem;margin:12px 0 4px">Líneas / servicios</h4>'
+                    + _tabla_rank(line_rows) +
+                    '<h4 style="font-size:.95rem;margin:14px 0 4px">Corredores</h4>'
+                    + _tabla_corr(corr_rows)
+                    + f'<p style="font-size:.82rem;color:#666;margin:10px 0 0">Viajes sin referencia: {escape(unres_txt)}. '
+                    'La cobertura se calcula sobre las incidencias de hoy; si baja, el ranking puede quedar incompleto.</p></div>')
+
     obs_trenes = cargar_obs_trenes(refs=refs)
     obs_tren_html = ""
     if obs_trenes:
@@ -533,6 +640,9 @@ def main():
                     "cercanias": cer, "alta_velocidad": av,
                     "mediana_min": round(mediana_tren, 1), "p90_min": round(p90_tren, 1),
                     "observadas": obs_actual, "previstas": obs_prev, "canceladas": obs_cancel},
+        "coverage": coverage,
+        "lines": line_json,
+        "corridors": corr_json,
         "items": [{"tipo": e["tipo"], "estacion": e["est"], "retraso_min": e["delay"],
                    "trip": e["trip"], "ruta": e.get("route"), "servicio": e.get("servicio"),
                    "origen": e.get("origen"), "destino": e.get("destino"),
@@ -675,6 +785,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 {sem_html}
 </div>
 
+{ranking_html}
 {peores_html}
 {obs_tren_html}
 {datos_html}
