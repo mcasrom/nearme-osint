@@ -22,4 +22,17 @@ for est,evs in groups:
  f.write_text(page,encoding='utf-8'); links.append(f'<li><a href="/retrasos-renfe-{s}.html">{esc(est)}</a> ({n})</li>')
 idx=f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Estaciones con retrasos de Renfe hoy</title><meta name="robots" content="index,follow"><link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-estaciones.html"><style>body{{font-family:system-ui,sans-serif;max-width:820px;margin:0 auto;padding:24px 16px;color:#222}}li{{margin:5px 0}}a{{color:#c2410c}}</style></head><body><p><a href="/retrasos-renfe-hoy.html">← Retrasos de Renfe hoy</a></p><h1>Estaciones con retrasos de Renfe</h1><p>Actualizado {esc(generated)}. Datos GTFS-RT; no es una web oficial.</p><ul>{''.join(links)}</ul></body></html>'''
 (OUT/'retrasos-renfe-estaciones.html').write_text(idx,encoding='utf-8')
+# Actualiza el sitemap de radar: quita las fichas antiguas y añade las actuales.
+smap = OUT/'sitemap.xml'
+if smap.exists():
+    txt = smap.read_text(encoding='utf-8')
+    txt = re.sub(r'\s*<url><loc>https://radar\.viajeinteligencia\.com/retrasos-renfe-(?:hoy|estaciones|[a-z0-9-]+)\.html</loc>.*?</url>', '', txt, flags=re.S)
+    last = (generated or '')[:10]
+    entries = [f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html</loc><lastmod>{esc(last)}</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>',
+               f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-estaciones.html</loc><lastmod>{esc(last)}</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>']
+    for est,_ in groups:
+        entries.append(f'<url><loc>https://radar.viajeinteligencia.com/retrasos-renfe-{slug(est)}.html</loc><lastmod>{esc(last)}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>')
+    txt = txt.replace('</urlset>', ''.join(entries) + '</urlset>')
+    smap.write_text(txt, encoding='utf-8')
+
 print('estaciones',len(groups),'generated',generated)

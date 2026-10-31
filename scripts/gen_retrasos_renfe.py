@@ -310,7 +310,7 @@ def svg_horas(por_hora):
     ymax = max(sum(por_hora[h].values()) for h in horas)
     step = max(1, round(ymax / 5))
 
-    out = [f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;font-family:system-ui">',
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Trenes con retraso por hora" style="width:100%;height:auto;font-family:system-ui">',
            f'<rect width="{W}" height="{H}" fill="#fff"/>']
     # leyenda (arriba, dentro del SVG): un chip por banda
     lx = pad_l
@@ -360,7 +360,7 @@ def svg_top(est_data, max_bars=12):
     row_h, pad_l = 22, 190
     W = 860
     H = 30 + len(top) * row_h
-    out = [f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;font-family:system-ui">',
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Estaciones con más retrasos" style="width:100%;height:auto;font-family:system-ui">',
            f'<rect width="{W}" height="{H}" fill="#fff"/>']
     for i, (est, n) in enumerate(top):
         y = 20 + i * row_h
@@ -592,6 +592,10 @@ def main():
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⏱️ paradas: {obs_actual} observadas · {obs_prev} previstas · {obs_cancel} canceladas</span>'
     )
 
+    tabla_horas = '<details style="margin-top:8px"><summary>Ver tabla de la evolución horaria</summary><table style="font-size:.85rem"><tr><th>Hora</th><th>Total</th><th>10–15</th><th>15–30</th><th>30–60</th><th>&gt;60</th></tr>' + ''.join(
+        f'<tr><td>{h}:00</td><td>{sum(por_hora[h].values())}</td>' + ''.join(f'<td>{por_hora[h].get(s,0)}</td>' for s in SEV_ORDER) + '</tr>' for h in sorted(por_hora)
+    ) + '</table></details>'
+    tabla_est = '<details style="margin-top:8px"><summary>Ver tabla de estaciones</summary><table style="font-size:.85rem"><tr><th>Estación</th><th>Incidencias</th></tr>' + ''.join(f'<tr><td>{escape(est)}</td><td>{n}</td></tr>' for est,n in sorted(est_n.items(), key=lambda kv:-kv[1])[:12]) + '</table></details>'
     html = f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -637,12 +641,12 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
 <p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>trenes con retraso</b> por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min), desde la última observación de cada hora. Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
-{svg_horas(por_hora)}
+{svg_horas(por_hora)}{tabla_horas}
 </div>
 
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Estaciones con más retrasos hoy</h3>
-{svg_top(est_n)}
+{svg_top(est_n)}{tabla_est}
 <p style="font-size:.85rem"><a href="/retrasos-renfe-estaciones.html">Fichas por estación →</a></p>
 </div>
 
