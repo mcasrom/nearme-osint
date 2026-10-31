@@ -19,6 +19,8 @@ Datos: tabla events (source=renfe) del día en curso + renfe_daily (agregados di
 Salida: /var/www/radar/retrasos-renfe-hoy.html
 Uso: PYTHONPATH=. venv/bin/python scripts/gen_retrasos_renfe.py [--out RUTA]
 """
+import csv
+import json
 import math
 import re
 from html import escape
@@ -90,7 +92,7 @@ def cargar():
             hora = 0
         eventos.append({
             "tipo": subtype or "desconocido", "est": est, "delay": delay,
-            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip, "route": rm.group(1) if rm else None,
+            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip, "route": rm.group(1) if rm else None, "created": created_at.isoformat() if created_at else None,
         })
     return eventos
 
@@ -399,6 +401,60 @@ def main():
     hoy = datetime.now(MADRID).strftime("%d/%m/%Y")
     ahora = datetime.now(MADRID).strftime("%H:%M")
 
+    # Datos abiertos: JSON + CSV de la foto actual.
+    obs_actual, obs_prev, obs_cancel = 0, 0, 0
+    try:
+        cur = get_conn().cursor()
+        cur.execute("""
+            SELECT COUNT(*) FILTER (WHERE NOT is_forecast),
+                   COUNT(*) FILTER (WHERE is_forecast),
+                   COUNT(*) FILTER (WHERE schedule_relationship = 2)
+            FROM renfe_delay_obs
+            WHERE observed_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+        """)
+        obs_actual, obs_prev, obs_cancel = cur.fetchone()
+    except Exception:
+        pass
+
+    datos_dir = Path("/var/www/radar/datos")
+    datos_dir.mkdir(parents=True, exist_ok=True)
+    gen_iso = datetime.now(MADRID).isoformat(timespec="seconds")
+    payload = {
+        "generated_at": gen_iso,
+        "source": "Renfe GTFS-RT vía NearMe",
+        "disclaimer": "No es una web oficial. Retrasos estimados por el feed.",
+        "date": hoy,
+        "metrics": {"trenes": trenes_total, "incidencias": total_eventos,
+                    "cercanias": cer, "alta_velocidad": av,
+                    "mediana_min": round(mediana_tren, 1), "p90_min": round(p90_tren, 1),
+                    "observadas": obs_actual, "previstas": obs_prev, "canceladas": obs_cancel},
+        "items": [{"tipo": e["tipo"], "estacion": e["est"], "retraso_min": e["delay"],
+                   "trip": e["trip"], "ruta": e.get("route"), "nivel": e["level"],
+                   "created_at": e.get("created")} for e in eventos],
+    }
+    (datos_dir / "retrasos-renfe-hoy.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    with (datos_dir / "retrasos-renfe-hoy.csv").open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["generated_at", "tipo", "estacion", "retraso_min", "trip", "ruta", "nivel", "created_at"])
+        for e in eventos:
+            w.writerow([gen_iso, e["tipo"], e["est"], e["delay"], e["trip"], e.get("route"), e["level"], e.get("created")])
+    dataset_ld = json.dumps({
+        "@context": "https://schema.org", "@type": "Dataset",
+        "name": "Retrasos de Renfe hoy", "dateModified": gen_iso,
+        "creator": {"@type": "Organization", "name": "NearMe / ViajeInteligencia"},
+        "isAccessibleForFree": True,
+        "url": "https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html",
+        "distribution": [
+            {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://radar.viajeinteligencia.com/datos/retrasos-renfe-hoy.json"},
+            {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://radar.viajeinteligencia.com/datos/retrasos-renfe-hoy.csv"},
+        ],
+    }, ensure_ascii=False)
+    datos_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
+                  '<h3 style="margin-top:0">Datos abiertos</h3>'
+                  '<p style="font-size:.9rem;color:#555">Descarga la foto actual en JSON o CSV. Incluye retraso por tren×parada, estación, nivel y timestamps. No es una confirmación oficial.</p>'
+                  '<p><a href="/datos/retrasos-renfe-hoy.json">JSON</a> · <a href="/datos/retrasos-renfe-hoy.csv">CSV</a></p></div>')
+
+
     # Denominador: trenes vistos en el feed hoy (con o sin retraso) → % afectado.
     try:
         from src.db import count_trips_seen
@@ -483,6 +539,7 @@ def main():
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{dataset_ld}</script>
 </head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
@@ -508,6 +565,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 </div>
 
 {peores_html}
+{datos_html}
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
 <p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>incidencias</b> (tren×parada) por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min). Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
