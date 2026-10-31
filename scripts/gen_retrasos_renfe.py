@@ -67,7 +67,7 @@ def cargar():
         SELECT title, subtype, level, lat, lon, created_at, description
         FROM events
         WHERE source='renfe' AND event_type='train_delay'
-          AND created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+          AND (created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid' OR (expires_at > now() AND created_at >= now() - interval '12 hours'))
         ORDER BY created_at
     """)
     rows = cur.fetchall()
@@ -95,6 +95,29 @@ def cargar():
             "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip, "route": rm.group(1) if rm else None, "created": created_at.isoformat() if created_at else None,
         })
     return eventos
+
+
+def cargar_obs_trenes(limite=20):
+    """Última observación por tren: estado actual, previsto o cancelado."""
+    try:
+        cur = get_conn().cursor()
+        cur.execute("""
+            WITH latest AS (
+                SELECT DISTINCT ON (trip_id)
+                    trip_id, route_id, subtype, stop_id, station_name,
+                    delay_seconds, is_forecast, schedule_relationship, observed_at
+                FROM renfe_delay_obs
+                WHERE observed_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+                ORDER BY trip_id, observed_at DESC
+            )
+            SELECT * FROM latest
+            WHERE delay_seconds >= 600 OR schedule_relationship = 2
+            ORDER BY delay_seconds DESC
+            LIMIT %s
+        """, (limite,))
+        return cur.fetchall()
+    except Exception:
+        return []
 
 
 def cargar_semanal(dias=7):
@@ -398,6 +421,17 @@ def main():
                    '<p style="font-size:.9rem;color:#555;margin-top:0">Tren y ruta identificados por el feed GTFS-RT; no incluye nombre comercial ni origen-destino porque el GTFS estático no está disponible.</p>'
                    '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th style="text-align:left">Servicio</th><th style="text-align:left">Ruta</th><th style="text-align:left">Trip</th><th style="text-align:left">Estación</th><th style="text-align:left">Retraso</th></tr></thead><tbody>'
                    + filas + '</tbody></table></div>')
+    obs_trenes = cargar_obs_trenes()
+    obs_tren_html = ""
+    if obs_trenes:
+        filas_obs = ""
+        for r in obs_trenes:
+            estado = "cancelado" if r[7] == 2 else ("previsto" if r[6] else "observado")
+            filas_obs += f'<tr><td>{escape(str(r[0]))}</td><td>{escape(str(r[1] or "s/d"))}</td><td>{escape(str(r[4] or r[3] or "s/d"))}</td><td><b>+{int((r[5] or 0)//60)} min</b></td><td>{estado}</td></tr>'
+        obs_tren_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
+                         '<h3 style="margin-top:0">Estado por tren (última observación)</h3>'
+                         '<p style="font-size:.9rem;color:#555;margin-top:0">Observado = la parada ya se alcanzó; previsto = parada futura; cancelado = aviso del feed. No confirma la causa.</p>'
+                         '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th>Trip</th><th>Ruta</th><th>Estación</th><th>Retraso</th><th>Estado</th></tr></thead><tbody>'+filas_obs+'</tbody></table></div>')
     hoy = datetime.now(MADRID).strftime("%d/%m/%Y")
     ahora = datetime.now(MADRID).strftime("%H:%M")
 
@@ -565,6 +599,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 </div>
 
 {peores_html}
+{obs_tren_html}
 {datos_html}
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
