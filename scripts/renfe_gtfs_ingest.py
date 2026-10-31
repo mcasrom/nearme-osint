@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS renfe_gtfs_trips (
     feed TEXT NOT NULL,
     trip_id TEXT NOT NULL,
     route_id TEXT,
+    trip_short_name TEXT,
     route_short_name TEXT,
     route_long_name TEXT,
     origin_stop_id TEXT,
@@ -115,7 +116,7 @@ def parse_gtfs(data, feed):
         oid = first.get(trip_id, (0, ""))[1]
         did = last.get(trip_id, (0, ""))[1]
         trips.append((
-            feed, trip_id, route_id, short, long,
+            feed, trip_id, route_id, row.get("trip_short_name") or "", short, long,
             oid, stops.get(oid, ("",))[0],
             did, stops.get(did, ("",))[0],
         ))
@@ -127,6 +128,7 @@ def apply(feed, source_url, stops, trips):
     cur = conn.cursor()
     try:
         cur.execute(SCHEMA)
+        cur.execute("ALTER TABLE renfe_gtfs_trips ADD COLUMN IF NOT EXISTS trip_short_name TEXT")
         cur.execute("DELETE FROM renfe_gtfs_stops WHERE feed=%s", (feed,))
         psycopg2.extras.execute_values(
             cur,
@@ -139,7 +141,7 @@ def apply(feed, source_url, stops, trips):
             psycopg2.extras.execute_values(
                 cur,
                 "INSERT INTO renfe_gtfs_trips "
-                "(feed, trip_id, route_id, route_short_name, route_long_name, "
+                "(feed, trip_id, route_id, trip_short_name, route_short_name, route_long_name, "
                 " origin_stop_id, origin_name, dest_stop_id, dest_name) VALUES %s",
                 trips,
                 page_size=500,

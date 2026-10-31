@@ -199,7 +199,7 @@ table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bott
 </style>
 <script type="application/ld+json">{json_ld}</script></head>
 <body><main class="wrap">
-<p class="top"><a href="/">← radar</a> · <a href="/retrasos-renfe-hoy.html">retrasos hoy</a> · <a href="/retrasos-renfe-estaciones.html">estaciones</a></p>
+<p class="top"><a href="/">← radar</a> · <a href="/retrasos-renfe-hoy.html">retrasos hoy</a> · <a href="/retrasos-renfe-trenes.html">trenes</a> · <a href="/retrasos-renfe-estaciones.html">estaciones</a></p>
 <h1>Retrasos de Renfe AVE y larga distancia en el mapa</h1>
 <p class="lead">Cada punto es una <b>estación</b> donde Renfe ha reportado al menos un tren AVE o de larga distancia con retraso de <b>15 minutos o más</b>. No es la posición del tren.</p>
 <p class="meta">Vista inicial: <b>Ahora</b> (últimos 30 min). <span id="updated">Actualizado: {now.strftime('%d/%m/%Y %H:%M')} Europe/Madrid</span> · datos GTFS-RT de Renfe vía NearMe · no es una web oficial.</p>
