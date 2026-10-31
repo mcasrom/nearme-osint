@@ -5,6 +5,7 @@ import sys
 import urllib.request
 from collections import Counter
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 BASE = Path.home() / "nearme-osint"
@@ -128,9 +129,18 @@ def static_refs(trip_ids, stop_ids):
     return trips, stops
 
 
+HIGH_SPEED = {"AVE", "AVE INT", "AVLO", "AVANT", "AVANT EXP", "EUROMED"}
+LONG_DISTANCE = {"ALVIA", "Intercity"}
+
+def classify(services):
+    hs = sum(v for k, v in services.items() if k in HIGH_SPEED)
+    ld = sum(v for k, v in services.items() if k in LONG_DISTANCE)
+    return {"high_speed": hs, "long_distance": ld, "regional_md": sum(v for k, v in services.items() if k not in HIGH_SPEED | LONG_DISTANCE)}
+
 def main():
     status_t, trip_data = fetch(URLS["trip_updates"])
     status_v, vehicle_data = fetch(URLS["vehicles"])
+    status_g, general_vehicles = fetch("https://gtfsrt.renfe.com/vehicle_positions.json")
     trips = audit_trips(trip_data)
     vehicles = audit_vehicles(vehicle_data)
     trip_ids = {x["trip_id"] for x in trips["trip_rows"]}
@@ -152,8 +162,27 @@ def main():
         row["service"] = ref.get("service")
         row["origin"] = ref.get("origin")
         row["dest"] = ref.get("dest")
+    today = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
+    current_trip_ids = {t for t in trip_ids if date_of(t) == today}
+    current_services = Counter(static_trips[t]["service"] or "s/d" for t in current_trip_ids if t in static_trips)
+    all_services = Counter(static_trips[t]["service"] or "s/d" for t in matched)
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "current": {
+            "service_date": today,
+            "trip_updates_trips": len(current_trip_ids),
+            "services": dict(current_services),
+            "classification": classify(current_services),
+        },
+        "all_services": {
+            "services": dict(all_services),
+            "classification": classify(all_services),
+        },
+        "vehicle_general": {
+            "status": status_g,
+            "entities": len(general_vehicles.get("entity") or []),
+            "header_timestamp": stamp((general_vehicles.get("header") or {}).get("timestamp")),
+        },
         "sources": {
             "trip_updates": {"url": URLS["trip_updates"], "status": status_t},
             "vehicles": {"url": URLS["vehicles"], "status": status_v},
