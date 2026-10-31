@@ -5,8 +5,13 @@
 set -e
 
 HEALTH_URL="https://nearme.viajeinteligencia.com/health"
+# UA de navegador: el bot-block de nginx corta curl/ → 444 → Cloudflare 520 (falso DOWN)
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 CURL_TIMEOUT=10
 MAX_AGE_SECONDS=2700  # 45 min (colectores corren cada 15 min)
+RETRASOS_PAGE="/var/www/radar/retrasos-renfe-hoy.html"
+RETRASOS_ESTACIONES="/var/www/radar/retrasos-renfe-estaciones.html"
+RETRASOS_MAX_AGE=2700  # 45 min (generador corre a :02,:17,:32,:47)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CDIR="$(cd "$SCRIPT_DIR" && git rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR/..")"
 [ -f "$CDIR/.env" ] && source "$CDIR/.env"
@@ -28,7 +33,7 @@ telegram_send() {
 
 prev_state=$(cat "$STATE_FILE" 2>/dev/null || echo "up")
 
-HEALTH=$(curl -s --max-time $CURL_TIMEOUT "$HEALTH_URL" 2>/dev/null || echo "")
+HEALTH=$(curl -s -A "$UA" --max-time $CURL_TIMEOUT "$HEALTH_URL" 2>/dev/null || echo "")
 
 if [ -z "$HEALTH" ]; then
     if [ "$prev_state" != "down" ]; then
@@ -39,15 +44,15 @@ if [ -z "$HEALTH" ]; then
     exit 1
 fi
 
-parse() { echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get(\"$1\",\"\"))" 2>/dev/null; }
+parse() { echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get(\"$1\",\"\"))" 2>/dev/null || true; }
 
 STATUS=$(parse status)
 DB=$(parse database)
 LAST_RUN=$(parse last_collector_run)
 AGE="?"
 
+NOW_TS=$(date -u +%s)
 if [ -n "$LAST_RUN" ]; then
-    NOW_TS=$(date -u +%s)
     LAST_TS=$(date -u -d"$LAST_RUN" +%s 2>/dev/null || echo 0)
     AGE=$((NOW_TS - LAST_TS))
 fi
@@ -59,6 +64,21 @@ elif [ "$DB" != "connected" ]; then
     REASON="database=$DB"
 elif [ -n "$LAST_RUN" ] && [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
     REASON="pipeline sin ejecutar hace ${AGE}s (max ${MAX_AGE_SECONDS}s)"
+fi
+
+if [ -z "$REASON" ]; then
+    for page in "$RETRASOS_PAGE" "$RETRASOS_ESTACIONES"; do
+        if [ ! -f "$page" ]; then
+            REASON="retrasos no generados: $page no existe"
+            break
+        fi
+        MTIME=$(stat -c %Y "$page" 2>/dev/null || echo 0)
+        PAGE_AGE=$((NOW_TS - MTIME))
+        if [ "$PAGE_AGE" -gt "$RETRASOS_MAX_AGE" ]; then
+            REASON="retrasos sin actualizar hace ${PAGE_AGE}s (max ${RETRASOS_MAX_AGE}s): $page"
+            break
+        fi
+    done
 fi
 
 if [ -n "$REASON" ]; then
