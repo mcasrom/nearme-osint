@@ -12,6 +12,7 @@ MAX_AGE_SECONDS=2700  # 45 min (colectores corren cada 15 min)
 RETRASOS_PAGE="/var/www/radar/retrasos-renfe-hoy.html"
 RETRASOS_ESTACIONES="/var/www/radar/retrasos-renfe-estaciones.html"
 RETRASOS_MAX_AGE=2700  # 45 min (generador corre a :02,:17,:32,:47)
+GTFS_MAX_AGE=259200  # 72 h (ingesta diaria de referencia)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CDIR="$(cd "$SCRIPT_DIR" && git rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR/..")"
 [ -f "$CDIR/.env" ] && source "$CDIR/.env"
@@ -64,6 +65,22 @@ elif [ "$DB" != "connected" ]; then
     REASON="database=$DB"
 elif [ -n "$LAST_RUN" ] && [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
     REASON="pipeline sin ejecutar hace ${AGE}s (max ${MAX_AGE_SECONDS}s)"
+fi
+
+if [ -z "$REASON" ]; then
+    GTFS_AGE=$(cd "$CDIR" && PYTHONPATH=. venv/bin/python - <<'PYCODE' 2>/dev/null
+import sys
+sys.path.insert(0, ".")
+from src.db import get_conn
+c = get_conn().cursor()
+c.execute("SELECT EXTRACT(EPOCH FROM (now() - MAX(updated_at)))::bigint FROM renfe_gtfs_meta")
+row = c.fetchone()
+print(int(row[0]) if row and row[0] is not None else -1)
+PYCODE
+) || GTFS_AGE=""
+    if [ -n "$GTFS_AGE" ] && [ "$GTFS_AGE" -gt "$GTFS_MAX_AGE" ]; then
+        REASON="GTFS estatico sin actualizar hace ${GTFS_AGE}s (max ${GTFS_MAX_AGE}s)"
+    fi
 fi
 
 if [ -z "$REASON" ]; then
