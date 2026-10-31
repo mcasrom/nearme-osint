@@ -89,22 +89,21 @@ def parse_gtfs(data, feed):
 
     first = {}
     last = {}
-    if feed == "alta_velocidad":
-        for row in rows(zf, "stop_times.txt"):
-            trip_id = row.get("trip_id") or ""
-            stop_id = row.get("stop_id") or ""
-            try:
-                seq = int(float(row.get("stop_sequence") or 0))
-            except ValueError:
-                continue
-            if not trip_id or not stop_id:
-                continue
-            prev = first.get(trip_id)
-            if prev is None or seq < prev[0]:
-                first[trip_id] = (seq, stop_id)
-            prev = last.get(trip_id)
-            if prev is None or seq > prev[0]:
-                last[trip_id] = (seq, stop_id)
+    for row in rows(zf, "stop_times.txt"):
+        trip_id = row.get("trip_id") or ""
+        stop_id = row.get("stop_id") or ""
+        try:
+            seq = int(float(row.get("stop_sequence") or 0))
+        except ValueError:
+            continue
+        if not trip_id or not stop_id:
+            continue
+        prev = first.get(trip_id)
+        if prev is None or seq < prev[0]:
+            first[trip_id] = (seq, stop_id)
+        prev = last.get(trip_id)
+        if prev is None or seq > prev[0]:
+            last[trip_id] = (seq, stop_id)
 
     trips = []
     for row in rows(zf, "trips.txt"):
