@@ -21,6 +21,7 @@ Uso: PYTHONPATH=. venv/bin/python scripts/gen_retrasos_renfe.py [--out RUTA]
 """
 import math
 import re
+from statistics import median
 import sys
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -372,6 +373,13 @@ def main():
     av_ev = por_tipo.get("alta_velocidad", 0)          # incidencias (tren×parada)
     cer_ev = por_tipo.get("cercanias", 0)
     media_tren = (sum(max_trip.values()) / len(max_trip)) if max_trip else 0
+    vals = sorted(max_trip.values())
+    mediana_tren = median(vals) if vals else 0
+    def _pctile(v,p):
+        if not v: return 0
+        k=(len(v)-1)*p; f=int(k); c=min(f+1,len(v)-1)
+        return v[f]+(v[c]-v[f])*(k-f)
+    p90_tren = _pctile(vals,0.90)
     media = (sum(delays) / len(delays)) if delays else 0
     pico_hora = max(por_hora, key=lambda h: sum(por_hora[h].values()))
     top_est = max(est_n, key=lambda s: est_n[s])
@@ -428,7 +436,8 @@ def main():
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📅 {hoy} · {ahora} Europe/Madrid</span>'
         f'<span style="background:#fef2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 <b>{trenes_total}</b> trenes con retraso ≥10 min hoy</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">📊 {total_eventos} incidencias por parada</span>'
-        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⚡ media +{media_tren:.0f} min por tren</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">⚡ mediana +{mediana_tren:.0f} min · p90 +{p90_tren:.0f} min por tren</span>'
+        f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🚆 Cercanías {cer} · AVE/LD {av}</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🏆 estación con más: {top_est} ({est_n[top_est]})</span>'
         f'<span style="background:#f2f2f2;border-radius:8px;padding:8px 14px;font-size:.95rem">🕐 pico: {pico_hora}:00</span>'
     )
@@ -437,10 +446,10 @@ def main():
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Retrasos de Renfe hoy · actualización cada 15 min</title>
-<meta name="description" content="Retrasos de trenes en España hoy: {trenes_total} trenes afectados ({total_eventos} incidencias por parada) actualización cada 15 minutos (AVE/larga distancia y cercanías), media de +{media_tren:.0f} min por tren. Datos GTFS-RT de Renfe vía NearMe. No es una web oficial.">
+<meta name="description" content="Retrasos de trenes en España hoy: {trenes_total} trenes afectados ({total_eventos} incidencias por parada) actualización cada 15 minutos (AVE/larga distancia y cercanías), mediana de +{mediana_tren:.0f} min y p90 de +{p90_tren:.0f} min por tren. Datos GTFS-RT de Renfe vía NearMe. No es una web oficial.">
 <link rel="canonical" href="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html"><meta property="og:type" content="website">
 <meta property="og:title" content="Retrasos del tren en España hoy · {trenes_total} trenes afectados">
-<meta property="og:description" content="{trenes_total} trenes con retraso ≥10 min hoy ({total_eventos} incidencias por parada) en la red (AVE + cercanías), media +{media_tren:.0f} min. Estación con más: {top_est}. Datos GTFS-RT de Renfe. No es una web oficial.">
+<meta property="og:description" content="{trenes_total} trenes con retraso ≥10 min hoy ({total_eventos} incidencias por parada) en la red (AVE + cercanías), mediana +{mediana_tren:.0f} min, p90 +{p90_tren:.0f} min. Estación con más: {top_est}. Datos GTFS-RT de Renfe. No es una web oficial.">
 <meta property="og:locale" content="es_ES">
 <meta property="og:url" content="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html">
 <meta property="og:image" content="https://radar.viajeinteligencia.com/retrasos-renfe-og.png">
