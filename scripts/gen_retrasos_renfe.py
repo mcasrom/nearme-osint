@@ -21,6 +21,7 @@ Uso: PYTHONPATH=. venv/bin/python scripts/gen_retrasos_renfe.py [--out RUTA]
 """
 import math
 import re
+from html import escape
 from statistics import median
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -76,6 +77,7 @@ def cargar():
         delay = int(m.group(1))
         est = fix_estacion(m.group(2))
         tm = re.search(r"Trip: (\S+)", desc or "")
+        rm = re.search(r"Ruta: (\S+)", desc or "")
         trip = tm.group(1) if tm else None
         try:
             if created_at is None:
@@ -88,7 +90,7 @@ def cargar():
             hora = 0
         eventos.append({
             "tipo": subtype or "desconocido", "est": est, "delay": delay,
-            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip,
+            "hora": hora, "lat": lat, "lon": lon, "level": level, "trip": trip, "route": rm.group(1) if rm else None,
         })
     return eventos
 
@@ -348,10 +350,11 @@ def main():
     # Agregación por TREN (un tren = un trip_id): interesa el retraso MÁXIMO del
     # tren, no cada parada. Los eventos son tren×parada; aquí se colapsan a tren.
     max_trip = {}          # (tipo, trip) -> retraso máx
+    trip_info = {}
     for e in eventos:
         k = (e["tipo"], e["trip"] or "_?")
         if e["delay"] > max_trip.get(k, 0):
-            max_trip[k] = e["delay"]
+            max_trip[k] = e["delay"]; trip_info[k] = e
     trenes_tipo = defaultdict(int)
     for (tipo, _t) in max_trip:
         trenes_tipo[tipo] += 1
@@ -383,6 +386,16 @@ def main():
     media = (sum(delays) / len(delays)) if delays else 0
     pico_hora = max(por_hora, key=lambda h: sum(por_hora[h].values()))
     top_est = max(est_n, key=lambda s: est_n[s])
+    worst = sorted(trip_info.items(), key=lambda kv: kv[1]["delay"], reverse=True)[:15]
+    filas = "".join(
+        f'<tr><td>{escape(str(e["tipo"]))}</td><td>{escape(str(e.get("route") if e.get("route") not in (None, ".", "") else "s/d"))}</td><td>{escape(str(e.get("trip") or "s/d"))}</td><td>{escape(str(e["est"]))}</td><td><b>+{e["delay"]} min</b></td></tr>'
+        for _k, e in worst
+    )
+    peores_html = ('<div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">'
+                   '<h3 style="margin-top:0">Peores trenes de hoy</h3>'
+                   '<p style="font-size:.9rem;color:#555;margin-top:0">Tren y ruta identificados por el feed GTFS-RT; no incluye nombre comercial ni origen-destino porque el GTFS estático no está disponible.</p>'
+                   '<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th style="text-align:left">Servicio</th><th style="text-align:left">Ruta</th><th style="text-align:left">Trip</th><th style="text-align:left">Estación</th><th style="text-align:left">Retraso</th></tr></thead><tbody>'
+                   + filas + '</tbody></table></div>')
     hoy = datetime.now(MADRID).strftime("%d/%m/%Y")
     ahora = datetime.now(MADRID).strftime("%H:%M")
 
@@ -494,6 +507,7 @@ en <strong>AVE/larga distancia</strong> y <strong>cercanías</strong>. Un mismo 
 {sem_html}
 </div>
 
+{peores_html}
 <div class="card" style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px;margin:18px 0">
 <h3 style="margin-top:0">Evolución del día, hora a hora</h3>
 <p style="font-size:.9rem;color:#555;margin-top:0">Barras apiladas: <b>incidencias</b> (tren×parada) por hora según gravedad (10–15, 15–30, 30–60 y &gt;60 min). Trenes afectados hoy: AVE/larga distancia {av} · cercanías {cer}.</p>
