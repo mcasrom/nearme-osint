@@ -764,7 +764,7 @@ def main():
 </head>
 <body style="font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fafafa;color:#222">
 <main style="max-width:900px;margin:0 auto;padding:20px 16px 48px">
-<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/enjambre-granada.html" style="color:#c2410c">🌋 enjambre</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a> · <a href="/nivel-nieve.html" style="color:#c2410c">❄️ nieve</a></p>
+<p style="font-size:.85rem"><a href="/" style="color:#c2410c">← radar</a> · <a href="/retrasos-renfe-mapa.html" style="color:#c2410c">🗺️ mapa tren</a> · <a href="/pulso-espana.html" style="color:#c2410c">💓 pulso</a> · <a href="/enjambre-granada.html" style="color:#c2410c">🌋 enjambre</a> · <a href="/nivel-embalses.html" style="color:#c2410c">💧 embalses</a> · <a href="/nivel-nieve.html" style="color:#c2410c">❄️ nieve</a></p>
 <h1 style="font-size:1.55rem;margin:.2em 0">Retrasos del tren en España hoy</h1>
 <p>Estado del día en curso de la red ferroviaria, a partir de los retrasos que NearMe detecta
 en el feed oficial de RENFE (GTFS-RT). Se muestran <strong>trenes con retraso significativo (≥10 minutos)</strong>
