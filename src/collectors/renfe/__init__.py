@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -24,19 +25,21 @@ class RENFEDelaysCollector(BaseCollector):
 
     def __init__(self):
         self._stations = None
+        self._stations_ts = 0.0
 
     def _service_date(self, trip_id):
         m = re.search(r"(\d{4}-\d{2}-\d{2})$", trip_id or "")
         return m.group(1) if m else None
 
     def _load_stations(self):
-        if self._stations is not None:
+        if self._stations is not None and time.monotonic() - self._stations_ts < 6 * 3600:
             return self._stations
-        self._stations = {}
+        parsed = {}
         try:
             resp = requests.get(STATIONS_CSV, timeout=15, headers={"User-Agent": "NearMeOSINT/1.0"})
             if resp.status_code != 200:
-                return self._stations
+                logger.warning("RENFE estaciones: HTTP %s", resp.status_code)
+                return self._stations or {}
             reader = csv.DictReader(io.StringIO(resp.text), delimiter=";", quotechar='"')
             for row in reader:
                 code = row.get("CODIGO", "").strip()
@@ -45,13 +48,18 @@ class RENFEDelaysCollector(BaseCollector):
                     lon = float(row.get("LONGITUD", "0").replace(",", "."))
                     name = row.get("DESCRIPCION", "")
                     if code and lat and lon:
-                        self._stations[code] = (lat, lon, name)
+                        parsed[code] = (lat, lon, name)
                 except (ValueError, TypeError):
                     pass
-            logger.info("RENFE: %d estaciones geolocalizadas", len(self._stations))
+            if parsed:
+                self._stations = parsed
+                self._stations_ts = time.monotonic()
+                logger.info("RENFE: %d estaciones geolocalizadas", len(parsed))
+            else:
+                logger.warning("RENFE estaciones: descarga vacía; se conserva la caché anterior")
         except Exception as e:
             logger.warning("RENFE estaciones: %s", e)
-        return self._stations
+        return self._stations or {}
 
     async def collect(self):
         events = []
@@ -74,6 +82,7 @@ class RENFEDelaysCollector(BaseCollector):
 
             seen = set()
             trips_all = set()
+            unresolved = 0
             for entity in feed.entity:
                 if not entity.HasField('trip_update'):
                     continue
@@ -103,9 +112,10 @@ class RENFEDelaysCollector(BaseCollector):
                     if delay < 600:
                         continue
 
-                    lat, lon, station_name = 0, 0, stop_id
-                    if stop_id in stations:
-                        lat, lon, station_name = stations[stop_id]
+                    if stop_id not in stations:
+                        unresolved += 1
+                        continue
+                    lat, lon, station_name = stations[stop_id]
 
                     level = 'warning' if delay < 1800 else 'alert'
                     events.append(Event(
@@ -121,7 +131,7 @@ class RENFEDelaysCollector(BaseCollector):
                         country="ES",
                     ))
 
-            logger.info("RENFE %s: %d retrasos significativos", feed_type, len(events))
+            logger.info("RENFE %s: %d retrasos significativos · %d paradas sin geolocalizar", feed_type, len(events), unresolved)
             # Denominador: registrar TODOS los trip_id vistos hoy (con o sin
             # retraso) para poder calcular el % de trenes con retraso.
             try:
