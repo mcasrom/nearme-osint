@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -506,7 +507,23 @@ def _event_to_row(event: Event) -> tuple:
     )
 
 
+def _valid_event_coords(event: Event) -> bool:
+    try:
+        lat = float(event.lat)
+        lon = float(event.lon)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(lat) or not math.isfinite(lon):
+        return False
+    if lat == 0 and lon == 0:
+        return False
+    return -90 <= lat <= 90 and -180 <= lon <= 180
+
+
 def save_event(event: Event) -> int:
+    if not _valid_event_coords(event):
+        logger.warning("Evento descartado por coordenadas inválidas: %s / %s (%s)", event.source, event.source_id, event.lat)
+        return 0
     conn = get_conn()
     cur = conn.cursor()
     row = _event_to_row(event)
@@ -546,6 +563,9 @@ def save_events_batch(events: list[Event]) -> int:
     cur = conn.cursor()
     saved = 0
     for event in events:
+        if not _valid_event_coords(event):
+            logger.warning("Evento descartado por coordenadas inválidas: %s / %s (%s)", event.source, event.source_id, event.lat)
+            continue
         try:
             cur.execute(
                 "SELECT id, level, status, lat, lon, title FROM events WHERE source=%s AND source_id=%s",
