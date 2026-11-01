@@ -106,6 +106,7 @@ def main():
         "url": URL, "dateModified": gen,
         "creator": {"@type": "Person", "name": "Miguel Castillo"},
         "isAccessibleForFree": True,
+        "license": "https://creativecommons.org/licenses/by/4.0/",
         "distribution": [{"@type": "DataDownload", "encodingFormat": "application/json",
                           "contentUrl": "https://radar.viajeinteligencia.com/datos/retrasos-renfe-trenes.json"}],
     }, ensure_ascii=False)

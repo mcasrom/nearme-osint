@@ -660,6 +660,7 @@ def main():
         "name": "Retrasos de Renfe hoy", "dateModified": gen_iso,
         "creator": {"@type": "Organization", "name": "NearMe / ViajeInteligencia"},
         "isAccessibleForFree": True,
+        "license": "https://creativecommons.org/licenses/by/4.0/",
         "url": "https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html",
         "distribution": [
             {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://radar.viajeinteligencia.com/datos/retrasos-renfe-hoy.json"},
