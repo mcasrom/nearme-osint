@@ -118,6 +118,24 @@ def table_rows(stations):
     )
 
 
+
+def feed_status():
+    cur = get_conn().cursor()
+    cur.execute("""
+        SELECT MAX(observed_at), COUNT(*), MAX(delay_seconds),
+               EXTRACT(EPOCH FROM (now() - MAX(observed_at))) / 60.0
+        FROM renfe_delay_obs
+        WHERE subtype='alta_velocidad'
+          AND observed_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'Europe/Madrid'
+    """)
+    last, n, max_delay, age = cur.fetchone()
+    return {
+        "last_observed_at": last.isoformat() if last else None,
+        "last_age_min": round(float(age), 1) if age is not None else None,
+        "today_observations": int(n or 0),
+        "today_max_delay_min": round((max_delay or 0) / 60),
+    }
+
 def main():
     now_view = collect(WINDOW_MIN)
     day_view = collect(None)
@@ -128,8 +146,10 @@ def main():
     missing = sorted(expected - set(scheduled))
     all_stations = now_view["stations"] + day_view["stations"]
     services = sorted({s.strip() for x in all_stations for s in x["lines"].split(",") if s.strip() and s.strip() != "s/d"})
+    feed = feed_status()
     payload = {
         "generated_at": gen,
+        "feed": feed,
         "source": "Renfe GTFS-RT vía NearMe; coordenadas del GTFS estático de Renfe",
         "disclaimer": "Punto = estación con retraso reportado; no es la posición del tren ni una confirmación oficial.",
         "threshold_min": 15,
@@ -203,12 +223,13 @@ table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bott
 <h1>Retrasos de Renfe AVE y larga distancia en el mapa</h1>
 <p class="lead">Cada punto es una <b>estación</b> donde Renfe ha reportado al menos un tren AVE o de larga distancia con retraso de <b>15 minutos o más</b>. No es la posición del tren.</p>
 <p class="meta">Vista inicial: <b>Ahora</b> (últimos 30 min). <span id="updated">Actualizado: {now.strftime('%d/%m/%Y %H:%M')} Europe/Madrid</span> · datos GTFS-RT de Renfe vía NearMe · no es una web oficial.</p>
+<p class="map-note" id="feed-status">Feed: {feed['today_observations']} observaciones hoy · máximo +{feed['today_max_delay_min']} min{(' · última hace ' + str(feed['last_age_min']) + ' min') if feed['last_age_min'] is not None else ' · sin observaciones hoy'}.</p>
 {coverage_note}
 <div class="controls"><div class="seg" role="group" aria-label="Ventana temporal"><button type="button" class="on" data-view="now" aria-pressed="true">Ahora</button><button type="button" data-view="day" aria-pressed="false">Acumulado de hoy</button></div><label>Servicio <select id="service"><option value="all">Todos</option>{services_html}</select></label><span class="refresh" id="refresh-note">Se actualiza cada 15 min al abrir la página.</span></div>
 <div class="stats"><div class="stat"><b id="stat-stations">{now_view['totals']['stations']}</b><span>estaciones con retraso ≥15 min</span></div><div class="stat"><b id="stat-trains">{now_view['totals']['trains']}</b><span id="stat-trains-label">trenes únicos afectados</span></div><div class="stat"><b id="stat-max">+{max_delay} min</b><span>retraso máximo reportado</span></div></div>
 <p class="map-note" id="view-note">Ahora: últimas observaciones de los últimos 30 minutos.</p>
 <div id="map" role="img" aria-label="Mapa de estaciones con retrasos de AVE y larga distancia"></div>
-<p id="empty" class="map-note" hidden>No hay retrasos de AVE/LD ≥15 minutos en esta vista. No significa que no existan: puede ser falta de datos del feed.</p>
+<p id="empty" class="map-note" hidden>No hay retrasos de AVE/LD ≥15 minutos en esta vista. Máximo observado hoy: +{feed['today_max_delay_min']} min en {feed['today_observations']} observaciones. No significa que no existan: puede ser falta de datos del feed.</p>
 <div class="legend"><span><i class="dot" style="background:#f59e0b"></i>15–29 min</span><span><i class="dot" style="background:#f97316"></i>30–59 min</span><span><i class="dot" style="background:#dc2626"></i>≥60 min</span><span class="muted">Tamaño = retraso y trenes en esa estación</span></div>
 <div class="card"><h2>Cómo se lee</h2><ul>
 <li><b>Punto = estación.</b> No es un tren geolocalizado ni una interpolación de su recorrido.</li>
@@ -265,6 +286,7 @@ async function refresh(){{
   const d=await r.json(); DATA=d.views||DATA;
   const ts=d.generated_at?new Date(d.generated_at).toLocaleString('es-ES',{{dateStyle:'short',timeStyle:'short'}}):'';
   if(ts) document.getElementById('updated').textContent='Actualizado: '+ts+' Europe/Madrid';
+  if(d.feed){{const f=d.feed;document.getElementById('feed-status').textContent='Feed: '+f.today_observations+' observaciones hoy · máximo +'+f.today_max_delay_min+' min'+(f.last_age_min!=null?' · última hace '+f.last_age_min+' min':' · sin observaciones hoy')+'.';}}
   render();
  }}catch(e){{document.getElementById('refresh-note').textContent='No se pudo refrescar; se mantiene la última captura.';}}
 }}
