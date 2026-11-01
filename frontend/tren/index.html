@@ -20,6 +20,8 @@ a{color:var(--cyan)}.wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:22px}
 .brand{font-weight:800;text-decoration:none;color:var(--ink);font-size:1.05rem}.brand span{color:var(--cyan)}
 .topnav{display:flex;gap:12px;flex-wrap:wrap;font-size:.84rem}.topnav a{text-decoration:none}
+.theme{font:inherit;font-size:1rem;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 9px;cursor:pointer;line-height:1}
+.theme:hover{border-color:var(--cyan)}
 .hero{padding:4px 0 18px}.eyebrow{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);font-weight:800}
 h1{font-size:2rem;line-height:1.15;margin:6px 0 8px}h2{font-size:1.15rem;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .lead{font-size:1rem;color:#cbd5e1;max-width:70ch}.muted{color:var(--muted);font-size:.85rem}
@@ -29,13 +31,17 @@ h1{font-size:2rem;line-height:1.15;margin:6px 0 8px}h2{font-size:1.15rem;margin:
 .alert{background:#0d1b2e;border:1px solid #164e63;border-left:4px solid var(--cyan);border-radius:9px;padding:12px 14px;margin:16px 0}
 .alert b{color:#fff}.alert a{font-weight:700}
 .box{background:#0a0e17;border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin:14px 0;color:#b9c4d4;font-size:.88rem}
+.kofi{display:inline-flex;align-items:center;gap:7px;background:#13C3A5;color:#062e29;text-decoration:none;font-weight:800;border-radius:8px;padding:9px 13px;font-size:.86rem}
+.kofi:hover{filter:brightness(1.08)}
+.foot{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:22px}.foot b{display:block;color:var(--ink);margin-bottom:6px}.foot a{display:block;text-decoration:none;margin:3px 0}.foot .muted{margin:0 0 7px}
+body.light{background:#f5f7fa;color:#263238}body.light .top,body.light .foot,body.light h2{border-color:#d8dee8}body.light .brand,body.light h1,body.light .foot b{color:#263238}body.light h1{color:#0288d1}body.light .lead{color:#37474f}body.light .muted,body.light .card p,body.light .foot{color:#607d8b}body.light .card,body.light .box{background:#fff;border-color:#d8dee8;color:#37474f}body.light .alert{background:#e8f4fb;border-color:#b3e5fc;color:#37474f}body.light .theme{color:#37474f;border-color:#cfd8dc}body.light .foot a,body.light .topnav a{color:#0277bd}
 ul{padding-left:20px}li{margin:5px 0}
 .foot{margin-top:36px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:.82rem;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
-@media(max-width:700px){.cards{grid-template-columns:1fr}h1{font-size:1.55rem}}
+@media(max-width:700px){.cards,.foot{grid-template-columns:1fr}h1{font-size:1.55rem}}
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><a class="brand" href="/">NearMe<span> · Tren</span></a><nav class="topnav"><a href="/">← NearMe</a><a href="https://radar.viajeinteligencia.com/">Radar</a><a href="https://www.viajeinteligencia.com/">Ecosistema</a></nav></div>
+<div class="top"><a class="brand" href="/">NearMe<span> · Tren</span></a><div style="display:flex;gap:10px;align-items:center"><nav class="topnav"><a href="/">← NearMe</a><a href="https://radar.viajeinteligencia.com/">Radar</a><a href="https://www.viajeinteligencia.com/">Ecosistema</a></nav><button class="theme" id="darkToggle" type="button" aria-label="Cambiar tema claro u oscuro" title="Modo claro/oscuro">🌙</button></div></div>
 <div class="hero"><div class="eyebrow">NearMe · Tren</div><h1>Retrasos y mapa AVE/LD</h1><p class="lead">Un solo acceso a las páginas de tren: retrasos de hoy, mapa de alta velocidad y larga distancia, trenes y estaciones.</p><p class="muted">Fuente: Renfe GTFS-RT. No es una web oficial. No incluye Iryo ni Ouigo.</p></div>
 <div class="alert"><b>¿Buscas una estación o un trayecto?</b> Entra en <a href="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html?utm_source=nearme&utm_medium=tren_hub&utm_campaign=tren">Retrasos de hoy</a> y consulta por estación. Para avisos, <a href="/">activa las alertas de NearMe</a>.</div>
 <div class="cards">
@@ -47,5 +53,18 @@ ul{padding-left:20px}li{margin:5px 0}
 <h2>Qué incluye</h2><ul><li>Retrasos de <b>AVE y larga distancia</b>.</li><li>Consulta por estación, tren y mapa.</li><li>Actualización periódica de Renfe.</li></ul>
 <h2>Qué no incluye</h2><ul><li>No es una web oficial de Renfe, ADIF o el Ministerio.</li><li>No incluye Iryo ni Ouigo.</li><li>No confirma la causa del retraso ni atribuye responsabilidad.</li><li>La ausencia de un tren no significa que circule puntual: puede no estar en la fuente.</li></ul>
 <div class="box"><b>Cómo leerlo.</b> Un retraso es el dato publicado por la fuente en un momento concreto. La hora de la página y la hora del tren pueden no coincidir. Si necesitas una decisión de viaje, contrasta con la web oficial.</div>
-<div class="foot"><span>NearMe · Tren · acceso a datos de Radar</span><span><a href="/">NearMe</a> · <a href="https://radar.viajeinteligencia.com/">Radar</a></span></div>
+<footer class="foot">
+<div><b>NearMe · Tren</b><p class="muted">Acceso a retrasos y mapa AVE/LD. Datos de Renfe GTFS-RT; no es una web oficial.</p><a href="https://ko-fi.com/m_castillo" class="kofi" target="_blank" rel="noopener">☕ Apoyar en Ko-fi</a></div>
+<div><b>Datos y referencias</b><a href="https://www.renfe.com/" target="_blank" rel="noopener">Renfe</a><a href="https://www.adif.es/" target="_blank" rel="noopener">ADIF</a><a href="https://data.renfe.com/" target="_blank" rel="noopener">Renfe · datos abiertos</a><a href="https://radar.viajeinteligencia.com/" target="_blank" rel="noopener">Radar</a></div>
+<div><b>Páginas</b><a href="https://radar.viajeinteligencia.com/retrasos-renfe-hoy.html">Retrasos de hoy</a><a href="https://radar.viajeinteligencia.com/retrasos-renfe-mapa.html">Mapa AVE/LD</a><a href="https://radar.viajeinteligencia.com/retrasos-renfe-trenes.html">Trenes</a><a href="https://radar.viajeinteligencia.com/retrasos-renfe-estaciones.html">Estaciones</a></div>
+</footer>
+<script>
+(function(){
+  var b=document.getElementById('darkToggle');
+  if(localStorage.getItem('nearme_theme')==='light') document.body.classList.add('light');
+  function set(){ if(b) b.textContent=document.body.classList.contains('light')?'☀️':'🌙'; }
+  if(b) b.addEventListener('click',function(){document.body.classList.toggle('light');localStorage.setItem('nearme_theme',document.body.classList.contains('light')?'light':'dark');set();});
+  set();
+})();
+</script>
 </div></body></html>
