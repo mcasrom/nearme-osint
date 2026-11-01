@@ -36,6 +36,7 @@ def load(window_min=None):
         SELECT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
                COUNT(DISTINCT l.trip_id) AS trains,
                MAX(l.delay_seconds) AS delay_seconds,
+               MAX(l.observed_at) AS last_seen,
                STRING_AGG(DISTINCT COALESCE(t.route_short_name, 's/d'), ', ') AS lines,
                STRING_AGG(DISTINCT CASE WHEN t.origin_name <> '' AND t.dest_name <> ''
                     THEN t.origin_name || ' → ' || t.dest_name END, ' · ') AS corridors
@@ -48,7 +49,7 @@ def load(window_min=None):
         ORDER BY delay_seconds DESC
     """, SERVICES)
     rows = []
-    for sid, name, lat, lon, trains, delay, lines, corridors in cur.fetchall():
+    for sid, name, lat, lon, trains, delay, last_seen, lines, corridors in cur.fetchall():
         rows.append({
             "id": sid,
             "station": name or sid,
@@ -58,6 +59,7 @@ def load(window_min=None):
             "delay_min": round((delay or 0) / 60),
             "lines": lines or "s/d",
             "corridors": corridors or "",
+            "last_seen": str(last_seen).replace(" ", "T", 1) if last_seen else None,
         })
     return rows
 
@@ -110,10 +112,16 @@ def scheduled_today():
     return {r[0]: int(r[1]) for r in cur.fetchall() if r[0]}
 
 def table_rows(stations):
+    def seen(x):
+        v = x.get("last_seen") or ""
+        try:
+            return datetime.fromisoformat(v).astimezone(MADRID).strftime("%H:%M")
+        except Exception:
+            return "s/d"
     return "".join(
-        f"<tr><td>{escape(x['station'])}</td><td>{escape(x['lines'])}</td>"
+        f"<tr data-id=\"{escape(x['id'])}\"><td>{escape(x['station'])}</td><td>{escape(x['lines'])}</td>"
         f"<td>{x['trains']}</td><td><b>+{x['delay_min']} min</b></td>"
-        f"<td>{escape(x['corridors'][:160])}</td></tr>"
+        f"<td>{seen(x)}</td><td>{escape(x['corridors'][:160])}</td></tr>"
         for x in stations
     )
 
@@ -214,6 +222,7 @@ select{{font:inherit;font-size:.85rem;padding:8px;border:1px solid var(--line);b
 .card p,.card li{{font-size:.9rem;color:#334155}} .card li{{margin:5px 0}} .muted{{color:var(--muted);font-size:.82rem}}
 table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bottom:1px solid var(--line);padding:7px;text-align:left;vertical-align:top}} th{{font-size:.75rem;color:var(--muted)}}
 .warn{{background:#fff7ed;border-left:4px solid #b45309;padding:10px 14px;border-radius:7px;font-size:.9rem}}
+.station-icon{{background:none;border:0}} .stn{{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border:3px solid;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);line-height:1;font-size:10px;color:#111827}} .stn span{{font-size:13px}} .stn b{{font-size:9px;font-weight:800;margin-top:1px}} tr.active{{background:#fff7ed}} tr[data-id]{{cursor:pointer}} tr[data-id]:focus{{outline:2px solid #f59e0b;outline-offset:-2px}}
 .foot{{border-top:1px solid var(--line);margin-top:28px;padding-top:18px;font-size:.85rem;color:#475569}} .foot a{{display:inline-block;margin:2px 7px 2px 0}} .kofi{{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:#fff!important;background:#13C3A5;border-radius:7px;padding:9px 14px;text-decoration:none;margin-top:10px}}
 @media(max-width:650px){{.stats{{grid-template-columns:1fr 1fr}}#map{{height:420px}}}}
 </style>
@@ -230,7 +239,7 @@ table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bott
 <p class="map-note" id="view-note">Ahora: últimas observaciones de los últimos 30 minutos.</p>
 <div id="map" role="img" aria-label="Mapa de estaciones con retrasos de AVE y larga distancia"></div>
 <p id="empty" class="map-note" hidden>No hay retrasos de AVE/LD ≥15 minutos en esta vista. Máximo observado hoy: +{feed['today_max_delay_min']} min en {feed['today_observations']} observaciones. No significa que no existan: puede ser falta de datos del feed.</p>
-<div class="legend"><span><i class="dot" style="background:#f59e0b"></i>15–29 min</span><span><i class="dot" style="background:#f97316"></i>30–59 min</span><span><i class="dot" style="background:#dc2626"></i>≥60 min</span><span class="muted">Tamaño = retraso y trenes en esa estación</span></div>
+<div class="legend"><span><i class="dot" style="background:#f59e0b"></i>15–29 min</span><span><i class="dot" style="background:#f97316"></i>30–59 min</span><span><i class="dot" style="background:#dc2626"></i>≥60 min</span><span><b>Icono = estación</b></span><span class="muted">Tamaño = nº de trenes observados</span></div>
 <div class="card"><h2>Cómo se lee</h2><ul>
 <li><b>Punto = estación.</b> No es un tren geolocalizado ni una interpolación de su recorrido.</li>
 <li><b>Ahora</b> usa observaciones de los últimos 30 minutos. <b>Acumulado</b> incluye todo lo reportado desde las 00:00 de hoy; una estación puede seguir en el mapa aunque el tren ya haya pasado.</li>
@@ -240,19 +249,23 @@ table{{width:100%;border-collapse:collapse;font-size:.85rem}} th,td{{border-bott
 <li><b>No incluye Iryo ni Ouigo.</b> El feed usado es el GTFS-RT de Renfe; no hay integración con esos operadores.</li>
 </ul></div>
 <div class="warn"><b>Límites.</b> La fuente es el GTFS-RT de Renfe y las coordenadas del GTFS estático. No incluye Iryo ni Ouigo. No confirma causas, no atribuye responsabilidades y no mide la puntualidad oficial. La cobertura depende del feed: un hueco en el mapa no prueba que no haya retrasos. Los datos pueden cambiar entre ciclos.</div>
-<div class="card"><h2>Estaciones en esta vista</h2><table><thead><tr><th>Estación</th><th>Servicio</th><th>Trenes</th><th>Máximo</th><th>Corredor</th></tr></thead><tbody id="table-body">{initial_rows or '<tr><td colspan="5">Sin estaciones con retraso ≥15 min.</td></tr>'}</tbody></table><p class="muted" id="table-note">Trenes distintos por estación; un mismo tren puede sumar en varias estaciones.</p></div>
+<div class="card"><h2>Estaciones en esta vista</h2><table><thead><tr><th>Estación</th><th>Servicio</th><th>Trenes</th><th>Máximo</th><th>Visto</th><th>Corredor</th></tr></thead><tbody id="table-body">{initial_rows or '<tr><td colspan="6">Sin estaciones con retraso ≥15 min.</td></tr>'}</tbody></table><p class="muted" id="table-note">Trenes distintos por estación; un mismo tren puede sumar en varias estaciones.</p></div>
 <div class="card"><h2>Datos y método</h2><p>Fuente: <a href="https://data.renfe.com/" target="_blank" rel="noopener">Renfe GTFS-RT</a>, capturado por NearMe cada 15 minutos. Las coordenadas y los nombres de estación proceden del <b>GTFS estático oficial</b> de Renfe. No hay datos manuales en esta página.</p><p><a href="/datos/retrasos-renfe-mapa.json">Descargar JSON</a> · <a href="/retrasos-renfe-hoy.html">Estado completo del día</a> · <a href="/retrasos-renfe-estaciones.html">Fichas por estación</a></p></div>
 <footer class="foot"><b>Ecosistema ViajeInteligencia</b><br><a href="https://www.viajeinteligencia.com">Principal</a><a href="https://municipal.viajeinteligencia.com">Municipal</a><a href="https://nearme.viajeinteligencia.com">NearMe</a><a href="https://country.viajeinteligencia.com">País a País</a><a href="https://vivienda.pruebapublica.com">Vivienda</a><a href="https://analisis.pruebapublica.com">Análisis</a><a href="/estado.html">Estado de fuentes</a><br><a class="kofi" href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer">☕ Invítame a un café</a><p class="muted">Proyecto personal, sin rastreo ni cuentas. Los servidores los paga su autor.</p></footer>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const DATA={data_js};
-let state={{view:'now',service:'all'}};
+let state={{view:'now',service:'all'}}; let markerById={{}};
 const map=L.map('map',{{scrollWheelZoom:false}}).setView([40.2,-3.5],5);
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',{{maxZoom:18,attribution:'© OpenStreetMap'}}).addTo(map);
 const layer=L.layerGroup().addTo(map);
 function esc(s){{return String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]))}}
 function color(d){{return d>=60?'#dc2626':d>=30?'#f97316':'#f59e0b'}}
+function ageMin(iso){{if(!iso)return null;const t=new Date(iso).getTime();if(isNaN(t))return null;return Math.max(0,Math.round((Date.now()-t)/60000));}}
+function seenText(s){{const d=s.last_seen?new Date(s.last_seen):null;if(!d||isNaN(d.getTime()))return 'sin hora';const a=ageMin(s.last_seen);return d.toLocaleTimeString('es-ES',{{hour:'2-digit',minute:'2-digit'}})+(a==null?'':' · hace '+a+' min');}}
+function updateFeed(f){{if(!f)return;const el=document.getElementById('feed-status');const age=f.last_age_min;el.classList.toggle('warn',age!=null&&age>30);el.textContent='Feed: '+(f.today_observations||0)+' observaciones hoy · máximo +'+(f.today_max_delay_min||0)+' min'+(age!=null?' · última hace '+age+' min':' · sin observaciones hoy')+(age!=null&&age>30?' · POSIBLE RETRASO DEL FEED':'');}}
+function seenTime(s){{const d=s.last_seen?new Date(s.last_seen):null;return d&&!isNaN(d.getTime())?d.toLocaleTimeString("es-ES",{{timeZone:"Europe/Madrid",hour:"2-digit",minute:"2-digit"}}):"s/d";}}
 function filtered(){{
  const view=DATA[state.view]||DATA.now; let list=view.stations||[];
  if(state.service!=='all') list=list.filter(x=>String(x.lines||'').split(',').map(s=>s.trim()).includes(state.service));
@@ -262,9 +275,11 @@ function render(){{
  const view=DATA[state.view]||DATA.now; const list=filtered();
  layer.clearLayers(); const pts=[];
  list.forEach(function(s){{
-  const c=color(s.delay_min); const r=Math.max(7,Math.min(22,7+Math.sqrt(s.delay_min)*1.2));
-  const popup='<b>'+esc(s.station)+'</b><br>+'+s.delay_min+' min · '+s.trains+' tren(es)<br>'+esc(s.lines)+(s.corridors?'<br><span class="muted">'+esc(s.corridors)+'</span>':'')+'<br><span class="muted">Estación, no posición del tren</span>';
-  L.circleMarker([s.lat,s.lon],{{radius:r,color:c,weight:1.5,fillColor:c,fillOpacity:.45}}).bindPopup(popup).addTo(layer); pts.push([s.lat,s.lon]);
+  const c=color(s.delay_min); const sz=Math.max(26,Math.min(46,26+s.trains*2));
+  const popup='<b>'+esc(s.station)+'</b><br>+'+s.delay_min+' min · '+s.trains+' tren(es)<br>'+esc(s.lines)+(s.corridors?'<br><span class="muted">'+esc(s.corridors)+'</span>':'')+'<br><span class="muted">Visto: '+esc(seenText(s))+'</span><br><a href="/retrasos-renfe-estaciones.html">Ver estaciones</a>';
+  const icon=L.divIcon({{className:'station-icon',html:'<div class="stn" style="width:'+sz+'px;height:'+sz+'px;border-color:'+c+'"><span>🚆</span><b>'+s.delay_min+'′</b></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}});
+  const mk=L.marker([s.lat,s.lon],{{icon:icon}}).bindPopup(popup).addTo(layer);
+  mk.on('click',function(){{highlightRow(s.id);}}); markerById[s.id]=mk; pts.push([s.lat,s.lon]);
  }});
  if(pts.length){{map.fitBounds(pts,{{padding:[35,35],maxZoom:6}});}} else {{map.setView([40.2,-3.5],5);}}
  document.getElementById('empty').hidden=!!list.length;
@@ -273,10 +288,13 @@ function render(){{
  document.getElementById('stat-trains-label').textContent=state.service==='all'?'trenes únicos afectados':'trenes-estación';
  document.getElementById('stat-max').textContent='+'+Math.max(0,...list.map(x=>x.delay_min))+' min';
  document.getElementById('view-note').textContent=(view.note||'')+(state.service==='all'?'':' · filtro: '+state.service);
- document.getElementById('table-body').innerHTML=list.map(x=>'<tr><td>'+esc(x.station)+'</td><td>'+esc(x.lines)+'</td><td>'+x.trains+'</td><td><b>+'+x.delay_min+' min</b></td><td>'+esc((x.corridors||'').slice(0,160))+'</td></tr>').join('')||'<tr><td colspan="5">Sin estaciones con retraso ≥15 min.</td></tr>';
+  document.getElementById('table-body').innerHTML=list.map(x=>'<tr data-id="'+esc(x.id)+'"><td>'+esc(x.station)+'</td><td>'+esc(x.lines)+'</td><td>'+x.trains+'</td><td><b>+'+x.delay_min+' min</b></td><td>'+esc(seenTime(x))+'</td><td>'+esc((x.corridors||'').slice(0,160))+'</td></tr>').join('')||'<tr><td colspan="6">Sin estaciones con retraso ≥15 min.</td></tr>';
  document.getElementById('table-note').textContent='Trenes distintos por estación; un mismo tren puede sumar en varias estaciones. Pares tren×estación en esta vista: '+view.totals.train_station_pairs+'.';
+ document.querySelectorAll('#table-body tr[data-id]').forEach(function(tr){{tr.tabIndex=0;tr.onclick=function(){{focusStation(tr.dataset.id);}};tr.onkeydown=function(ev){{if(ev.key==='Enter'||ev.key===' '){{ev.preventDefault();focusStation(tr.dataset.id);}}}};}});
  document.querySelectorAll('.seg button').forEach(b=>{{const on=b.dataset.view===state.view;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}});
 }}
+function highlightRow(id){{document.querySelectorAll('#table-body tr[data-id]').forEach(function(tr){{tr.classList.toggle('active',tr.dataset.id===String(id));}});}}
+function focusStation(id){{highlightRow(id);const m=markerById[id];if(m){{map.flyTo(m.getLatLng(),8);m.openPopup();}}}}
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{{state.view=b.dataset.view;render();}});
 document.getElementById('service').onchange=e=>{{state.service=e.target.value;render();}};
 async function refresh(){{
@@ -286,11 +304,11 @@ async function refresh(){{
   const d=await r.json(); DATA=d.views||DATA;
   const ts=d.generated_at?new Date(d.generated_at).toLocaleString('es-ES',{{dateStyle:'short',timeStyle:'short'}}):'';
   if(ts) document.getElementById('updated').textContent='Actualizado: '+ts+' Europe/Madrid';
-  if(d.feed){{const f=d.feed;document.getElementById('feed-status').textContent='Feed: '+f.today_observations+' observaciones hoy · máximo +'+f.today_max_delay_min+' min'+(f.last_age_min!=null?' · última hace '+f.last_age_min+' min':' · sin observaciones hoy')+'.';}}
+  if(d.feed){{updateFeed(d.feed);}}
   render();
  }}catch(e){{document.getElementById('refresh-note').textContent='No se pudo refrescar; se mantiene la última captura.';}}
 }}
-render(); setInterval(refresh,15*60*1000);
+updateFeed({json.dumps(feed)}); render(); setInterval(refresh,15*60*1000);
 </script>
 </body></html>"""
     OUT.write_text(html, encoding="utf-8")
