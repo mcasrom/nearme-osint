@@ -3,6 +3,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+CSS = '.site-head{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #e2e8f0}.headwrap{max-width:1100px;margin:auto;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}.brand{font-weight:800;font-size:1.25rem;color:#172033;text-decoration:none;display:flex;align-items:center;gap:7px}.brand .mark{display:inline-block;width:10px;height:24px;border-radius:3px;background:#ff5a1f}.tag{font-size:.78rem;color:#64748b}.site-head nav{display:flex;gap:12px;margin-left:auto;flex-wrap:wrap}.site-head nav a{font-size:.86rem;color:#334155;text-decoration:none}.site-head nav a:hover{color:#c2410c}.site-foot{background:#fff;border-top:1px solid #e2e8f0;margin-top:28px;padding:20px 16px}.footwrap{max-width:1100px;margin:auto;font-size:.85rem;color:#475569}.footwrap p{margin:4px 0}.footlinks{display:flex;gap:12px;flex-wrap:wrap}.footlinks a{color:#c2410c;text-decoration:none}.kofi{display:inline-flex;align-items:center;gap:6px;background:#13C3A5;color:#fff!important;border-radius:7px;padding:8px 12px;text-decoration:none;font-weight:700}.fine{color:#94a3b8;font-size:.78rem}@media(max-width:600px){.tag{display:none}.site-head nav{gap:10px}.site-head nav a{font-size:.8rem}}'
 DATA = Path("/var/www/radar/datos/railes-cifras.json")
 OUT = Path("/var/www/radar/railes-cifras.html")
 LABEL = {"ES":"España","FR":"Francia","DE":"Alemania","IT":"Italia","EU27_2020":"UE-27","EUROPE":"Europa","WORLD":"Mundo"}
@@ -42,7 +43,7 @@ def main():
 .warn{{background:#fff7ed;border-left:4px solid #b45309;padding:10px 14px;border-radius:7px;font-size:.9rem}}.pending{{border-left:4px solid #94a3b8}}.pending h2{{border-bottom-color:#cbd5e1}}
 @media(max-width:600px){{.kpis{{grid-template-columns:1fr}}.barrow{{grid-template-columns:80px 1fr 70px}}}}
 </style></head><body><main class="wrap">
-<p class="top"><a href="/">← radar</a> · <a href="/railes.html">raíles</a> · <a href="/retrasos-renfe-mapa.html">retrasos en vivo</a></p>
+<header class="site-head"><div class="headwrap"><a class="brand" href="/railes.html"><span class="mark"></span>Raíles</a><span class="tag">Alta velocidad · datos abiertos</span><nav><a href="/railes.html">Mapa</a><a href="/railes-cifras.html">Cifras</a><a href="/retrasos-renfe-mapa.html">Retrasos</a><a href="/">Radar</a></nav></div></header>
 <h1>Cifras · Raíles</h1>
 <p class="lead">Alta velocidad española frente a Europa y el mundo: kilómetros de red y pasajeros-km. El bloque de ferrocarril total se mantiene separado porque Eurostat no desglosa AVE.</p>
 <p class="meta">Red: UIC, estado a {hs.get("network_state","—")} · Demanda AV: {hs.get("traffic_year","—")} · Total ferroviario: Eurostat {d["year"]}.</p>
@@ -56,7 +57,8 @@ def main():
 <div class="card pending"><h2>Inversión y mantenimiento: pendiente</h2><p>Inversión ejecutada y gasto de mantenimiento son anuales y agregados. Fuentes: ADIF/ADIF AV, MITMA y PGE. No hay desglose público limpio por corredor.</p><p class="muted">No se publica €/km ni €/pasajero-km hasta validar denominador y año.</p></div>
 <div class="card pending"><h2>Seguridad: pendiente</h2><p>Accidentes e incidentes comparables: ERA (indicadores comunes de seguridad) y CIAF en España. Publicación anual y con retraso; el accidente de Urda de 2026 no está consolidado.</p><p class="muted">No se mezclan retrasos GTFS-RT con accidentes.</p></div>
 <div class="card"><h2>Qué se puede afirmar hoy</h2><ul><li>España tiene <b>{hs_km.get("ES",0):,.0f} km</b> de alta velocidad en servicio.</li><li>La AV española movió <b>{hs_pkm.get("ES",0):.1f} mil millones de pasajeros-km</b> en 2023.</li><li>España representa el <b>{hs_share:.1f} %</b> de la red AV mundial; Francia y Alemania tienen más demanda de AV.</li><li>El ferrocarril total español movió <b>{es.get("pax_m",0):.1f} millones</b> de viajeros en 2023.</li></ul><p class="muted">Datos: <a href="/datos/railes-cifras.json">JSON</a> · fuente original Eurostat.</p></div>
-<footer class="muted">Proyecto personal · sin cookies · AGPL-3.0 · <a href="https://github.com/mcasrom/nearme-osint">código</a></footer>
+<footer class="site-foot"><div class="footwrap"><p><strong>Raíles</strong> · alta velocidad española, eje a eje. Datos abiertos, sin cookies.</p><p class="footlinks"><a href="/railes.html">Mapa</a><a href="/railes-cifras.html">Cifras</a><a href="/retrasos-renfe-mapa.html">Retrasos Renfe</a><a href="/">Radar</a><a href="https://github.com/mcasrom/nearme-osint">Código</a></p><p><a class="kofi" href="https://ko-fi.com/m_castillo" target="_blank" rel="noopener noreferrer">☕ Invítame a un café</a></p><p class="fine">Raíles v1.0 · AGPL-3.0 · Sin rastreo ni cuentas · Proyecto personal</p></div></footer>
 </main></body></html>'''
+    html = html.replace("</style>", CSS + "</style>")
     OUT.write_text(html,encoding="utf-8"); print("cifras ok",OUT,len(html))
 if __name__=="__main__": main()
