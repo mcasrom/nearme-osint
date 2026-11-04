@@ -48,7 +48,7 @@ h1{font-size:2rem;line-height:1.1;margin:.1em 0}.lead{max-width:800px;color:#334
 .warn{background:#fff7ed;border-left:4px solid #b45309;padding:10px 14px;border-radius:7px;font-size:.9rem}.muted{color:var(--muted);font-size:.82rem}
 .station{background:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px #0004}.leaflet-popup-content{font-size:.85rem}
 </style></head><body><main class="wrap">
-<p class="top"><a href="/">← radar</a> · <a href="/retrasos-renfe-mapa.html">retrasos en vivo</a> · <a href="/retrasos-renfe-hoy.html">estado del día</a></p>
+<p class="top"><a href="/">← radar</a> · <a href="/railes-cifras.html">cifras</a> · <a href="/retrasos-renfe-mapa.html">retrasos en vivo</a> · <a href="/retrasos-renfe-hoy.html">estado del día</a></p>
 <h1>Raíles</h1>
 <p class="lead">La alta velocidad española, <b>eje a eje</b>. Un esquema de los corredores principales, sus estaciones y su velocidad. No es un trazado oficial ni una estimación de pasajeros por corredor.</p>
 <p class="meta">Mapa esquemático · fuentes: Renfe/ADIF para estaciones y líneas; OpenStreetMap para el mapa base · actualizado con el build.</p>
@@ -67,7 +67,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,att
 const all=[]; const stations=new Set();
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 AXES.forEach(function(ax){
-  const latlngs=ax.stations.map(s=>[s[1],s[2]]); latlngs.push(latlngs[0]); all.push(...latlngs);
+  const latlngs=ax.stations.map(s=>[s[1],s[2]]); all.push(...latlngs);
   L.polyline(latlngs,{color:ax.color,weight:5,opacity:.85,lineCap:'round'}).addTo(map).on('click',()=>select(ax));
   ax.stations.forEach(function(s){stations.add(s[0]); L.circleMarker([s[1],s[2]],{radius:5,color:'#fff',weight:2,fillColor:ax.color,fillOpacity:1}).addTo(map).bindPopup('<b>'+esc(s[0])+'</b><br>'+esc(ax.name)+'<br>'+esc(ax.speed));});
 });
