@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 DATA = Path("/var/www/radar/datos/railes-cifras.json")
 OUT = Path("/var/www/radar/railes-cifras.html")
-LABEL = {"ES":"España","FR":"Francia","DE":"Alemania","IT":"Italia","EU27_2020":"UE-27"}
+LABEL = {"ES":"España","FR":"Francia","DE":"Alemania","IT":"Italia","EU27_2020":"UE-27","EUROPE":"Europa","WORLD":"Mundo"}
 COLOR = {"ES":"#ff5a1f","FR":"#3ddc97","DE":"#8ec5ff","IT":"#f2c94c","EU27_2020":"#bb6bd9"}
 def bar_rows(d, key, suffix):
     vals=[c for c in d["countries"] if c.get(key) is not None]
@@ -15,12 +15,24 @@ def bar_rows(d, key, suffix):
         pct=round(100*c[key]/mx,1)
         out.append(f'<div class="barrow"><span>{LABEL.get(c["code"],c["code"])}</span><div class="bar"><i style="width:{pct}%;background:{COLOR.get(c["code"],"#ff5a1f")}"></i></div><b>{c[key]:.1f}{suffix}</b></div>')
     return "".join(out)
+def bar_pairs(items, suffix):
+    mx=max(items.values(), default=1) or 1
+    out=[]
+    for code,val in items.items():
+        pct=round(100*val/mx,1)
+        out.append(f'<div class="barrow"><span>{LABEL.get(code,code)}</span><div class="bar"><i style="width:{pct}%;background:{COLOR.get(code,"#ff5a1f")}"></i></div><b>{val:.1f}{suffix}</b></div>')
+    return "".join(out)
+
 def main():
     d=json.loads(DATA.read_text(encoding="utf-8"))
     es=next((c for c in d["countries"] if c["code"]=="ES"), {})
+    hs=d.get("hs",{})
+    hs_km=hs.get("lines_km",{})
+    hs_pkm=hs.get("traffic_pkm_bn",{})
+    hs_share=round(100*hs_km.get("ES",0)/hs_km.get("WORLD",1),1) if hs_km.get("WORLD") else 0
     html=f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cifras · Raíles</title><meta name="description" content="Viajeros y pasajeros-km de ferrocarril en España, Francia, Alemania, Italia y UE-27. Datos Eurostat 2023; alta velocidad, inversión, mantenimiento y seguridad pendientes de fuente.">
-<link rel="canonical" href="https://radar.viajeinteligencia.com/railes-cifras.html"><meta property="og:title" content="Cifras · Raíles"><meta property="og:description" content="Ferrocarril total 2023: España frente a Europa. Sin alta velocidad desagregada todavía."><meta property="og:type" content="website"><meta property="og:url" content="https://radar.viajeinteligencia.com/railes-cifras.html"><meta property="og:image" content="https://radar.viajeinteligencia.com/retrasos-renfe-og.png"><meta name="twitter:card" content="summary_large_image">
+<title>Cifras · Raíles</title><meta name="description" content="Red y demanda de alta velocidad en España frente a Europa y el mundo; viajeros ferroviarios totales Eurostat. Inversión, mantenimiento y seguridad, separados y con fuente.">
+<link rel="canonical" href="https://radar.viajeinteligencia.com/railes-cifras.html"><meta property="og:title" content="Cifras · Raíles"><meta property="og:description" content="Alta velocidad: km y pasajeros-km UIC; ferrocarril total Eurostat. Sin cifras inventadas."><meta property="og:type" content="website"><meta property="og:url" content="https://radar.viajeinteligencia.com/railes-cifras.html"><meta property="og:image" content="https://radar.viajeinteligencia.com/retrasos-renfe-og.png"><meta name="twitter:card" content="summary_large_image">
 <style>
 :root{{--ink:#172033;--muted:#64748b;--line:#e2e8f0;--paper:#fffaf5}}
 *{{box-sizing:border-box}}body{{margin:0;background:#fafafa;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}}.wrap{{max-width:980px;margin:auto;padding:24px 16px 56px}}a{{color:#c2410c}}.top{{font-size:.85rem;margin-bottom:14px}}h1{{font-size:2rem;margin:.1em 0}}.lead{{max-width:780px;color:#334155}}.meta{{font-size:.82rem;color:var(--muted)}}
@@ -32,16 +44,18 @@ def main():
 </style></head><body><main class="wrap">
 <p class="top"><a href="/">← radar</a> · <a href="/railes.html">raíles</a> · <a href="/retrasos-renfe-mapa.html">retrasos en vivo</a></p>
 <h1>Cifras · Raíles</h1>
-<p class="lead">Demanda ferroviaria total en España frente a Francia, Alemania, Italia y la UE-27. <b>Eurostat no desglosa alta velocidad</b>: estos datos son de ferrocarril total, no de AVE.</p>
-<p class="meta">Año {d["year"]} · fuente: <a href="{d["source_url"]}" target="_blank" rel="noopener">{d["source"]}</a> · datos abiertos Eurostat.</p>
-<div class="kpis"><div class="kpi"><b>{es.get("pax_m",0):.1f} M</b><span>viajeros España</span></div><div class="kpi"><b>{es.get("pkm_bn",0):.1f} mil M</b><span>pasajeros-km España</span></div><div class="kpi"><b>{d["year"]}</b><span>último año Eurostat cargado</span></div></div>
-<div class="warn"><b>No es alta velocidad.</b> Eurostat publica ferrocarril total. Para AVE/AV hacen falta OFE/ADIF/UIC. No se presenta el total como si fuera alta velocidad.</div>
+<p class="lead">Alta velocidad española frente a Europa y el mundo: kilómetros de red y pasajeros-km. El bloque de ferrocarril total se mantiene separado porque Eurostat no desglosa AVE.</p>
+<p class="meta">Red: UIC, estado a {hs.get("network_state","—")} · Demanda AV: {hs.get("traffic_year","—")} · Total ferroviario: Eurostat {d["year"]}.</p>
+<div class="kpis"><div class="kpi"><b>{hs_km.get("ES",0):,.0f} km</b><span>alta velocidad en servicio · España</span></div><div class="kpi"><b>{hs_pkm.get("ES",0):.1f} mil M</b><span>pasajeros-km de AV · 2023</span></div><div class="kpi"><b>{hs_share:.1f} %</b><span>de la red AV mundial</span></div></div>
+<div class="warn"><b>Dos bases distintas, no mezcladas.</b> UIC mide <b>alta velocidad</b> (red y pasajeros-km). Eurostat mide <b>ferrocarril total</b>. No se presenta el total como si fuera AVE.</div>
+<div class="card"><h2>Red de alta velocidad <span class="muted">km en servicio · 2024</span></h2>{bar_pairs(hs_km," km")}<p class="muted">UIC High-Speed Atlas 2025. España: <b>{hs_km.get("ES",0):,.0f} km</b>; Europa: <b>{hs_km.get("EUROPE",0):,.0f} km</b>; mundo: <b>{hs_km.get("WORLD",0):,.0f} km</b>. Es red en servicio, no kilómetros de vía.</p></div>
+<div class="card"><h2>Demanda de alta velocidad <span class="muted">pasajeros-km · miles de millones · 2023</span></h2>{bar_pairs(hs_pkm," mil M")}<p class="muted">UIC, tráfico de alta velocidad. No hay dato de viajeros únicos; no se estima.</p></div>
 <div class="card"><h2>Viajeros por país <span class="muted">millones · 2023</span></h2>{bar_rows(d,"pax_m"," M")}<p class="muted">Viajeros transportados; no son usuarios únicos. La UE-27 no tiene dato de viajeros en esta consulta.</p></div>
 <div class="card"><h2>Pasajeros-km <span class="muted">miles de millones · 2023</span></h2>{bar_rows(d,"pkm_bn"," mil M")}<p class="muted">Pasajeros-km: demanda ponderada por distancia. No es lo mismo que viajeros.</p></div>
-<div class="card pending"><h2>Alta velocidad: pendiente de fuente</h2><p>Kilómetros de red, viajeros y pasajeros-km <b>solo de alta velocidad</b> no están en <code>RAIL_PA_TOTAL</code>. Fuentes a integrar: Observatorio del Ferrocarril, ADIF/ADIF AV y UIC. Hasta entonces: sin dato.</p><p class="muted">No se estima repartiendo el total ferroviario.</p></div>
+<div class="card"><h2>Qué falta en alta velocidad</h2><p>La red y la demanda ya están. Faltan <b>viajeros únicos</b> (no existen como serie), <b>inversión y mantenimiento por corredor</b> y <b>seguridad desagregada</b>. No se estiman.</p><p class="muted">Fuente UIC: <a href="{hs.get("source_url","")}" target="_blank" rel="noopener">{hs.get("source","UIC")}</a>.</p></div>
 <div class="card pending"><h2>Inversión y mantenimiento: pendiente</h2><p>Inversión ejecutada y gasto de mantenimiento son anuales y agregados. Fuentes: ADIF/ADIF AV, MITMA y PGE. No hay desglose público limpio por corredor.</p><p class="muted">No se publica €/km ni €/pasajero-km hasta validar denominador y año.</p></div>
 <div class="card pending"><h2>Seguridad: pendiente</h2><p>Accidentes e incidentes comparables: ERA (indicadores comunes de seguridad) y CIAF en España. Publicación anual y con retraso; el accidente de Urda de 2026 no está consolidado.</p><p class="muted">No se mezclan retrasos GTFS-RT con accidentes.</p></div>
-<div class="card"><h2>Qué se puede afirmar hoy</h2><ul><li>España movió <b>{es.get("pax_m",0):.1f} millones</b> de viajeros ferroviarios en 2023.</li><li>La demanda española fue <b>{es.get("pkm_bn",0):.1f} mil millones de pasajeros-km</b>.</li><li>Alemania y Francia tienen más demanda total; la comparación de alta velocidad aún no está disponible.</li></ul><p class="muted">Datos: <a href="/datos/railes-cifras.json">JSON</a> · fuente original Eurostat.</p></div>
+<div class="card"><h2>Qué se puede afirmar hoy</h2><ul><li>España tiene <b>{hs_km.get("ES",0):,.0f} km</b> de alta velocidad en servicio.</li><li>La AV española movió <b>{hs_pkm.get("ES",0):.1f} mil millones de pasajeros-km</b> en 2023.</li><li>España representa el <b>{hs_share:.1f} %</b> de la red AV mundial; Francia y Alemania tienen más demanda de AV.</li><li>El ferrocarril total español movió <b>{es.get("pax_m",0):.1f} millones</b> de viajeros en 2023.</li></ul><p class="muted">Datos: <a href="/datos/railes-cifras.json">JSON</a> · fuente original Eurostat.</p></div>
 <footer class="muted">Proyecto personal · sin cookies · AGPL-3.0 · <a href="https://github.com/mcasrom/nearme-osint">código</a></footer>
 </main></body></html>'''
     OUT.write_text(html,encoding="utf-8"); print("cifras ok",OUT,len(html))

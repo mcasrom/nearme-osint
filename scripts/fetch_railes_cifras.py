@@ -7,7 +7,7 @@ def get(unit):
     q=urllib.parse.urlencode([("format","JSON"),("lang","EN"),("unit",unit),("time","2023")]+[("geo",g) for g in GEOS])
     req=urllib.request.Request(BASE+"?"+q,headers={"User-Agent":"Mozilla/5.0"})
     with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
-out={"year":2023,"source":"Eurostat · RAIL_PA_TOTAL","source_url":"https://doi.org/10.2908/RAIL_PA_TOTAL","note":"Ferrocarril total; Eurostat no desglosa alta velocidad.","countries":[]}
+out={"year":2023,"source":"Eurostat · RAIL_PA_TOTAL","source_url":"https://doi.org/10.2908/RAIL_PA_TOTAL","note":"Ferrocarril total; Eurostat no desglosa alta velocidad.","countries":[],"hs":{"source":"UIC High-Speed Atlas 2025","source_url":"https://uic.org/activities/high-speed-data-and-atlas","network_state":"2024-12-31","traffic_year":2023,"lines_km":{"ES":3993,"FR":2760,"DE":1941,"IT":1097,"EUROPE":13031,"WORLD":67723},"traffic_pkm_bn":{"ES":15.3,"FR":59.7,"DE":38.0,"IT":26.0,"WORLD":1210.6}}}
 by={}
 for code,unitkey in (("pax_m","THS_PAS"),("pkm_bn","MIO_PKM")):
  d=get(unitkey); idx=d["dimension"]["geo"]["category"]["index"]; vals=d.get("value",{})
