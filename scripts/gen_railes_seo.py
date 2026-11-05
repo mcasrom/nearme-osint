@@ -5,6 +5,7 @@ ROOT=Path("/var/www/radar")
 PAGES=[
  ("railes.html","2026-11-04","weekly","0.9"),
  ("railes-cifras.html","2026-11-04","monthly","0.8"),
+ ("railes-inversiones.html","2026-11-05","monthly","0.7"),
  ("railes-fuentes.html","2026-11-04","monthly","0.7"),
  ("railes-about.html","2026-11-04","monthly","0.6"),
 ]
@@ -22,11 +23,13 @@ llms='''# El Observatorio Ciudadano del Ferrocarril — Raíles
 ## Páginas
 - https://radar.viajeinteligencia.com/railes.html — mapa esquemático de corredores y estaciones.
 - https://radar.viajeinteligencia.com/railes-cifras.html — km de AV, densidad, km por habitante, intensidad de uso, serie 2013–2024 del ferrocarril total y seguridad ERA 2006–2024.
+- https://radar.viajeinteligencia.com/railes-inversiones.html — registro de macroinversiones ferroviarias con importe, estado y fuente.
 - https://radar.viajeinteligencia.com/railes-fuentes.html — fuentes, frecuencia, método, límites y contacto.
 - https://radar.viajeinteligencia.com/railes-about.html — qué es Raíles, qué no hace y ecosistema (viajeinteligencia.com / pruebapublica.com).
 
 ## Datos
 - https://radar.viajeinteligencia.com/datos/railes-cifras.json — cifras UIC/Eurostat/ERA, series y contexto Banco Mundial.
+- https://radar.viajeinteligencia.com/datos/railes-inversiones.json — fichas de macroinversiones con fuente y estado.
 - https://radar.viajeinteligencia.com/retrasos-renfe-mapa.html — retrasos operativos de Renfe.
 - https://radar.viajeinteligencia.com/datos/retrasos-renfe-mapa.json — JSON de retrasos.
 
