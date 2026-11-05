@@ -196,5 +196,14 @@
       "vat": "sin IVA",
       "note": "Importe mínimo (>30 M€); no ejecución."
     }
-  ]
+  ],
+  "coverage": {
+    "status": "mvp",
+    "completion_pct": 60,
+    "executed_investment": false,
+    "maintenance": false,
+    "pge": false,
+    "note": "Inversión ejecutada y mantenimiento pendientes: ADIF/ADIF AV publican cuentas anuales y memorias en PDF, sin API ni desglose homogéneo por proyecto. El PGE/IGAE da agregados, no proyectos. No se estima.",
+    "next_review": "2026-12"
+  }
 }

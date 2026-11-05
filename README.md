@@ -259,3 +259,14 @@ Hecho por un desarrollador independiente en España. Si te resulta útil:
 ## Navegación cruzada
 En el footer: enlaces directos a Radar (emergencias), Noticias, Datos por país y
 Ecosistema. Los enlaces siguen los journeys reales de los usuarios.
+
+## 🚆 Raíles — observatorio ferroviario
+
+Datos abiertos de alta velocidad y ferrocarril en `radar.viajeinteligencia.com`:
+
+- `/railes.html` — mapa esquemático de corredores y estaciones.
+- `/railes-cifras.html` — red, densidad, uso, series 2013–2024 y seguridad ERA.
+- `/railes-inversiones.html` — **registro parcial de macroinversiones**: 12 fichas con importe, estado y fuente oficial.
+- `/railes-fuentes.html` y `/railes-about.html` — fuentes, método, límites y ecosistema.
+
+**Límites**: los importes de macroinversiones no se suman: mezclan licitado, adjudicado, movilizado e inversión prevista. **Inversión ejecutada y mantenimiento siguen pendientes** (ADIF/ADIF AV en PDF; PGE/IGAE agregado). Revisión prevista: diciembre de 2026. No se estiman cifras por corredor ni €/km sin denominador homogéneo.
